@@ -7,3 +7,4 @@ feeds.json
 grade.json
 package-lock.json
 logs
+cron.log
