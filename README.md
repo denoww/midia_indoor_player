@@ -4,7 +4,7 @@
 
 Primeiramente clone o repositório
 ```
-cd ~; git clone https://github.com/denoww/sc_player.git; cd ~/sc_player/
+cd /var/lib; git clone https://github.com/denoww/midia_indoor_player.git; cd ~/midia_indoor_player/
 ```
 
 Execute a tarefa .config
@@ -16,7 +16,7 @@ cd ~/sc_player/; tasks/./config.sh
 Caso queira ligar o servidor na mão
 
 ```
-cd ~/sc_player/; npm start
+cd /var/lib/midia_indoor_player/; npm start
 ```
 
 Siga os passos de configuração, pode aceitar todas as opções na primeira instalação.
