@@ -1,0 +1,13 @@
+{
+  "dest": "dist/installers/",
+  "icon": "app/assets/images/icon.png",
+  "categories": [
+    "Utility"
+  ],
+  "lintianOverrides": [
+    "changelog-file-missing-in-native-package"
+  ],
+  "options": {
+    "productName": "Player"
+  }
+}

@@ -1,0 +1,229 @@
+<html>
+  <head>
+    <title>Player</title>
+
+    <script src="/javascripts/lib/array.js"></script>
+    <script src="/javascripts/lib/date.js"></script>
+    <script src="/javascripts/lib/object.js"></script>
+    <script src="/javascripts/lib/string.js"></script>
+
+    <link rel="icon" href="/images/favicon.png">
+    <link rel="stylesheet" type="text/css" href="stylesheets/fonts.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/styles.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/sc-icons.css">
+  </head>
+
+  <body id="body-player">
+    <!-- style="cursor: none"> -->
+    <div id="main-player" :class="[grade.data.layout, grade.data.cor]" @mousemove="mouse">
+      <div id="content-main" class="content-main" v-show="loaded">
+        <!-- offline -->
+        <div class="offline" v-if="!online">Sem Internet</div>
+        <!-- <div class="offline" v-else-if="grade.data.offline">Sem Conexão</div> -->
+        <!-- offline -->
+
+        <div class="content-top">
+          <div class="content-side">
+            <!-- data e hora -->
+            <div class="item-hora">
+              <div class="dia-semana">
+                <div class="dia">{{now | formatDayMonth}}</div>
+                <div class="semana">{{now | formatWeek}}</div>
+              </div>
+              <div id="hora">--:--</div>
+            </div>
+            <!-- data e hora -->
+
+            <!-- weather -->
+            <div class="item-weather" v-if="grade.data.weather.temperatura">
+              <div class="cidade">
+                {{grade.data.cidade}}
+              </div>
+              <div class="main-weather">
+                <div class="icone-weather" :style="{'background-image': 'url(/images/weather/' + grade.data.weather.icone + '.png)'}"></div>
+                <div class="temperatura-weather">
+                  <span>{{grade.data.weather.temperatura}}</span>
+                  <div class="min-max" v-if="grade.data.weather.min && grade.data.weather.max">
+                    Min: <b>{{grade.data.weather.min}}&#176;</b> | Max: <b>{{grade.data.weather.max}}&#176;</b>
+                  </div>
+                </div>
+              </div>
+              <div class="descricao-weather">{{grade.data.weather.descricao}}</div>
+              <div class="info-weather">
+                <div class="umidade">Umidade: <b>{{grade.data.weather.umidade || '--'}}</b></div>
+                <div class="vento">Vento: <b>{{grade.data.weather.vento || '--'}}</b></div>
+              </div>
+              <div class="proximos_dias">
+                <div v-for="proximo in grade.data.weather.proximos_dias">
+                  <!-- <div class="dia">{{proximo.dia}}</div> -->
+                  <b class="data">{{proximo.data}}</b>
+                  <div class="min-max">
+                    <div>
+                      <div class="desc">MIN</div>
+                      <b>{{proximo.min}}&#176;</b>
+                    </div>
+                    <div>
+                      <div class="desc">MAX</div>
+                      <b>{{proximo.max}}&#176;</b>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- weather -->
+
+            <!-- finance -->
+            <div class="item-finance">
+              <div :class="sym" v-for="(item, sym) in grade.data.finance" v-if="item.valor">
+                <div class="titulo">
+                  <div>
+                    {{item.label}}
+                    <span class="variacao">
+                      {{item.variacao < 0 ? '&#9660;' : '&#9650;'}}
+                      {{item.variacao}}%
+                    </span>
+                    <div class="valor" v-if="item.tipo == 'moeda'"><span class="sifrao">R$</span>{{item.valor | currency}}</div>
+                    <div class="valor" v-if="item.tipo == 'indice'">{{item.valor | currency }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- finance -->
+
+            <!-- informacoes -->
+            <div class="item-informacoes">
+              <div v-html="grade.data.informacoes"></div>
+            </div>
+            <!-- informacoes -->
+          </div> <!-- content-side -->
+
+          <div class="content-player">
+            <div class="player-item">
+
+              <div v-for="(item, index) in listaConteudoSuperior" :key="item.id" :class="[{'active': (index === indexConteudoSuperior)}]" class="playlist-content">
+
+                <transition name="fade">
+                  <div v-show="index === indexConteudoSuperior">
+                    <!-- feeds -->
+                    <div v-if="item.tipo_midia === 'feed'" class="content-feed">
+                      <div class="feed-main">
+                        <div class="feed-info">
+                          <div class="feed-fonte" :style="{'background-image': 'url(/images/feeds/' + item.fonte + '.png)'}"></div>
+                          <div class="feed-categoria">{{item.categoria_feed || item.titulo_feed}}</div>
+                          <div class="feed-out"></div>
+                        </div>
+                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.nome_arquivo ? 'sc-protocol://' + grade.data.path + 'downloads/feeds/' + item.nome_arquivo : '/images/no-image.png') + ')'}">&nbsp;</div>
+                        <div class="feed-titulo" :class="[{'com-qrcode': item.qrcode}]">
+                          <div class="feed-data" v-if="item.data">{{item.data | formatDate}}</div>
+                          {{item.titulo}}
+                          <div class="feed-qrcode" v-if="item.qrcode" :style="{'background-image': 'url(' + item.qrcode + ')'}"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- feeds -->
+
+                    <!-- midia -->
+                    <div class="midia-main" v-else-if="item.tipo_midia === 'midia'">
+                      <div class="midia-imagem" v-if="item.is_image"
+                        :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/images/' + item.nome_arquivo + ')'}">
+                      </div>
+
+                      <video class="midia-video"
+                        v-if="item.is_video"
+                        :id="'video-player-' + item.id"
+                        preload="auto">
+                        <source :src="'sc-protocol://' + grade.data.path + 'downloads/videos/' + item.nome_arquivo" :type="item.content_type">
+                      </video>
+                    </div>
+                    <!-- midia -->
+
+                    <!-- informativo -->
+                    <div class="informativo-main" v-else-if="item.tipo_midia === 'informativo'">
+                      <div class="informativo" :class="item.mensagem.layout" :style="
+                        {
+                          'background-image': 'url(/images/informativos/' + item.mensagem.imagem + ')',
+                          'background-color': item.mensagem.cor_fundo,
+                        }
+                      ">
+                        <svg viewBox="0 0 1920 1080">
+                          <foreignObject height="100%" width="100%">
+                            <div class="conteudo">
+                              <div class="titulo" :style="{'color': item.mensagem.cor_titulo}">
+                                <div>{{item.titulo}}</div>
+                              </div>
+                              <div class="mensagem" :style="{'color': item.mensagem.cor_mensagem}">
+                                <div v-html="item.mensagem.texto"></div>
+                              </div>
+                            </div>
+                          </foreignObject>
+                        </svg>
+                      </div>
+                    </div>
+                    <!-- informativo -->
+
+                  </div>
+                </transition>
+
+              </div>
+
+            </div> <!-- player-item -->
+          </div> <!-- content-player -->
+        </div> <!-- content-top -->
+
+        <div class="content-footer">
+          <div class="content-logo" :class="[grade.data.cor == 'gray' ? 'black' : '']">
+            <img v-if="grade.data.logo_nome" class="logo" :src="'sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo_nome">
+            <img v-else="" class="logo" :src="'/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png'">
+            <!-- <div v-if="grade.data.logo_nome" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo_nome + ')'}"></div>
+            <div v-else="" class="logo" :style="{'background-image': 'url(/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png)'}"></div> -->
+          </div> <!-- content-logo -->
+
+          <div class="content-mensagem">
+            <div v-for="(item, index) in listaConteudoMensagem" :key="item.id" :class="[{'active': (index === indexConteudoMensagem)}]">
+              <div v-show="index === indexConteudoMensagem">
+                <!-- mensagem -->
+                <div v-if="item.tipo_midia === 'mensagem'">
+                  <div class="titulo" v-if="item.titulo">{{item.titulo}}</div>
+                  <div class="mensagem" v-if="item.mensagem" v-html="item.mensagem"></div>
+                </div>
+                <!-- mensagem -->
+
+                <!-- feeds -->
+                <div class="feed" v-else-if="item.tipo_midia === 'feed'">
+                  <div class="feed-fonte" :style="{'background-image': 'url(/images/feeds/' + item.fonte + '.png)'}"></div>
+                  <div>
+                    <div class="categoria">{{item.titulo_feed}}</div>
+                    <div class="titulo">{{item.titulo}}</div>
+                  </div>
+                </div>
+                <!-- feeds -->
+              </div>
+            </div>
+          </div> <!-- content-mensagem -->
+
+          <div class="current-version" v-if="grade.data.current_version">V. {{grade.data.current_version}}</div>
+        </div> <!-- content-footer -->
+      </div> <!-- content-main -->
+
+      <div class="loading" v-if="loading">
+        <div>&nbsp;</div>
+        <div class="logo" style="background-image: url('/images/logo-white.png')"></div>
+        <div class="text">
+          <div><i class="sc-icon-carregando-1 sc-icon-spin"></i></div>
+          Carregando
+        </div>
+      </div> <!-- loading -->
+
+    </div>
+
+  </body>
+
+  <script src="/javascripts/lib/sentry.min.js" integrity="sha384-/x1aHz0nKRd6zVUazsV6CbQvjJvr6zQL2CHbQZf3yoLkezyEtZUpqUNnOLW9Nt3v" crossorigin="anonymous"></script>
+  <script src="/javascripts/lib/sentry-vue.min.js" crossorigin="anonymous"></script>
+
+  <script src="/javascripts/lib/moment.min.js"></script>
+  <script src="/javascripts/lib/moment_pt-br.js"></script>
+  <script src="/javascripts/lib/vue.min.js"></script>
+  <script src="/javascripts/lib/vue-resource.min.js"></script>
+  <script src="/javascripts/app.js"></script>
+</html>

@@ -1,0 +1,3 @@
+{
+  "ignore": ["grade.json", "feeds.json", "README.md", "README"]
+}

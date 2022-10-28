@@ -1,0 +1,9 @@
+node_modules
+dist
+downloads
+.env_DEVELOPMENT
+.current_version
+feeds.json
+grade.json
+package-lock.json
+logs
