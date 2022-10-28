@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# cd /var/lib/sc_player/
+# cd /var/lib/midia_indoor_player/
 # rm -rf node_modules/sharp
 # npm remove sharp
 # npm install sharp

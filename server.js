@@ -5,7 +5,7 @@ if (process.versions.electron) {
 }
 
 global.homePath = (process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH) + '/';
-global.configPath = global.homePath + '.config/sc_player/';
+global.configPath = global.homePath + '.config/midia_indoor_player/';
 
 require('coffeescript').register();
 require('./env');

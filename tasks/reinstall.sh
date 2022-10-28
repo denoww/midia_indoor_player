@@ -1,5 +1,5 @@
 # #!/bin/bash
-# cd /var/lib/sc_player/
+# cd /var/lib/midia_indoor_player/
 
 # sudo chown pi:pi -R .
 # /usr/bin/git reset --hard

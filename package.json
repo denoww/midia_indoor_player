@@ -1,5 +1,5 @@
 {
-  "name": "sc_player",
+  "name": "midia_indoor_player",
   "version": "2.3.0",
   "description": "Player",
   "main": "server.js",

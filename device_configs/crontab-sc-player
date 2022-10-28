@@ -1,5 +1,5 @@
-# iniciar sc_player apos reboot
-@reboot root /var/lib/sc_player/tasks/init.sh >> /var/lib/sc_player/cron.log 2>&1
+# iniciar midia_indoor_player apos reboot
+@reboot root /var/lib/midia_indoor_player/tasks/init.sh >> /var/lib/midia_indoor_player/cron.log 2>&1
 
-# reiniciar sc_player se tiver morrido
-* * * * * root /var/lib/sc_player/tasks/reinit.sh >> /var/lib/sc_player/cron.log 2>&1
+# reiniciar midia_indoor_player se tiver morrido
+* * * * * root /var/lib/midia_indoor_player/tasks/reinit.sh >> /var/lib/midia_indoor_player/cron.log 2>&1

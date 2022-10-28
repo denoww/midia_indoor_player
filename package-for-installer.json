@@ -1,5 +1,5 @@
 {
-  "name": "sc_player",
+  "name": "midia_indoor_player",
   "version": "2.2.0",
   "description": "Player",
   "main": "server.js",
@@ -18,9 +18,9 @@
     "build-deb": "npm run package-deb && npm run deb",
     "build-deb-rasp": "npm run package-deb-rasp && npm run deb-rasp",
     "package-deb": "electron-packager . --overwrite --platform linux --arch x64 --icon=app/assets/images/icon.png --prune=true --out dist",
-    "deb": "electron-installer-debian --src dist/sc_player-linux-x64/ --arch amd64 --config installers/deb_config.json",
+    "deb": "electron-installer-debian --src dist/midia_indoor_player-linux-x64/ --arch amd64 --config installers/deb_config.json",
     "package-deb-rasp": "electron-packager . --overwrite --platform linux --arch armv7l --icon=app/assets/images/icon.png --prune=true --out dist",
-    "deb-rasp": "electron-installer-debian --src dist/sc_player-linux-armv7l/ --arch armv7l --config installers/deb_config.json",
+    "deb-rasp": "electron-installer-debian --src dist/midia_indoor_player-linux-armv7l/ --arch armv7l --config installers/deb_config.json",
     "build-win": "npm run package-win && npm run win",
     "package-win": "electron-packager . --overwrite --asar --platform=win32 --arch=ia32 --icon=app/assets/images/icon.ico --prune=true --out=dist --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"Player\"",
     "win": "node installers/create_win_installer.js"

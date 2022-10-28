@@ -14,11 +14,11 @@ function getInstallerConfig () {
   const outPath = path.join(rootPath, 'dist')
 
   return Promise.resolve({
-    appDirectory: path.join(outPath, 'sc_player-win32-ia32/'),
+    appDirectory: path.join(outPath, 'midia_indoor_player-win32-ia32/'),
     noMsi: true,
     outputDirectory: path.join(outPath, 'windows-installer'),
-    exe: 'sc_player.exe',
-    setupExe: 'sc_player.exe',
+    exe: 'midia_indoor_player.exe',
+    setupExe: 'midia_indoor_player.exe',
     setupIcon: path.join(rootPath, 'app/assets/images/icon.ico')
   })
 }

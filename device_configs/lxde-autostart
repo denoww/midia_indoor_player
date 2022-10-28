@@ -6,4 +6,4 @@
 @xset s off
 @xset -dpms
 @xset s noblank
-# @lxterminal -e /var/lib/sc_player/tasks/./init.sh
+# @lxterminal -e /var/lib/midia_indoor_player/tasks/./init.sh

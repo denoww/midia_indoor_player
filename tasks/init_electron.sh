@@ -2,7 +2,7 @@
 export DISPLAY=":0"
 /usr/bin/xdotool mousemove --sync 4000 4000
 
-cd /var/lib/sc_player/
+cd /var/lib/midia_indoor_player/
 /usr/bin/npm run start-electron &
 
 # cliques na tela para simular acao do usuario para corrigir problema

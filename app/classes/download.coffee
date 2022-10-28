@@ -14,7 +14,7 @@ module.exports = ->
     init: ->
       folders  = []
       folders.push global.homePath + '.config/'
-      basePath = global.homePath + '.config/sc_player/'
+      basePath = global.homePath + '.config/midia_indoor_player/'
 
       folders.push basePath
       folders.push basePath + 'downloads'
