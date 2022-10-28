@@ -1,5 +1,9 @@
 # midia_indoor_player
 
+## PARA NÃO LIGAR NO STARTUP NUNCA MAIS, APAGUE ESSE ARQUIVO
+
+$ rm  ~/.config/autostart/init.sh.desktop
+
 ## TUTORIAL DE CONFIGURAÇÃO
 
 Primeiramente clone o repositório
@@ -13,7 +17,7 @@ Execute a tarefa .config
 cd /var/lib/midia_indoor_player/; tasks/./config.sh
 ```
 
-Caso queira ligar o servidor na mão
+ligue o servidor (a partir disso vai ligar no startup sempre)
 
 ```
 cd /var/lib/midia_indoor_player/; npm start
