@@ -4,7 +4,7 @@
 
 Primeiramente clone o repositório
 ```
-cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/
+cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
 ```
 
 Execute a tarefa .config
