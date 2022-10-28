@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/pi/sc_player/
+cd /var/lib/sc_player/
 rm cron.log # remover arquivo de logs
 
 # atualiza o npm
@@ -10,7 +10,7 @@ rm cron.log # remover arquivo de logs
 sleep 2
 
 # atualiza o repositorio
-/home/pi/sc_player/tasks/./update_repository.sh
+/var/lib/sc_player/tasks/./update_repository.sh
 
 # reinicia o equipamento
 sudo /sbin/reboot

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# cd /home/pi/sc_player/
+# cd /var/lib/sc_player/
 # rm -rf node_modules/sharp
 # npm remove sharp
 # npm install sharp

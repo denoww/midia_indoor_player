@@ -3,7 +3,7 @@ sleep 10 # esperar uma conexao com a internet
 export DISPLAY=":0"
 /usr/bin/xdotool mousemove --sync 4000 4000
 
-cd /home/pi/sc_player/
+cd /var/lib/sc_player/
 /usr/bin/git pull &
 /usr/bin/npm run update_timezone &
 /usr/bin/npm start &

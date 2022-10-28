@@ -1,2 +1,2 @@
 #!/bin/sh
-/home/pi/sc_player/tasks/./update_daily.sh
+/var/lib/sc_player/tasks/./update_daily.sh

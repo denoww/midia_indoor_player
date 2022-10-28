@@ -6,12 +6,12 @@ if [[ "$config_desktop" == "y" || "$config_desktop" == "Y" ]] ; then
 
   # configurando barra de tarefas
   echo '--- Configurando barra de tarefas'
-  sh -c 'cp ~/sc_player/device_configs/panel /home/pi/.config/lxpanel/LXDE-pi/panels/panel'
+  sh -c 'cp ~/sc_player/device_configs/panel /var/lib/.config/lxpanel/LXDE-pi/panels/panel'
 
   # configurando wallpaper do dispo
   echo '--- Configurando wallpaper do dispositivo'
-  sh -c 'cp ~/sc_player/device_configs/wallpaper.png /home/pi/Pictures/'
-  sh -c 'pcmanfm --set-wallpaper="/home/pi/Pictures/wallpaper.png"'
+  sh -c 'cp ~/sc_player/device_configs/wallpaper.png /var/lib/Pictures/'
+  sh -c 'pcmanfm --set-wallpaper="/var/lib/Pictures/wallpaper.png"'
 fi
 
 # configurando variaveis de ambiente

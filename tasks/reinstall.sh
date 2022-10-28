@@ -1,5 +1,5 @@
 # #!/bin/bash
-# cd /home/pi/sc_player/
+# cd /var/lib/sc_player/
 
 # sudo chown pi:pi -R .
 # /usr/bin/git reset --hard

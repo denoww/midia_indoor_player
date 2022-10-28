@@ -11,20 +11,20 @@ verify_servers(){
     echo "starting servers!"
 
     export DISPLAY=":0"
-    /home/pi/sc_player/tasks/./init.sh
+    /var/lib/sc_player/tasks/./init.sh
 
   elif [ -z "$NODE_RUNNING" ]; then
     echo "starting node server!"
 
     export DISPLAY=":0"
-    cd /home/pi/sc_player/
+    cd /var/lib/sc_player/
     /usr/bin/npm run start-node
 
   elif [ -z "$ELECTRON_RUNNING" ]; then
     echo "starting electron server!"
 
     export DISPLAY=":0"
-    /home/pi/sc_player/tasks/./init_electron.sh
+    /var/lib/sc_player/tasks/./init_electron.sh
 
   else
     echo "servers are running!"
