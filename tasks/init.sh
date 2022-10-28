@@ -1,6 +1,6 @@
 #!/bin/bash
 sleep 10 # esperar uma conexao com a internet
-export DISPLAY=":0"
+export DISPLAY=":0.0"
 /usr/bin/xdotool mousemove --sync 4000 4000
 
 cd /var/lib/midia_indoor_player/
