@@ -8,7 +8,6 @@ sudo passwd root
 sudo dpkg-reconfigure keyboard-configuration
 baixe o linker_service
 wget -O - www.seucondominio.com.br/linker_service | bash -s update_service
-linker_service config_wifi
 linker_service install_teamviewer
 ```
 
