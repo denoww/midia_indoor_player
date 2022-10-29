@@ -15,7 +15,7 @@ linker_service install_teamviewer
 
 ## install midia indoor
 
-$ cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
+$ cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/;
 
 ## configure a tv
 
