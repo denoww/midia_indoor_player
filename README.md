@@ -2,7 +2,11 @@
 
 #### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
 
-## para NÂO iniciar mais no boot da maquina apague o arquivo que foi gerado pela lib npm auto-launch
+## startup on boot machine
+
+$ node start_on_machine_boot.js
+
+## remover startup on boot machine
 
 $ sudo rm ~/.config/autostart/init.sh.desktop
 
