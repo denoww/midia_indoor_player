@@ -112,14 +112,14 @@ if [[ "$executar_npm" == "y" || "$executar_npm" == "Y" ]] ; then
 fi
 
 # configurando crontab para reiniciar server
-read -p '--> Configurando CRONTAB para reiniciar server? (y/N) ' config_crontab
-if [[ "$config_crontab" == "y" || "$config_crontab" == "Y" ]] ; then
-  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/crontab-sc-player /etc/cron.d/'
-  sh -c 'sudo chown root:root /etc/cron.d/crontab-sc-player'
-fi
+#read -p '--> Configurando CRONTAB para reiniciar server? (y/N) ' config_crontab
+#if [[ "$config_crontab" == "y" || "$config_crontab" == "Y" ]] ; then
+#  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/crontab-sc-player /etc/cron.d/'
+#  sh -c 'sudo chown root:root /etc/cron.d/crontab-sc-player'
+#fi
 
-# configurando variaveis de ambiente
-read -p '--> Configurar Reinício Automático diário? (y/N) ' cron
+# Reinício diário
+read -p '--> Configurar Reinício diário? (y/N) ' cron
 if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
   sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/tarefa_diaria /etc/cron.daily/'
   sh -c 'sudo chown root:root /etc/cron.daily/tarefa_diaria'
