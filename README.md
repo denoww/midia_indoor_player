@@ -1,5 +1,7 @@
 # midia_indoor_player
 
+#### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
+
 ## TUTORIAL DE CONFIGURAÇÃO
 
 Primeiramente clone o repositório
