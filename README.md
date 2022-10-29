@@ -25,47 +25,6 @@ ligue o servidor
 cd /var/lib/midia_indoor_player/; npm start
 ```
 
-## starup on boot e reabrir se quebrar em erro
-
-
-```
-============================================
-Crie um service para chamar o start da midia_indoor_player
-============================================
-sudo nano /etc/systemd/system/midia_indoor_player.service
-
-=================================
-Coloque o conteúdo
-=================================
-
-
-[Unit]
-Description=midia_indoor_player
-
-[Service]
-Restart=always
-RestartSec=0
-ExecStart=/usr/bin/sudo /bin/bash -lc '/var/lib/midia_indoor_player/tasks/./init.sh'
-
-[Install]
-WantedBy=multi-user.target
-
-
-=================================
-Execute
-=================================
-sudo systemctl enable midia_indoor_player; sudo systemctl start midia_indoor_player
-Veja se ligou (tente acessar no navegador)
-reinicie o servidor
-
-
-=================================
-Stop se necessário
-=================================
-
-sudo systemctl stop midiaindoor
-
-```
 
 Siga os passos de configuração, pode aceitar todas as opções na primeira instalação.
 
