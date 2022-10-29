@@ -2,6 +2,10 @@
 
 #### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
 
+## para NÂO iniciar mais no boot da maquina apague o arquivo que foi gerado pela lib npm auto-launch
+
+$ sudo rm ~/.config/autostart/init.sh.desktop
+
 ## TUTORIAL DE CONFIGURAÇÃO
 
 Primeiramente clone o repositório
