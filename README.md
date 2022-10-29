@@ -1,23 +1,18 @@
 # midia_indoor_player
 
-$ cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git;
+$ cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
 
 #### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
 
 ## startup on boot machine
 
-$ node start_on_machine_boot.js
+$ node /var/lib/midia_indoor_player/start_on_machine_boot.js
 
 ## remover startup on boot machine
 
 $ sudo rm ~/.config/autostart/init.sh.desktop
 
 ## TUTORIAL DE CONFIGURAÇÃO
-
-Primeiramente clone o repositório
-```
-cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
-```
 
 Execute a tarefa .config
 
