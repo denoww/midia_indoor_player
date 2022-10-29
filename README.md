@@ -1,3 +1,5 @@
+#### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
+
 # midia_indoor_player
 
 ## pt_br + teamviwer
@@ -15,7 +17,13 @@ linker_service install_teamviewer
 
 $ cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
 
-#### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
+## configure a tv
+
+Execute a tarefa .config
+
+```
+cd /var/lib/midia_indoor_player/; tasks/./config.sh
+```
 
 ## startup on boot machine
 
@@ -25,13 +33,7 @@ $ node /var/lib/midia_indoor_player/start_on_machine_boot.js
 
 $ sudo rm ~/.config/autostart/init.sh.desktop
 
-## configure a tv
 
-Execute a tarefa .config
-
-```
-cd /var/lib/midia_indoor_player/; tasks/./config.sh
-```
 
 ligue o servidor 
 
