@@ -1,6 +1,18 @@
 # midia_indoor_player
 
-## install
+## pt_br + teamviwer
+
+```
+sudo passwd orangepi
+sudo passwd root
+sudo dpkg-reconfigure keyboard-configuration
+baixe o linker_service
+wget -O - www.seucondominio.com.br/linker_service | bash -s update_service
+linker_service config_wifi
+linker_service install_teamviewer
+```
+
+## install midia indoor
 
 $ cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
 
