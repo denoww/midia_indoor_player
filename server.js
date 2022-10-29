@@ -11,6 +11,7 @@ require('coffeescript').register();
 require('./env');
 require('sc-node-tools');
 require('./app/classes/logs')(true);
+require('./start_on_machine_boot')
 
 if (process.versions.electron) {
   require('./application');
