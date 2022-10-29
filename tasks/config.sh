@@ -111,6 +111,12 @@ if [[ "$executar_npm" == "y" || "$executar_npm" == "Y" ]] ; then
   sh -c 'npm install'
 fi
 
+read -p '--> startup midia indoor on boot? (y/N) ' startup_boot
+if [[ "$startup_boot" == "y" || "$startup_boot" == "Y" ]] ; then
+  node /var/lib/midia_indoor_player/start_on_machine_boot.js
+fi
+
+
 # configurando crontab para reiniciar server
 #read -p '--> Configurando CRONTAB para reiniciar server? (y/N) ' config_crontab
 #if [[ "$config_crontab" == "y" || "$config_crontab" == "Y" ]] ; then
