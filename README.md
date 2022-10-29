@@ -1,5 +1,7 @@
 # midia_indoor_player
 
+## install
+
 $ cd /var/lib; sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chmod 7777 -R .
 
 #### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
@@ -12,7 +14,7 @@ $ node /var/lib/midia_indoor_player/start_on_machine_boot.js
 
 $ sudo rm ~/.config/autostart/init.sh.desktop
 
-## TUTORIAL DE CONFIGURAÇÃO
+## configure a tv
 
 Execute a tarefa .config
 
