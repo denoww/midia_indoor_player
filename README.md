@@ -1,5 +1,9 @@
 #### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
 
+#### Gravar cartão SD para orange pi
+
+$ sudo nand-sata-install
+
 # midia_indoor_player
 
 ## pt_br + teamviwer
