@@ -44,10 +44,12 @@ $ sudo rm ~/.config/autostart/init.sh.desktop
 
 
 
-ligue o servidor 
+ligue o servidor produção
 
 ```
 /var/lib/midia_indoor_player/tasks/init.sh
+ou
+npm run start
 ```
 
 
