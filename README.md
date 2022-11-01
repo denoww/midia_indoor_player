@@ -25,6 +25,11 @@ Execute a tarefa .config
 cd /var/lib/midia_indoor_player/; tasks/./config.sh
 ```
 
+## ligar modo development
+
+$ npm run start-dev
+
+
 ## startup on boot machine
 
 $ node /var/lib/midia_indoor_player/start_on_machine_boot.js
