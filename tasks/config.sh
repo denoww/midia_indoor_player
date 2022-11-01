@@ -147,5 +147,6 @@ if [[ $printSourceEnv == true ]] ; then
   echo "==========================="
   echo "Execute comando abaixo"
   echo "source /etc/environment"
+  echo "/var/lib/midia_indoor_player/tasks/init.sh"
   echo "==========================="
 fi
