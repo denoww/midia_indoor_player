@@ -1,9 +1,11 @@
-Sentry.init
-  dsn: 'https://ac78f87fac094b808180f86ad8867f61@sentry.io/1519364'
-  integrations: [new Sentry.Integrations.Vue({Vue, attachProps: true})]
+# Sentry.init
+#   dsn: 'https://ac78f87fac094b808180f86ad8867f61@sentry.io/1519364'
+#   integrations: [new Sentry.Integrations.Vue({Vue, attachProps: true})]
 
-Sentry.configureScope (scope)->
-  scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
+# Sentry.configureScope (scope)->
+#   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
+
+# alert('2')
 
 data =
   body:    undefined
@@ -392,3 +394,4 @@ Vue.filter 'formatWeek', (value)->
 
 Vue.filter 'currency', (value)->
   (value || 0).toLocaleString('pt-Br', minimumFractionDigits: 2, maximumFractionDigits: 2)
+

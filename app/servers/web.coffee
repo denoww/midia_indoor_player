@@ -4,6 +4,7 @@ path    = require 'path'
 module.exports = (opt={}) ->
   app = express()
   server = app.listen(ENV.HTTP_PORT)
+  scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
 
   versao = global.versionsControl?.currentVersion || global.grade?.data?.versao_player || '--'
   global.logs.info "Iniciando servidor HTTP! Versão #{versao}"

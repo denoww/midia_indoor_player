@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # configurar desktop
-read -p '--> Configurar Desktop? (y/N) ' config_desktop
-if [[ "$config_desktop" == "y" || "$config_desktop" == "Y" ]] ; then
+# read -p '--> Configurar Desktop? (y/N) ' config_desktop
+# if [[ "$config_desktop" == "y" || "$config_desktop" == "Y" ]] ; then
 
-  # configurando barra de tarefas
-  echo '--- Configurando barra de tarefas'
-  sh -c 'cp /var/lib/midia_indoor_player/device_configs/panel /var/lib/.config/lxpanel/LXDE-pi/panels/panel'
+#   # configurando barra de tarefas
+#   echo '--- Configurando barra de tarefas'
+#   sh -c 'cp /var/lib/midia_indoor_player/device_configs/panel /var/lib/.config/lxpanel/LXDE-pi/panels/panel'
 
-  # configurando wallpaper do dispo
-  echo '--- Configurando wallpaper do dispositivo'
-  sh -c 'cp /var/lib/midia_indoor_player/device_configs/wallpaper.png /var/lib/Pictures/'
-  sh -c 'pcmanfm --set-wallpaper="/var/lib/Pictures/wallpaper.png"'
-fi
+#   # configurando wallpaper do dispo
+#   echo '--- Configurando wallpaper do dispositivo'
+#   sh -c 'cp /var/lib/midia_indoor_player/device_configs/wallpaper.png /var/lib/Pictures/'
+#   sh -c 'pcmanfm --set-wallpaper="/var/lib/Pictures/wallpaper.png"'
+# fi
 
 # configurando variaveis de ambiente
 read -p '--> Configurar variáveis de ambiente? (y/N) ' config_vars
@@ -27,27 +27,27 @@ if [[ "$config_vars" == "y" || "$config_vars" == "Y" ]] ; then
 fi
 
 # configurando tamanho da SWAP
-read -p '--> Aumentar tamanho da SWAP? (y/N) ' increase_swap
-if [[ "$increase_swap" == "y" || "$increase_swap" == "Y" ]] ; then
-  # sh -c 'sudo dphys-swapfile swapoff'
-  # sh -c 'sudo dphys-swapfile swapon'
-  echo -e "CONF_SWAPSIZE=1024" | sudo tee /etc/dphys-swapfile
-  sh -c 'sudo /etc/init.d/dphys-swapfile restart'
-fi
+# read -p '--> Aumentar tamanho da SWAP? (y/N) ' increase_swap
+# if [[ "$increase_swap" == "y" || "$increase_swap" == "Y" ]] ; then
+#   # sh -c 'sudo dphys-swapfile swapoff'
+#   # sh -c 'sudo dphys-swapfile swapon'
+#   echo -e "CONF_SWAPSIZE=1024" | sudo tee /etc/dphys-swapfile
+#   sh -c 'sudo /etc/init.d/dphys-swapfile restart'
+# fi
 
-read -p '--> Alterar logo da tela de abertura? (y/N) ' logo
-if [[ "$logo" == "y" || "$logo" == "Y" ]] ; then
-  # copia a logo para a pasta
-  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/splash.png /usr/share/plymouth/themes/pix/'
+# read -p '--> Alterar logo da tela de abertura? (y/N) ' logo
+# if [[ "$logo" == "y" || "$logo" == "Y" ]] ; then
+#   # copia a logo para a pasta
+#   sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/splash.png /usr/share/plymouth/themes/pix/'
 
-  # adiciona 'logo.nologo' no /boot/cmdline.txt para remover a logo do raspberry
-  TEM_LOGO=$(grep -rnw /boot/cmdline.txt -e 'logo.nologo')
-  if [[ $TEM_LOGO ]]; then
-    echo '/boot/cmdline.txt já está atualizado!'
-  else
-    sh -c 'sudo sed -i "s/$/ logo.nologo/" /boot/cmdline.txt'
-  fi
-fi
+#   # adiciona 'logo.nologo' no /boot/cmdline.txt para remover a logo do raspberry
+#   TEM_LOGO=$(grep -rnw /boot/cmdline.txt -e 'logo.nologo')
+#   if [[ $TEM_LOGO ]]; then
+#     echo '/boot/cmdline.txt já está atualizado!'
+#   else
+#     sh -c 'sudo sed -i "s/$/ logo.nologo/" /boot/cmdline.txt'
+#   fi
+# fi
 
 read -p '--> Atualizar LXDE-pi para nao desligar a tela? (y/N) ' atualizar_lxde
 if [[ "$atualizar_lxde" == "y" || "$atualizar_lxde" == "Y" ]] ; then

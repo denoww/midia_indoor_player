@@ -79,15 +79,25 @@ module.exports = ->
       if params.categoria == 'todas_noticias'
         categoriaFeed = feed.categoria
 
+      titulo = feed.title || feed.titulo
+      unless titulo
+        titulo ||= feed.contentSnippet if isString(feed.contentSnippet)
+        titulo ||= feed.contentSnippet if isString(feed.contentSnippet)
+
+      unless titulo
+        console.log '-----NÂO ENCONTREI O TITULO de:'
+        console.log feed
+
       feedObj =
         id:             md5 imageObj.url
         url:            imageObj.url
         data:           feed.isoDate || feed.data
         link:           feed.link
-        titulo:         feed.title || feed.titulo
+        titulo:         titulo
         titulo_feed:    params.titulo
         nome_arquivo:   imageObj.nome_arquivo
         categoria_feed: categoriaFeed
+
 
       switch params.fonte
         when 'uol'
@@ -154,6 +164,10 @@ module.exports = ->
       # se eh uma imagem externa vamos pegar direto da fonte
       if imageURL.match(/\/external_images\?/i) && imageURL.match(/url=/i)
         imageURL = imageURL.match(/url=(.*)$/i)?[1] || imageURL
+
+      # if imageURL
+      #   console.log 'não encontrei a imagem em:'
+      #   console.log feed
 
       switch params.fonte
         when 'infomoney'
@@ -229,7 +243,7 @@ module.exports = ->
         global.logs.error "Feeds -> getDataOffline #{e}", tags: class: 'feeds'
     getImageUol: (params, feedObj, url)->
       # tenta encontrar outros tamanhos de imagem disponibilizadas pelo uol
-      tamanhos   = ['1024x551', '900x506', '956x500', '615x300', '450x450', '450x600']
+      tamanhos   = ['1024x551', '900x506', '956x500', '615x300', '450x450', '450x600', '300x225']
       opcoesURLs = []
 
       opcoesURLs.push url.replace(/\d{3}x\d{3}/, tam) for tam in tamanhos
@@ -272,6 +286,7 @@ module.exports = ->
           global.logs.create 'Feeds -> não encontrado imagem de BBC!',
             extra: url: url
             tags: class: 'feeds'
+          console.log url
           return
 
         imageURL = imageURL.replace(/news\/(\d+)\/cpsprodpb/, 'news/1024/cpsprodpb')

@@ -1,6 +1,6 @@
 #!/bin/bash
-cd /var/lib/midia_indoor_player/
-rm cron.log # remover arquivo de logs
+cd cd //var/lib/midia_indoor_player/
+> cron.log # reseta arquivo de logs para economizar espaço
 
 # atualiza o npm
 # sudo npm install -g npm

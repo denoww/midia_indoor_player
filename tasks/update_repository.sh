@@ -7,4 +7,4 @@ cd /var/lib/midia_indoor_player/
 /usr/bin/git pull
 
 /usr/bin/npm install
-/usr/bin/npx electron-rebuild
+# /usr/bin/npx electron-rebuild
