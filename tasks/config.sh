@@ -23,8 +23,11 @@ if [[ "$config_vars" == "y" || "$config_vars" == "Y" ]] ; then
   # read -p '--> Informe a API_SERVER_URL: ' API_SERVER_URL
   # echo -e "TV_ID=$TV_ID\nAPI_SERVER_URL=$API_SERVER_URL\nNODE_ENV=production\n" | sudo tee -a /etc/environment
   echo -e "TV_ID=$TV_ID\nNODE_ENV=production\n" | sudo tee -a /etc/environment
+
+  printSourceEnv=true
   source /etc/environment
 fi
+
 
 # configurando tamanho da SWAP
 # read -p '--> Aumentar tamanho da SWAP? (y/N) ' increase_swap
@@ -134,4 +137,15 @@ fi
 read -p '--> Reiniciar o equipamento? (y/N) ' reiniciar
 if [[ "$reiniciar" == "y" || "$reiniciar" == "Y" ]] ; then
   sh -c 'sudo reboot'
+fi
+
+
+
+
+
+if [[ $printSourceEnv == true ]] ; then
+  echo "==========================="
+  echo "Execute comando abaixo"
+  echo "source /etc/environment"
+  echo "==========================="
 fi

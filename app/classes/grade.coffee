@@ -24,11 +24,17 @@ module.exports = ->
 
         @data.offline = false
         jsonData = JSON.parse(body)
+
         if Object.empty(jsonData || {})
           return global.logs.create 'Grade -> Erro: Não existe Dados da Grade!'
 
         atualizarPlayer = @data?.versao_player? &&
           @data.versao_player != jsonData.versao_player
+
+        scPrint.success "============================"
+        scPrint.success "cliente_id: #{jsonData.cliente_id}"
+        scPrint.success "tv_id: #{ENV.TV_ID}"
+        scPrint.success "============================"
 
         @handlelist(jsonData)
         @saveLogo(jsonData.logo_url)

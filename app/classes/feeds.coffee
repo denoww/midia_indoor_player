@@ -257,9 +257,7 @@ module.exports = ->
         # imageURL = data.match(/article-col-image(\W+)<(\s+)?img(?:.*src=["'](.*?)["'].*)\/>?/i)?[3] || '' # OLD VERSION
         imageURL = data.match(/figure(.|\n)*?<(\s+)?img(?:.*\ssrc=["'](.*?)["'].*)\/>?/i)?[3] || ''
         unless imageURL
-          global.logs.create 'Feeds -> não encontrado imagem de InfoMoney!',
-            extra: url: url
-            tags: class: 'feeds'
+          scPrint.error 'Feeds -> não encontrado imagem de InfoMoney!'
           return
 
         imageURL = imageURL.match(/(.*)[?]/)?[1]
@@ -283,9 +281,10 @@ module.exports = ->
         imageURL = null if imageURL.match /bbc_placeholder/
         imageURL ||= data.match(/<metaproperty="og:image"content="(.+?)"/i)?[1] || ''
         unless imageURL
-          global.logs.create 'Feeds -> não encontrado imagem de BBC!',
-            extra: url: url
-            tags: class: 'feeds'
+          scPrint.error 'Feeds -> não encontrado imagem de BBC!'
+          # global.logs.create 'Feeds -> não encontrado imagem de BBC!',
+          #   extra: url: url
+          #   tags: class: 'feeds'
           console.log url
           return
 
@@ -306,9 +305,7 @@ module.exports = ->
         data     = body.toString().replace(/\n|\s|\r\n|\r/g, '')
         imageURL = data.match(/figure.+?article-header__picture.+?<img.+?article__picture-image.+?src=["'](.+?)["']/i)?[1] || ''
         unless imageURL
-          global.logs.create 'Feeds -> não encontrado imagem de O Globo!',
-            extra: url: url
-            tags: class: 'feeds'
+          scPrint.error 'Feeds -> não encontrado imagem de O Globo!'
           return
 
         image = ctrl.mountImageData(params, imageURL)
