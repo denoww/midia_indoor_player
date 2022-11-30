@@ -5,9 +5,9 @@ module.exports = (showConsole=false)->
   ctrl =
     create: (message, options={})->
       return if !message
-      console.log message if showConsole || ENV.NODE_ENV == 'development'
+      console.log message #if showConsole || ENV.NODE_ENV == 'development'
 
-      Sentry.log message, options if options.send
+      #Sentry.log message, options if options.send
       return
     info: (message, options={})->
       options.send  = true
