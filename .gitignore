@@ -8,3 +8,4 @@ grade.json
 package-lock.json
 logs
 cron.log
+public

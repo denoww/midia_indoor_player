@@ -325,7 +325,7 @@ module.exports = ->
           imagensAtuais.push "-name '#{item.nome_arquivo}'" for item in items || []
       return if imagensAtuais.empty()
 
-      caminho = global.configPath + 'downloads/feeds/'
+      caminho = global.configPath + 'feeds/'
       command = "find #{caminho} -type f ! \\( #{imagensAtuais.join(' -o ')} \\) -delete"
       shell.exec command, (code, out, error)->
         return global.logs.error "Feeds -> deleteOldImages #{error}", tags: class: 'feeds' if error

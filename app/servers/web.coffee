@@ -10,6 +10,7 @@ module.exports = (opt={}) ->
   global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
 
   app.use express.static(path.join( __dirname, '../assets/'))
+  app.use express.static(path.join( __dirname, '../public/'))
 
   # Resolve o erro do CROSS de Access-Control-Allow-Origin
   app.all '*', (req, res, next)->

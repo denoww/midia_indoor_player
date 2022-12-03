@@ -112,7 +112,7 @@
                           <div class="feed-categoria">{{item.categoria_feed || item.titulo_feed}}</div>
                           <div class="feed-out"></div>
                         </div>
-                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.nome_arquivo ? 'sc-protocol://' + grade.data.path + 'downloads/feeds/' + item.nome_arquivo : '/images/no-image.png') + ')'}">&nbsp;</div>
+                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.nome_arquivo ? 'feeds/' + item.nome_arquivo : '/images/no-image.png') + ')'}">&nbsp;</div>
                         <div class="feed-titulo" :class="[{'com-qrcode': item.qrcode}]">
                           <div class="feed-data" v-if="item.data">{{item.data | formatDate}}</div>
                           {{item.titulo}}
@@ -125,14 +125,16 @@
                     <!-- midia -->
                     <div class="midia-main" v-else-if="item.tipo_midia === 'midia'">
                       <div class="midia-imagem" v-if="item.is_image"
-                        :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/images/' + item.nome_arquivo + ')'}">
+                        :style="{'background-image': 'url(images/' + item.nome_arquivo + ')'}">
                       </div>
 
                       <video class="midia-video"
                         v-if="item.is_video"
                         :id="'video-player-' + item.id"
-                        preload="auto">
-                        <source :src="'sc-protocol://' + grade.data.path + 'downloads/videos/' + item.nome_arquivo" :type="item.content_type">
+                        preload="auto"
+                        autoplay playsinline muted
+                      >
+                          <source :src="'videos/' + item.nome_arquivo" :type="item.content_type">
                       </video>
                     </div>
                     <!-- midia -->
@@ -172,7 +174,7 @@
 
         <div class="content-footer">
           <div class="content-logo" :class="[grade.data.cor == 'gray' ? 'black' : '']">
-            <img v-if="grade.data.logo_nome" class="logo" :src="'sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo_nome">
+            <img v-if="grade.data.logo_nome" class="logo" :src="grade.data.logo_nome">
             <img v-else="" class="logo" :src="'/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png'">
             <!-- <div v-if="grade.data.logo_nome" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo_nome + ')'}"></div>
             <div v-else="" class="logo" :style="{'background-image': 'url(/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png)'}"></div> -->

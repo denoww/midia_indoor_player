@@ -6,9 +6,11 @@
   "private": true,
   "scripts": {
     "start-dev": "npm run compile-coffee & npm run start",
-    "start": "npm run start-node & npm run start-electron",
+    "start": "npm run start-node & npm run start-view",
     "start-node": "node server.js",
+    "start-view": "npm run start-web",
     "start-electron": "electron --disable-gpu --no-sandbox .",
+    "start-web": "sh -c 'google-chrome'",
     "start-nodemon": "nodemon --inspect server.js",
     "delete_old_images": "coffee ./tasks/delete_old_images.coffee",
     "update_timezone": "coffee ./tasks/update_timezone.coffee",

@@ -1,6 +1,8 @@
 global.homePath = (process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH) + '/'
 global.homePath = '/var/lib/' if global.homePath == '/root/'
-global.configPath = global.homePath + '.config/midia_indoor_player/'
+
+path = require('path');
+global.configPath = path.join( __dirname, 'public/');
 
 require('../env')
 require('sc-node-tools')

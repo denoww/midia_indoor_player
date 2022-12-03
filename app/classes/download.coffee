@@ -12,16 +12,12 @@ module.exports = ->
     fila: []
     loading: false
     init: ->
-      folders  = []
-      folders.push global.homePath + '.config/'
-      basePath = global.homePath + '.config/midia_indoor_player/'
-
-      folders.push basePath
-      folders.push basePath + 'downloads'
-      folders.push basePath + ENV.DOWNLOAD_VIDEOS
-      folders.push basePath + ENV.DOWNLOAD_IMAGES
-      folders.push basePath + ENV.DOWNLOAD_AUDIOS
-      folders.push basePath + ENV.DOWNLOAD_FEEDS
+      folders = []
+      folders.push global.configPath
+      folders.push global.configPath + ENV.DOWNLOAD_VIDEOS
+      folders.push global.configPath + ENV.DOWNLOAD_IMAGES
+      folders.push global.configPath + ENV.DOWNLOAD_AUDIOS
+      folders.push global.configPath + ENV.DOWNLOAD_FEEDS
 
       for folder in folders
         if !fs.existsSync(folder)
@@ -32,7 +28,7 @@ module.exports = ->
       pasta = global.configPath + ENV.DOWNLOAD_IMAGES if params.is_image
       pasta = global.configPath + ENV.DOWNLOAD_AUDIOS if params.is_audio
       pasta = global.configPath + ENV.DOWNLOAD_FEEDS  if params.is_feed || opts.is_feed
-      pasta = global.configPath + 'downloads/' if params.is_logo || opts.is_logo
+      pasta = global.configPath if params.is_logo || opts.is_logo
 
       unless pasta
         logs.error "Download -> exec -> Nenhuma pasta encontrada para #{params.nome_arquivo}!"
