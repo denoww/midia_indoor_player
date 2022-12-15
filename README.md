@@ -63,6 +63,12 @@ Feito isso, após a reinicialização, o player já esta rodando. \o/
 
 ---
 
+## Corrigir hora
+
+```
+sudo date -s '2022-12-15 09:47:00'
+```
+
 ## Corrigir Timezone
 
 ```
