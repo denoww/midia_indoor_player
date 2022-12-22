@@ -5,8 +5,8 @@
   "main": "server.js",
   "private": true,
   "scripts": {
-    "start_dev": "npm run compile-coffee & npm run start_node_dev & npm run start_player_dev",
-    "start": "npm run start_node & npm run start_player_prod",
+    "start_dev": "npm run compile-coffee & npm run start_node_dev & sleep 5 && npm run start_player_dev",
+    "start": "npm run start_node & sleep 10 && npm run start_player_prod",
     "start_node": "node server.js",
     "start_node_dev": "npm run start_nodemon",
     "start_player": "npm run start_player_dev",
