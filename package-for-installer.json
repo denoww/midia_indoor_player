@@ -8,7 +8,9 @@
     "node": "12.22.0"
   },
   "scripts": {
-    "start": "npm run start-node & npm run start-electron",
+    "start": "npm run start-node & npm run start_player",
+    "start_player": "npm run start_player_chromium",
+    "start_player_chromium": "chromium-browser -kiosk http://localhost:3001",
     "start-node": "node server.js",
     "start-electron": "electron --disable-gpu --no-sandbox .",
     "start-nodemon": "nodemon --inspect server.js",
