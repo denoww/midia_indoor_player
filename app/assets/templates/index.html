@@ -203,7 +203,11 @@
             </div>
           </div> <!-- content-mensagem -->
 
-          <div class="current-version" v-if="grade.data.current_version">V. {{grade.data.current_version}}</div>
+          <div class="current-version" v-if="grade.data.current_version">
+            <a href="javascript: window.close()" style="color: white" title="fechar" alt="fechar">
+              V. {{grade.data.current_version || 'fechar'}}
+            </a>
+          </div>
         </div> <!-- content-footer -->
       </div> <!-- content-main -->
 
