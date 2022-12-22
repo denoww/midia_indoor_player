@@ -36,7 +36,7 @@ $ npm run start_dev
 
 ## startup on boot machine
 
-$ node /var/lib/midia_indoor_player/start_on_machine_boot.js
+$ cd /var/lib/midia_indoor_player/; node start_on_machine_boot.js
 
 ## remover startup on boot machine
 
