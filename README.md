@@ -63,7 +63,30 @@ Feito isso, após a reinicialização, o player já esta rodando. \o/
 
 ---
 
+## Corrigir hora
 
+```
+sudo date -s '2022-12-15 09:47:00'
+```
+
+## Corrigir Timezone
+
+```
+sudo timedatectl set-timezone America/Sao_Paulo
+```
+
+--- OU ---
+
+```
+sudo dpkg-reconfigure tzdata
+```
+
+--- OU ---
+
+```
+sudo ln -s /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+ls -l /etc/localtime
+```
 
 ## Removendo libs desnecessárias
 
@@ -102,21 +125,4 @@ npm config set registry https://registry.npmjs.org
 sudo npm install -g npm
 ```
 
-## Corrigir Timezone
 
-```
-sudo timedatectl set-timezone America/Sao_Paulo
-```
-
---- OU ---
-
-```
-sudo dpkg-reconfigure tzdata
-```
-
---- OU ---
-
-```
-sudo ln -s /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
-ls -l /etc/localtime
-```

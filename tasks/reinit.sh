@@ -2,12 +2,14 @@
 
 verify_servers(){
   SERVICE_NODE="node server.js"
-  SERVICE_ELECTRON="node_modules/electron"
+  SERVICE_PLAYER="chromium"
+  # SERVICE_PLAYER="node_modules/electron"
+
 
   NODE_RUNNING="$(pgrep -f "$SERVICE_NODE")"
-  ELECTRON_RUNNING="$(pgrep -f "$SERVICE_ELECTRON")"
+  PLAYER_RUNNING="$(pgrep -f "$SERVICE_PLAYER")"
 
-  if [ -z "$NODE_RUNNING" ] && [ -z "$ELECTRON_RUNNING" ]; then
+  if [ -z "$NODE_RUNNING" ] && [ -z "$PLAYER_RUNNING" ]; then
     echo "starting servers!"
 
     export DISPLAY=":0"
@@ -20,11 +22,11 @@ verify_servers(){
     cd /var/lib/midia_indoor_player/
     /usr/bin/npm run start-node
 
-  elif [ -z "$ELECTRON_RUNNING" ]; then
-    echo "starting electron server!"
+  elif [ -z "$PLAYER_RUNNING" ]; then
+    echo "starting player!"
 
     export DISPLAY=":0"
-    /var/lib/midia_indoor_player/tasks/./init_electron.sh
+    /var/lib/midia_indoor_player/tasks/./init_player.sh
 
   else
     echo "servers are running!"
