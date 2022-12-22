@@ -23,7 +23,7 @@ verify_servers(){
 
     export DISPLAY=":0"
     cd $projectPath/
-    /usr/bin/npm run start-node
+    /usr/bin/npm run start_node
 
   elif [ -z "$PLAYER_RUNNING" ]; then
     echo "starting player!"

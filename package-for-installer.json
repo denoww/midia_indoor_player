@@ -8,12 +8,12 @@
     "node": "12.22.0"
   },
   "scripts": {
-    "start": "npm run start-node & npm run start_player",
+    "start": "npm run start_node & npm run start_player",
     "start_player": "npm run start_player_chromium",
     "start_player_chromium": "chromium-browser -kiosk http://localhost:3001",
-    "start-node": "node server.js",
+    "start_node": "node server.js",
     "start-electron": "electron --disable-gpu --no-sandbox .",
-    "start-nodemon": "nodemon --inspect server.js",
+    "start_nodemon": "nodemon --inspect server.js",
     "delete_old_images": "coffee ./tasks/delete_old_images.coffee",
     "update_timezone": "coffee ./tasks/update_timezone.coffee",
     "compile-coffee": "coffee -wc app/assets/**",
