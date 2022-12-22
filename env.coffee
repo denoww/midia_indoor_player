@@ -10,6 +10,7 @@ process.env.NODE_ENV ||= 'development'
 envFile = __dirname + '/.env'
 if fs.existsSync(envFile)
   env = require('node-env-file')
+  console.log "ENV: Carregando #{envFile}"
   env(envFile)
 
 global.ENV = process.env # vars. ambiente neste arquivo .env
