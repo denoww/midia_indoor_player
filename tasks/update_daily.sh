@@ -1,5 +1,5 @@
 #!/bin/bash
-cd cd //var/lib/midia_indoor_player/
+cd /var/lib/midia_indoor_player/
 > cron.log # reseta arquivo de logs para economizar espaço
 
 # atualiza o npm

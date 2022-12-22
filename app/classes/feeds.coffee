@@ -326,6 +326,7 @@ module.exports = ->
       return if imagensAtuais.empty()
 
       caminho = global.configPath + 'feeds/'
+      console.log "Verificando #{caminho}"
       command = "find #{caminho} -type f ! \\( #{imagensAtuais.join(' -o ')} \\) -delete"
       shell.exec command, (code, out, error)->
         return global.logs.error "Feeds -> deleteOldImages #{error}", tags: class: 'feeds' if error

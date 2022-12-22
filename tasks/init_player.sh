@@ -2,8 +2,11 @@
 export DISPLAY=":0"
 /usr/bin/xdotool mousemove --sync 4000 4000
 
-cd /var/lib/midia_indoor_player/
-/usr/bin/npm run start_player &
+projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
+
+
+cd $projectPath
+/usr/bin/npm run start_player_prod &
 
 # cliques na tela para simular acao do usuario para corrigir problema
 # de play nos videos

@@ -3,9 +3,11 @@ var AutoLaunch, autoLauncher;
 
 AutoLaunch = require('auto-launch');
 
+projectPath = process.cwd();
+
 autoLauncher = new AutoLaunch({
   name: 'midia_indoor_player',
-  path: '/var/lib/midia_indoor_player/tasks/init.sh'
+  path: projectPath+'/tasks/init.sh'
 });
 
 autoLauncher.enable();
@@ -18,3 +20,5 @@ autoLauncher.isEnabled().then(function(isEnabled) {
 }).catch(function(err) {
   throw err;
 });
+
+console.log('Criado startup em ~/.config/autostart/init.sh.desktop')

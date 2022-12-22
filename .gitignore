@@ -2,6 +2,7 @@ node_modules
 dist
 downloads
 .env_DEVELOPMENT
+.env
 .current_version
 feeds.json
 grade.json

@@ -1,5 +1,7 @@
 #!/bin/bash
-cd /var/lib/midia_indoor_player/
+projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
+
+cd $projectPath
 
 # sudo /bin/chown pi:pi -R .
 /usr/bin/git reset --hard

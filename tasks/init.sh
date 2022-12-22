@@ -1,11 +1,15 @@
 #!/bin/bash
+
+projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
+
+echo "iniciando $projectPath"
 sleep 10 # esperar uma conexao com a internet
 export DISPLAY=":0.0"
 /usr/bin/xdotool mousemove --sync 4000 4000
 
 killall node
 
-cd /var/lib/midia_indoor_player/
+cd $projectPath
 /usr/bin/git pull &
 /usr/bin/npm run update_timezone &
 /usr/bin/npm start &
@@ -14,7 +18,7 @@ cd /var/lib/midia_indoor_player/
 while [[ true ]]
 do
   sleep 2m
-  /var/lib/midia_indoor_player/tasks/./reinit.sh
+  $projectPath/tasks/./reinit.sh
 done
 
 # cliques na tela para simular acao do usuario para corrigir problema

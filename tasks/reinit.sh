@@ -1,5 +1,8 @@
 #!/bin/bash
 
+projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
+
+
 verify_servers(){
   SERVICE_NODE="node server.js"
   SERVICE_PLAYER="chromium"
@@ -13,20 +16,20 @@ verify_servers(){
     echo "starting servers!"
 
     export DISPLAY=":0"
-    /var/lib/midia_indoor_player/tasks/./init.sh
+    $projectPath/tasks/./init.sh
 
   elif [ -z "$NODE_RUNNING" ]; then
     echo "starting node server!"
 
     export DISPLAY=":0"
-    cd /var/lib/midia_indoor_player/
+    cd $projectPath/
     /usr/bin/npm run start-node
 
   elif [ -z "$PLAYER_RUNNING" ]; then
     echo "starting player!"
 
     export DISPLAY=":0"
-    /var/lib/midia_indoor_player/tasks/./init_player.sh
+    $projectPath/tasks/./init_player.sh
 
   else
     echo "servers are running!"

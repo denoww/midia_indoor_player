@@ -1,31 +1,33 @@
 #!/bin/bash
 
+projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
+
 # configurar desktop
 # read -p '--> Configurar Desktop? (y/N) ' config_desktop
 # if [[ "$config_desktop" == "y" || "$config_desktop" == "Y" ]] ; then
 
 #   # configurando barra de tarefas
 #   echo '--- Configurando barra de tarefas'
-#   sh -c 'cp /var/lib/midia_indoor_player/device_configs/panel /var/lib/.config/lxpanel/LXDE-pi/panels/panel'
+#   sh -c 'cp $projectPath/device_configs/panel /var/lib/.config/lxpanel/LXDE-pi/panels/panel'
 
 #   # configurando wallpaper do dispo
 #   echo '--- Configurando wallpaper do dispositivo'
-#   sh -c 'cp /var/lib/midia_indoor_player/device_configs/wallpaper.png /var/lib/Pictures/'
+#   sh -c 'cp $projectPath/device_configs/wallpaper.png /var/lib/Pictures/'
 #   sh -c 'pcmanfm --set-wallpaper="/var/lib/Pictures/wallpaper.png"'
 # fi
 
 # configurando variaveis de ambiente
 read -p '--> Configurar variáveis de ambiente? (y/N) ' config_vars
 if [[ "$config_vars" == "y" || "$config_vars" == "Y" ]] ; then
-  sh -c 'sudo cp /var/lib/midia_indoor_player/.env_DEVELOPMENT_sample /etc/environment'
-  sh -c 'sudo cp /var/lib/midia_indoor_player/.env_DEVELOPMENT_sample /var/lib/midia_indoor_player/.env_DEVELOPMENT'
+  sh -c "sudo cp $projectPath/.env_sample $projectPath/.env"
+  sh -c "sudo cp $projectPath/.env_sample $projectPath/.env"
   read -p '--> Informe o ID da TV: ' TV_ID
   # read -p '--> Informe a API_SERVER_URL: ' API_SERVER_URL
-  # echo -e "TV_ID=$TV_ID\nAPI_SERVER_URL=$API_SERVER_URL\nNODE_ENV=production\n" | sudo tee -a /etc/environment
-  echo -e "TV_ID=$TV_ID\nNODE_ENV=production\n" | sudo tee -a /etc/environment
+  # echo -e "TV_ID=$TV_ID\nAPI_SERVER_URL=$API_SERVER_URL\nNODE_ENV=production\n" | sudo tee -a $projectPath/.env
+  echo -e "TV_ID=$TV_ID\nNODE_ENV=production\n" | sudo tee -a $projectPath/.env
 
   printSourceEnv=true
-  source /etc/environment
+  # source /etc/environment
 fi
 
 
@@ -41,7 +43,7 @@ fi
 # read -p '--> Alterar logo da tela de abertura? (y/N) ' logo
 # if [[ "$logo" == "y" || "$logo" == "Y" ]] ; then
 #   # copia a logo para a pasta
-#   sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/splash.png /usr/share/plymouth/themes/pix/'
+#   sh -c 'sudo cp $projectPath/device_configs/splash.png /usr/share/plymouth/themes/pix/'
 
 #   # adiciona 'logo.nologo' no /boot/cmdline.txt para remover a logo do raspberry
 #   TEM_LOGO=$(grep -rnw /boot/cmdline.txt -e 'logo.nologo')
@@ -54,7 +56,7 @@ fi
 
 read -p '--> Atualizar LXDE-pi para nao desligar a tela? (y/N) ' atualizar_lxde
 if [[ "$atualizar_lxde" == "y" || "$atualizar_lxde" == "Y" ]] ; then
-  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/lxde-autostart /etc/xdg/lxsession/LXDE-pi/autostart'
+  sh -c "sudo cp $projectPath/device_configs/lxde-autostart /etc/xdg/lxsession/LXDE-pi/autostart"
 fi
 
 read -p '--> Instalar xdotool para posisionar o MOUSE no canto da tela? (y/N) ' instalar_xdo
@@ -116,22 +118,22 @@ fi
 
 read -p '--> startup midia indoor on boot? (y/N) ' startup_boot
 if [[ "$startup_boot" == "y" || "$startup_boot" == "Y" ]] ; then
-  node /var/lib/midia_indoor_player/start_on_machine_boot.js
+  node $projectPath/start_on_machine_boot.js
 fi
 
 
 # configurando crontab para reiniciar server
 #read -p '--> Configurando CRONTAB para reiniciar server? (y/N) ' config_crontab
 #if [[ "$config_crontab" == "y" || "$config_crontab" == "Y" ]] ; then
-#  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/crontab-sc-player /etc/cron.d/'
+#  sh -c 'sudo cp $projectPath/device_configs/crontab-sc-player /etc/cron.d/'
 #  sh -c 'sudo chown root:root /etc/cron.d/crontab-sc-player'
 #fi
 
 # Reinício diário
 read -p '--> Configurar Reinício diário? (y/N) ' cron
 if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
-  sh -c 'sudo cp /var/lib/midia_indoor_player/device_configs/tarefa_diaria /etc/cron.daily/'
-  sh -c 'sudo chown root:root /etc/cron.daily/tarefa_diaria'
+  sh -c "sudo cp $projectPath/device_configs/tarefa_diaria /etc/cron.daily/"
+  sh -c "sudo chown root:root /etc/cron.daily/tarefa_diaria"
 fi
 
 read -p '--> Reiniciar o equipamento? (y/N) ' reiniciar
@@ -145,8 +147,9 @@ fi
 
 if [[ $printSourceEnv == true ]] ; then
   echo "==========================="
-  echo "Execute comando abaixo"
-  echo "source /etc/environment"
-  echo "/var/lib/midia_indoor_player/tasks/init.sh"
+  # echo "Execute comando abaixo"
+  # echo "source /etc/environment"
+  # echo "$projectPath/tasks/init.sh"
+  echo "instalação concluída"
   echo "==========================="
 fi

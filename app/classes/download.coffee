@@ -14,20 +14,20 @@ module.exports = ->
     init: ->
       folders = []
       folders.push global.configPath
-      folders.push global.configPath + ENV.DOWNLOAD_VIDEOS
-      folders.push global.configPath + ENV.DOWNLOAD_IMAGES
-      folders.push global.configPath + ENV.DOWNLOAD_AUDIOS
-      folders.push global.configPath + ENV.DOWNLOAD_FEEDS
+      folders.push global.configPath + 'images/'
+      folders.push global.configPath + 'videos/'
+      folders.push global.configPath + 'audios/'
+      folders.push global.configPath + 'feeds/'
 
       for folder in folders
         if !fs.existsSync(folder)
-          fs.mkdirSync(folder)
+          fs.mkdirSync(folder, { recursive: true })
       return
     exec: (params, opts={})->
-      pasta = global.configPath + ENV.DOWNLOAD_VIDEOS if params.is_video
-      pasta = global.configPath + ENV.DOWNLOAD_IMAGES if params.is_image
-      pasta = global.configPath + ENV.DOWNLOAD_AUDIOS if params.is_audio
-      pasta = global.configPath + ENV.DOWNLOAD_FEEDS  if params.is_feed || opts.is_feed
+      pasta = global.configPath + 'videos/' if params.is_video
+      pasta = global.configPath + 'images/' if params.is_image
+      pasta = global.configPath + 'audios/' if params.is_audio
+      pasta = global.configPath + 'feeds/'  if params.is_feed || opts.is_feed
       pasta = global.configPath if params.is_logo || opts.is_logo
 
       unless pasta
