@@ -31,7 +31,7 @@ cd /var/lib/midia_indoor_player/; tasks/./config.sh
 
 ## ligar modo development
 
-$ npm run start-dev
+$ npm run start_dev
 
 
 ## startup on boot machine
