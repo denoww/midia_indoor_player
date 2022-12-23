@@ -49,7 +49,7 @@ ligue o servidor produção
 ```
 /var/lib/midia_indoor_player/tasks/init.sh
 ou
-npm run start
+npm run start_prod
 ```
 
 
