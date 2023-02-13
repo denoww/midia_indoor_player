@@ -11,8 +11,8 @@
     "start_node_dev": "nodemon --inspect server.js",
     "start_player": "npm run start_player_prod",
     "start-electron": "electron --disable-gpu --no-sandbox .",
-    "start_player_dev": "chromium-browser http://localhost:3001",
-    "start_player_prod": "chromium-browser -kiosk http://localhost:3001",
+    "start_player_dev": "chromium-browser http://localhost:4001",
+    "start_player_prod": "chromium-browser -kiosk http://localhost:4001",
     "delete_old_images": "coffee ./tasks/delete_old_images.coffee",
     "update_timezone": "coffee ./tasks/update_timezone.coffee",
     "compile-coffee": "coffee -wc app/assets/**"
