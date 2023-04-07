@@ -1,4 +1,5 @@
-#### caso for cria imagem para microsd -> de preferencia para ubuntu bionic por ser mais leve
+#### orange 3: caso for cria imagem para microsd -> de preferencia para ubuntu bionic desktop por ser mais leve
+#### orange 4: caso for cria imagem para microsd -> de preferencia para ubuntu jammy desktop por ser mais leve
 
 #### Gravar cartão SD para orange pi
 
