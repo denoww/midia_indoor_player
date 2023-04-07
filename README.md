@@ -12,6 +12,8 @@ $ sudo nand-sata-install
 sudo passwd orangepi
 sudo passwd root
 sudo dpkg-reconfigure keyboard-configuration
+selecione portugues e marque tudo padrão
+reinice pro terminal pegar portgues
 baixe o linker_service
 wget -O - www.seucondominio.com.br/linker_service | bash -s update_service
 linker_service install_teamviewer
