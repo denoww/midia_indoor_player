@@ -11,8 +11,12 @@ killall node
 
 cd $projectPath
 /usr/bin/git pull &
-/usr/bin/npm run update_timezone &
 /usr/bin/npm start &
+
+# cd $projectPath
+# /usr/bin/git pull &
+# sleep 1m && /usr/bin/npm run update_timezone &
+# /usr/bin/npm start &
 
 # a cada x minutos verifica se tá rodando, senão chama o reinit.sh
 while [[ true ]]

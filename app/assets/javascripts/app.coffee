@@ -325,26 +325,49 @@ onLoaded = ->
     currentItem.categoria_feed = feed.categoria_feed
     currentItem
 
+descobrirTimezone = (callback) ->
+  console.log "Descobrindo timezone..."
+
+  timezone = 'America/Sao_Paulo'
+  error = ->
+    console.log 'erro em descobrirTimezone'
+    callback(timezone)
+  success = (resp)=>
+    success = resp.status == 200
+    if success
+      data = resp.data
+      timezone = data.timezone
+    callback(timezone)
+
+  url = 'http://ip-api.com/json'
+  Vue.http.get(url).then success, error
+
+
 relogio =
   exec: ->
-    # now = new Date
-    now = moment()
-    now.add(-1, 'hour') if now.isDST()
 
-    hour = now.get('hour')
-    min  = now.get('minute')
-    # sec  = now.getSeconds()
+    descobrirTimezone (timezone) ->
+      console.log "Timezone: #{timezone}"
 
-    hour = "0#{hour}" if hour < 10
-    min  = "0#{min}"  if min < 10
-    # sec  = "0#{sec}"  if sec < 10
+      # now = moment.tz(new Date, 'America/Los_Angeles');
+      now = moment.tz(new Date, timezone);
+      hour = now.get('hour')
+      min  =  now.get('minute')
 
-    @elemHora ||= document.getElementById('hora')
-    @elemHora.innerHTML = hour + ':' + min if @elemHora
-    @timer = setTimeout relogio.exec, 1000 * 60 # 1 minuto
-    # @elemHora.innerHTML = hour + ':' + min + ':' + sec if @elemHora
-    # setTimeout relogio.exec, 1000
-    return
+      # hour = now.get('hour')
+      # min  = now.get('minute')
+      # sec  = now.getSeconds()
+
+      hour = "0#{hour}" if hour < 10
+      min  = "0#{min}"  if min < 10
+      # sec  = "0#{sec}"  if sec < 10
+
+      @elemHora ||= document.getElementById('hora')
+      @elemHora.innerHTML = hour + ':' + min if @elemHora
+      @timer = setTimeout relogio.exec, 1000 * 60 # 1 minuto
+      # @elemHora.innerHTML = hour + ':' + min + ':' + sec if @elemHora
+      # setTimeout relogio.exec, 1000
+
 
 @vm = new Vue
   el:   '#main-player'

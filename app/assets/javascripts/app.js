@@ -8,7 +8,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, onLoaded, relogio, restartPlayerSeNecessario;
+  var data, descobrirTimezone, onLoaded, relogio, restartPlayerSeNecessario;
 
   data = {
     body: void 0,
@@ -419,29 +419,51 @@
     }
   };
 
+  descobrirTimezone = function(callback) {
+    var error, success, timezone, url;
+    console.log("Descobrindo timezone...");
+    timezone = 'America/Sao_Paulo';
+    error = function() {
+      console.log('erro em descobrirTimezone');
+      return callback(timezone);
+    };
+    success = (resp) => {
+      success = resp.status === 200;
+      if (success) {
+        data = resp.data;
+        timezone = data.timezone;
+      }
+      return callback(timezone);
+    };
+    url = 'http://ip-api.com/json';
+    return Vue.http.get(url).then(success, error);
+  };
+
   relogio = {
     exec: function() {
-      var hour, min, now;
-      // now = new Date
-      now = moment();
-      if (now.isDST()) {
-        now.add(-1, 'hour');
-      }
-      hour = now.get('hour');
-      min = now.get('minute');
-      if (hour < 10) {
-        // sec  = now.getSeconds()
-        hour = `0${hour}`;
-      }
-      if (min < 10) {
-        min = `0${min}`;
-      }
-      // sec  = "0#{sec}"  if sec < 10
-      this.elemHora || (this.elemHora = document.getElementById('hora'));
-      if (this.elemHora) {
-        this.elemHora.innerHTML = hour + ':' + min;
-      }
-      this.timer = setTimeout(relogio.exec, 1000 * 60); // 1 minuto
+      return descobrirTimezone(function(timezone) {
+        var hour, min, now;
+        console.log(`Timezone: ${timezone}`);
+        // now = moment.tz(new Date, 'America/Los_Angeles');
+        now = moment.tz(new Date(), timezone);
+        hour = now.get('hour');
+        min = now.get('minute');
+        if (hour < 10) {
+          // hour = now.get('hour')
+          // min  = now.get('minute')
+          // sec  = now.getSeconds()
+          hour = `0${hour}`;
+        }
+        if (min < 10) {
+          min = `0${min}`;
+        }
+        // sec  = "0#{sec}"  if sec < 10
+        this.elemHora || (this.elemHora = document.getElementById('hora'));
+        if (this.elemHora) {
+          this.elemHora.innerHTML = hour + ':' + min;
+        }
+        return this.timer = setTimeout(relogio.exec, 1000 * 60); // 1 minuto
+      });
     }
   };
 
