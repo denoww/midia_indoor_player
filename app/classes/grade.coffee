@@ -42,9 +42,22 @@ module.exports = ->
 
         global.versionsControl.exec(atualizarPlayer)
         global.feeds.getList()
+    _restartAppSeNecessario: (data) ->
+      # data.restart_player = true
+      xSegundos = 10
+      # console.log 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
+      # console.log data.restart_player
+      if data.restart_player
+        scPrint.warning "App vai reiniciar daqui #{xSegundos} segundos"
+        setInterval =>
+          restartApp()
+        , 5*1000
+
     handlelist: (jsonData)->
       configPath = global.configPath
       configPath = configPath.split('\\').join('/') if process.platform == 'win32'
+
+      @_restartAppSeNecessario(jsonData)
 
       @data =
         id:        jsonData.id
