@@ -7,7 +7,7 @@
   "scripts": {
     "start_dev": "npm run compile-coffee & npm run start_node_dev & sleep 5 && npm run start_player_dev",
     "start_prod": "npm run start_node_prod & sleep 10 && npm run start_player_prod",
-    "start_node_prod": "node server.js",
+    "start_node_prod": "nodemon server.js",
     "start_node_dev": "nodemon --inspect server.js",
     "start_player": "npm run start_player_prod",
     "start-electron": "electron --disable-gpu --no-sandbox .",

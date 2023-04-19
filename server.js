@@ -18,6 +18,7 @@ require('./app/classes/logs')(true);
 if (process.versions.electron) {
   require('./application');
 } else {
+  require('./app/classes/commons');
   require('./app/classes/versions_control')();
   require('./app/classes/download')();
   require('./app/classes/grade')();
