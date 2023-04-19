@@ -33,6 +33,16 @@ onLoaded = ->
   timelineConteudoSuperior.init()
   timelineConteudoMensagem.init()
 
+@checkTv = ->
+  success = (resp)=>
+    data = resp.data
+    # console.log data
+    restartPlayerSeNecessario(data)
+
+  error = (resp) => console.log resp
+
+  Vue.http.get('/check_tv').then success, error
+
 @gradeObj =
   tentar: 10
   tentativas: 0
@@ -359,6 +369,11 @@ relogio =
     updateOnlineStatus = ->
       vm.online = navigator.onLine
 
+    setInterval ->
+      # return if vm.loaded
+      checkTv()
+    , 1000 * 3 # 1 segundo
+
     setTimeout ->
       return if vm.loaded
       updateOnlineStatus()
@@ -394,4 +409,18 @@ Vue.filter 'formatWeek', (value)->
 
 Vue.filter 'currency', (value)->
   (value || 0).toLocaleString('pt-Br', minimumFractionDigits: 2, maximumFractionDigits: 2)
+
+
+restartPlayerSeNecessario = (data) ->
+  xSegundos = data.restart_player_em_x_segundos
+  return unless xSegundos
+  console.log "restart_player será executado em #{xSegundos} segundos"
+  _exec = -> window.location.reload()
+  setTimeout =>
+    _exec()
+  , xSegundos*1000
+
+    # @timers = []
+    # @timers.push = setTimeout => @exec(), 2000
+
 

@@ -8,7 +8,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, onLoaded, relogio;
+  var data, onLoaded, relogio, restartPlayerSeNecessario;
 
   data = {
     body: void 0,
@@ -35,6 +35,19 @@
     }
     timelineConteudoSuperior.init();
     return timelineConteudoMensagem.init();
+  };
+
+  this.checkTv = function() {
+    var error, success;
+    success = (resp) => {
+      data = resp.data;
+      // console.log data
+      return restartPlayerSeNecessario(data);
+    };
+    error = (resp) => {
+      return console.log(resp);
+    };
+    return Vue.http.get('/check_tv').then(success, error);
   };
 
   this.gradeObj = {
@@ -463,6 +476,10 @@
       updateOnlineStatus = function() {
         return vm.online = navigator.onLine;
       };
+      setInterval(function() {
+        // return if vm.loaded
+        return checkTv();
+      }, 1000 * 3); // 1 segundo
       setTimeout(function() {
         if (vm.loaded) {
           return;
@@ -519,5 +536,23 @@
       maximumFractionDigits: 2
     });
   });
+
+  restartPlayerSeNecessario = function(data) {
+    var _exec, xSegundos;
+    xSegundos = data.restart_player_em_x_segundos;
+    if (!xSegundos) {
+      return;
+    }
+    console.log(`restart_player será executado em ${xSegundos} segundos`);
+    _exec = function() {
+      return window.location.reload();
+    };
+    return setTimeout(() => {
+      return _exec();
+    }, xSegundos * 1000);
+  };
+
+  // @timers = []
+// @timers.push = setTimeout => @exec(), 2000
 
 }).call(this);

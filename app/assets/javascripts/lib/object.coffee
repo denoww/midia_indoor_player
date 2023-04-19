@@ -103,3 +103,38 @@ unless Object.equals
       # allows obj1[ obj ] to be set to undefined
 
     true
+
+
+unless Object.clone
+  # Como usar
+  # Ex: 1
+  #
+  # a = { batman: 100, coringa: 10 }
+  # b = Object.clone(a)
+  # b.coringa = 10000
+  #
+  # a => { batman: 100, coringa: 10 }
+  # b => { batman: 100, coringa: 10000 }
+  #
+  Object.clone = (obj)->
+    # Handle the 3 simple types, and null or undefined
+    return obj if (null == obj || "object" != typeof obj)
+
+    # Handle Array and Object
+    switch obj.constructor
+      when Array
+        copy = []
+        copy.push Object.clone(item) for item in obj
+      when Object
+        copy = {}
+        copy[k] = Object.clone(v) for k, v of obj
+      when File
+        copy = new File([obj], obj.name, { type: obj.type, lastModified: obj.lastModified, lastModifiedDate: obj.lastModifiedDate, })
+      else
+        objectCall = {}.toString.call(obj)
+        if ['[object Object]', '[object Date]', '[object FormData]', '[object Blob]', '[object MediaStream]'].include(objectCall)
+          copy = obj
+        else
+          throw new Error("Unable to copy obj of type (#{objectCall}: #{obj.constructor})! Its type isn't supported. obj: #{obj}")
+
+    copy

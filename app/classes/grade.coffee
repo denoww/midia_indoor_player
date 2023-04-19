@@ -6,6 +6,14 @@ request = require 'request'
 module.exports = ->
   ctrl =
     data: {}
+    checkTv: ->
+      url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json?id=#{ENV.TV_ID}"
+      console.log "/check_tv.json"
+      request url, (error, response, body)=>
+        if error || response?.statusCode != 200
+          return
+        data = JSON.parse(body)
+        @_restartAppSeNecessario(data)
     getList: ->
       url = "#{ENV.API_SERVER_URL}/publicidades/grade.json?id=#{ENV.TV_ID}"
       global.logs.create "URL: #{url}"
@@ -44,20 +52,19 @@ module.exports = ->
         global.feeds.getList()
     _restartAppSeNecessario: (data) ->
       # data.restart_player = true
-      xSegundos = 10
+      xSegundos = 1
       # console.log 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
       # console.log data.restart_player
+      @data.restart_player = data.restart_player
       if data.restart_player
         scPrint.warning "App vai reiniciar daqui #{xSegundos} segundos"
         setInterval =>
           restartApp()
-        , 5*1000
+        , xSegundos*1000
 
     handlelist: (jsonData)->
       configPath = global.configPath
       configPath = configPath.split('\\').join('/') if process.platform == 'win32'
-
-      @_restartAppSeNecessario(jsonData)
 
       @data =
         id:        jsonData.id
@@ -211,6 +218,10 @@ module.exports = ->
     global.logs.create 'Grade -> Atualizando lista!'
     ctrl.getList()
   , 1000 * 60 * (ENV.TEMPO_ATUALIZAR || 5)
+
+  setInterval ->
+    ctrl.checkTv()
+  , 10000
 
   ctrl.getList()
   global.grade = ctrl

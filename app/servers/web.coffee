@@ -8,6 +8,7 @@ module.exports = (opt={}) ->
 
   versao = global.versionsControl?.currentVersion || global.grade?.data?.versao_player || '--'
   global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
+  global.server_started = true
 
   app.use express.static(path.join( __dirname, '../assets/'))
   app.use express.static(path.join( __dirname, '../../public/'))
@@ -33,6 +34,17 @@ module.exports = (opt={}) ->
       res.sendStatus(400)
       return
     res.send JSON.stringify global.grade.data
+
+
+  app.get '/check_tv', (req, res) ->
+    global.logs.create "Request GET /check_tv params: #{JSON.stringify(req.body || {})}"
+    resp = {}
+    if global.server_started
+      xSegundos = 20
+      resp.restart_player_em_x_segundos = xSegundos
+      scPrint.warning "Player web será reiniciado em #{xSegundos} segundos"
+      global.server_started = false
+    res.send JSON.stringify resp
 
   app.get '/feeds', (req, res) ->
     global.logs.create "Request GET /feeds params: #{JSON.stringify(req.body || {})}"

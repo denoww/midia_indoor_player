@@ -164,4 +164,56 @@
     };
   }
 
+  if (!Object.clone) {
+    // Como usar
+    // Ex: 1
+
+    // a = { batman: 100, coringa: 10 }
+    // b = Object.clone(a)
+    // b.coringa = 10000
+
+    // a => { batman: 100, coringa: 10 }
+    // b => { batman: 100, coringa: 10000 }
+
+    Object.clone = function(obj) {
+      var copy, item, j, k, len, objectCall, v;
+      if (null === obj || "object" !== typeof obj) {
+        // Handle the 3 simple types, and null or undefined
+        return obj;
+      }
+      // Handle Array and Object
+      switch (obj.constructor) {
+        case Array:
+          copy = [];
+          for (j = 0, len = obj.length; j < len; j++) {
+            item = obj[j];
+            copy.push(Object.clone(item));
+          }
+          break;
+        case Object:
+          copy = {};
+          for (k in obj) {
+            v = obj[k];
+            copy[k] = Object.clone(v);
+          }
+          break;
+        case File:
+          copy = new File([obj], obj.name, {
+            type: obj.type,
+            lastModified: obj.lastModified,
+            lastModifiedDate: obj.lastModifiedDate
+          });
+          break;
+        default:
+          objectCall = {}.toString.call(obj);
+          if (['[object Object]', '[object Date]', '[object FormData]', '[object Blob]', '[object MediaStream]'].include(objectCall)) {
+            copy = obj;
+          } else {
+            throw new Error(`Unable to copy obj of type (${objectCall}: ${obj.constructor})! Its type isn't supported. obj: ${obj}`);
+          }
+      }
+      return copy;
+    };
+  }
+
 }).call(this);
