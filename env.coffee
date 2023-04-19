@@ -23,8 +23,8 @@ if fs.existsSync(envFile)
   content.split(/\r?\n/).forEach (line) ->
     if line
       [k, v] = line.split('=')
-      v = v.replace(/\"/, "")
-      v = v.replace(/\'/, "")
+      v = v.replace(/\"/g, "")
+      v = v.replace(/\'/g, "")
       console.log "#{k}: #{v}"
       process.env[k] = v
   console.log "-----------------------------------------------------------------"
