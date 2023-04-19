@@ -28,7 +28,6 @@
     "jimp": "0.14.0",
     "md5": "2.3.0",
     "moment": "^2.29.4",
-    "node-env-file": "0.1.8",
     "nodemon": "^2.0.20",
     "qrcode": "1.4.4",
     "rss-parser": "3.9.0",
