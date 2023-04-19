@@ -11,23 +11,19 @@ module.exports = ->
   ctrl =
     fila: []
     loading: false
+    folderKeys: ['images', 'videos', 'audios', 'feeds']
     init: ->
       folders = []
       folders.push global.configPath
-      folders.push global.configPath + 'images/'
-      folders.push global.configPath + 'videos/'
-      folders.push global.configPath + 'audios/'
-      folders.push global.configPath + 'feeds/'
+      for it in @folderKeys
+        folders.push global.configPath + "#{it}/"
 
       for folder in folders
         if !fs.existsSync(folder)
           fs.mkdirSync(folder, { recursive: true })
       return
     exec: (params, opts={})->
-      pasta = global.configPath + 'videos/' if params.is_video
-      pasta = global.configPath + 'images/' if params.is_image
-      pasta = global.configPath + 'audios/' if params.is_audio
-      pasta = global.configPath + 'feeds/'  if params.is_feed || opts.is_feed
+      pasta = global.configPath + "#{params.pasta}/" if params.pasta
       pasta = global.configPath if params.is_logo || opts.is_logo
 
       unless pasta

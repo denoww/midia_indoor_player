@@ -76,7 +76,7 @@ module.exports = ->
         resolucao: jsonData.resolucao
         informacoes: jsonData.informacoes
         versao_player: jsonData.versao_player
-        current_version: global.versionsControl.currentVersion
+        current_version: global.versionsControl?.currentVersion
 
       @data.finance = jsonData.finance if jsonData.finance
       @data.weather = jsonData.weather if jsonData.weather
@@ -111,6 +111,12 @@ module.exports = ->
       item.is_audio = vinculo.midia.is_audio
       item.is_image = vinculo.midia.is_image
       item.is_video = vinculo.midia.is_video
+
+      item.pasta = "videos" if item.is_video
+      item.pasta = "audios" if item.is_audio
+      item.pasta = "images" if item.is_image
+
+
       item.content_type = vinculo.midia.content_type
       item.nome_arquivo = "#{vinculo.midia.id}.#{vinculo.midia.extension}"
       item.nome_arquivo = @ajustImageNameToWebp item if item.is_image
@@ -212,6 +218,19 @@ module.exports = ->
       catch e
         global.logs.error "Grade -> getDataOffline -> #{e}", tags: class: 'grade'
       return
+    apagarAntigos: ->
+      @getDataOffline()
+      data = global.grade.data
+      return if Object.empty(data || {})
+      # console.log data
+
+      # itensAtuais = []
+      # for fonte, categorias of data
+      #   for categoria, items of categorias || []
+      #     itensAtuais.push item.nome_arquivo for item in items || []
+      # console.log itensAtuais
+      # return if itensAtuais.empty()
+      # removerMidiasAntigas 'feeds', itensAtuais
 
   setInterval ->
     return if global.versionsControl.updating

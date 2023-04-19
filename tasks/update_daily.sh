@@ -6,7 +6,7 @@ cd /var/lib/midia_indoor_player/
 # sudo npm install -g npm
 
 # apaga as imagens antigas dos feeds
-/usr/bin/npm run delete_old_images
+/usr/bin/npm run apagar_midias_antigas
 sleep 2
 
 # atualiza o repositorio

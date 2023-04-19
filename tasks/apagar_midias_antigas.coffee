@@ -10,5 +10,7 @@ global.configPath = path.join( process.cwd(), 'public/');
 require('../env')
 require('sc-node-tools')
 require('../app/classes/logs')()
+require('../app/classes/commons')
 require('../app/classes/feeds')()
-global.feeds.deleteOldImages()
+# require('../app/classes/grade')()
+apagarArquivosAntigosDaGrade()

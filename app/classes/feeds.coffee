@@ -2,7 +2,6 @@ fs        = require 'fs'
 md5       = require 'md5'
 RSS       = require 'rss-parser'
 path      = require 'path'
-shell     = require 'shelljs'
 QRCode    = require 'qrcode'
 moment    = require 'moment'
 request   = require 'request'
@@ -95,6 +94,7 @@ module.exports = ->
         link:           feed.link
         titulo:         titulo
         titulo_feed:    params.titulo
+        pasta:          'feeds'
         nome_arquivo:   imageObj.nome_arquivo
         categoria_feed: categoriaFeed
 
@@ -315,23 +315,16 @@ module.exports = ->
         feedObj.nome_arquivo = image.nome_arquivo
         ctrl.addToData(params, feedObj)
       return
-    deleteOldImages: ->
+    apagarAntigos: ->
       @getDataOffline()
       return if Object.empty(@data || {})
 
-      imagensAtuais = []
+      itensAtuais = []
       for fonte, categorias of @data
         for categoria, items of categorias || []
-          imagensAtuais.push "-name '#{item.nome_arquivo}'" for item in items || []
-      return if imagensAtuais.empty()
-
-      caminho = global.configPath + 'feeds/'
-      console.log "Verificando #{caminho}"
-      command = "find #{caminho} -type f ! \\( #{imagensAtuais.join(' -o ')} \\) -delete"
-      shell.exec command, (code, out, error)->
-        return global.logs.error "Feeds -> deleteOldImages #{error}", tags: class: 'feeds' if error
-        global.logs.create 'Feeds -> Imagens antigas APAGADAS!'
-        return
-      return
+          itensAtuais.push item.nome_arquivo for item in items || []
+      # console.log itensAtuais
+      return if itensAtuais.empty()
+      removerMidiasAntigas 'feeds', itensAtuais
 
   global.feeds = ctrl
