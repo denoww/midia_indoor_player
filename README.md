@@ -23,7 +23,7 @@ wget -O - www.seucondominio.com.br/linker_service | bash -s update_service
 linker_service install_teamviewer
 ```
 
-## install midia indoor
+## install midia indoor mini pc
 
 $ cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
 
@@ -66,6 +66,22 @@ Depois configure o Teamviewer nomeando o dispositivo como midia_indoor_player [I
 Feito isso, após a reinicialização, o player já esta rodando. \o/
 
 ---
+
+## Midia Indoor CLOUD - instale na núvem
+
+```
+sccamerasproductionssh
+cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
+cd /var/lib/midia_indoor_player/; tasks/./install.sh
+
+Reinicie
+
+cd /var/lib/midia_indoor_player
+npm install pm2 -g
+npm run pm2_start_prod
+pm2 logs
+```
+
 
 ## Corrigir hora
 
