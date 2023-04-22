@@ -23,6 +23,7 @@ if (process.versions.electron) {
   require('./app/classes/grade')();
   require('./app/classes/feeds')();
   require('./app/servers/web')();
+  global.grade.startCheckTvTimer()
 }
 
 process.on('uncaughtException', function (error) {

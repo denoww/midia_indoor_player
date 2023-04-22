@@ -9,7 +9,7 @@
     "start_prod": "npm run compile_coffee & nodemon server.js -- fullscreen=true",
     "start_player_prod": "node start_player fullscreen=true",
     "start_player_dev": "node start_player fullscreen=false",
-    "apagar_midias_antigas": "coffee ./tasks/apagar_midias_antigas.coffee",
+    "apagar_arquivos_antigos_de_grades": "coffee ./tasks/apagar_arquivos_antigos_de_grades.coffee",
     "compile_coffee": "coffee -wc app/assets/**"
   },
   "dependencies": {

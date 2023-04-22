@@ -9,6 +9,19 @@ module.exports = ->
   ctrl =
     tvIds: []
     data: {}
+    # folderKeys: ['images', 'videos', 'audios', 'feeds']
+    folderKeys: ['images', 'videos', 'feeds']
+    createFolders: (tvId) ->
+      folders = []
+      tvFolder = "#{getTvFolderPublic(tvId)}"
+      folders.push tvFolder
+      for it in @folderKeys
+        folders.push "#{tvFolder}/#{it}/"
+
+      for folder in folders
+        if !fs.existsSync(folder)
+          fs.mkdirSync(folder, { recursive: true })
+      return
     checkTv: (tvId) ->
       url = "#{baseUrl}/check_tv.json?id=#{tvId}"
       console.log "/check_tv.json"
@@ -18,7 +31,7 @@ module.exports = ->
         resp = JSON.parse(body)
         @_restartGrade(resp)
     getList: (tvId) ->
-      Download.createFolders(tvId)
+      @createFolders(tvId)
 
       @tvIds.push(tvId)
       @tvIds = @tvIds.flatten().unique()
@@ -253,39 +266,46 @@ module.exports = ->
       @data[tvId] ||= {}
       folder = getTvFolderPublic(tvId)
 
-      global.logs.create 'Grade -> Pegando grade de grade.json'
+      console.log  "tv #{tvId} - pegando grade offline"
       try
         @data[tvId] = JSON.parse(fs.readFileSync("#{folder}/grade.json", 'utf8') || '{}')
       catch e
         global.logs.error "Grade -> getDataOffline -> #{e}", tags: class: 'grade'
       return
-    apagarAntigos: ->
-      @getDataOffline()
-      data = global.grade.data
-      return if Object.empty(data || {})
-      # console.log data
+    apagarAntigos: (tvId) ->
+      pastas = {}
 
-      # itensAtuais = []
-      # for fonte, categorias of data
-      #   for categoria, items of categorias || []
-      #     itensAtuais.push item.nome_arquivo for item in items || []
-      # console.log itensAtuais
-      # return if itensAtuais.empty()
-      # removerMidiasAntigas 'feeds', itensAtuais
+      pastasDeConteudoSuperior = ['images', 'videos']
+
+      ###############################################
+      # utilizando @folderKeys estava apagando os feeds
+      # analisarPastas = @folderKeys
+      analisarPastas = pastasDeConteudoSuperior
+      ###############################################
+
+      for pasta in analisarPastas
+        pastas[pasta] = []
+
+      @getDataOffline(tvId)
+      @data ||= {}
+      data = @data[tvId] || {}
+      for it in data.conteudo_superior
+        for it2 in (it.conteudo_superior || [])
+          pasta = it2.pasta
+          nomeArquivo = it2.nome_arquivo
+          if pasta && nomeArquivo
+            # pastas[pasta] ||= []
+            pastas[pasta].push nomeArquivo
+
+      for pasta, arquivos of pastas
+        # console.log pasta
+        # console.log arquivos
+        removerMidiasAntigas(tvId, pasta, arquivos)
 
 
-    # init: ->
-    #   ctrl.getList()
-    #   setInterval ->
-    #     return if global.versionsControl.updating
-    #     global.logs.create 'Grade -> Atualizando lista!'
-    #     ctrl.getList()
-    #   , 1000 * 60 * (ENV.TEMPO_ATUALIZAR || 5)
-
-    init: ->
+    startCheckTvTimer: ->
       setInterval =>
         for tvId in @tvIds.flatten().unique()
           ctrl.checkTv(tvId)
       , 10000
-  ctrl.init()
   global.grade = ctrl

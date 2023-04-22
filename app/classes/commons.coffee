@@ -1,4 +1,5 @@
 shell = require 'shelljs'
+fs = require 'fs'
 
 
 global.restartApp = ->
@@ -14,46 +15,28 @@ global.getTvFolder = (tvId) -> "#{tvId}"
 global.getTvFolderPublic = (tvId) -> "#{pastaPublic()}/#{getTvFolder(tvId)}"
 
 
-
+getDirectories = (path) ->
+  fs.readdirSync(path).filter (file) ->
+    fs.statSync(path + '/' + file).isDirectory()
 
 global.apagarArquivosAntigosDaGrade = ->
+  tvIdsPastas = getDirectories(pastaPublic())
+  for tvId in tvIdsPastas
+    global.feeds.apagarAntigos(tvId)
+    global.grade.apagarAntigos(tvId)
 
-  # require('../app/classes/feeds')()
-
-  global.feeds.apagarAntigos()
-  apagarOutrasMidias()
-
-apagarOutrasMidias = ->
-  fs = require 'fs'
-
-  pastas = {}
-
-  data = {}
-  try
-    data = JSON.parse(fs.readFileSync('grade.json', 'utf8') || '{}')
-  catch e
-  for it in data.conteudo_superior
-    for it2 in it.conteudo_superior
-      pasta = it2.pasta
-      nomeArquivo = it2.nome_arquivo
-      if pasta && nomeArquivo
-        pastas[pasta] ||= []
-        pastas[pasta].push nomeArquivo
-
-  for pasta, arquivos of pastas
-    removerMidiasAntigas(pasta, arquivos)
-
-
-
-global.removerMidiasAntigas = (pasta, arquivosAtuais) ->
-  caminho = "#{getTvFolder(tvId)}#{pasta}/"
-  console.log "Verificando #{caminho}"
+global.removerMidiasAntigas = (tvId, pasta, arquivosAtuais) ->
+  caminho = "#{getTvFolderPublic(tvId)}/#{pasta}/"
+  console.log "tv #{tvId} - Verificando #{caminho}"
 
   itens = []
   for it in arquivosAtuais
     itens.push "-name '#{it}'"
 
-  command = "find #{caminho} -type f ! \\( #{itens.join(' -o ')} \\) -delete"
+  naoApagarArquivosAtuais = ''
+  naoApagarArquivosAtuais = "! \\( #{itens.join(' -o ')} \\)" if itens.any()
+  command = "find #{caminho} -type f #{naoApagarArquivosAtuais} -delete"
+
   shell.exec command, (code, out, error)->
     return global.logs.error "#{pasta} -> deleteOldImages #{error}", tags: class: pasta if error
-    global.logs.create "#{pasta} -> Midias antigas APAGADAS!"
+    global.logs.create "tv #{tvId} - #{pasta} -> Midias antigas APAGADAS!"

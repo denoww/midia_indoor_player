@@ -256,7 +256,7 @@ module.exports = ->
     getDataOffline: (tvId) ->
       folder = getTvFolderPublic(tvId)
 
-      global.logs.create 'Feeds -> Pegando feeds de feeds.json'
+      console.log  "tv #{tvId} - pegando feeds offline"
       @data[tvId] ||= {}
       try
         @data[tvId] = JSON.parse(fs.readFileSync("#{folder}/feeds.json", 'utf8') || '{}')
@@ -345,7 +345,7 @@ module.exports = ->
         for categoria, items of categorias || []
           itensAtuais.push item.nome_arquivo for item in items || []
       # console.log itensAtuais
-      return if itensAtuais.empty()
-      removerMidiasAntigas 'feeds', itensAtuais
+      # return if itensAtuais.empty()
+      removerMidiasAntigas tvId, 'feeds', itensAtuais
 
   global.feeds = ctrl

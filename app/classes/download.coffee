@@ -11,18 +11,6 @@ module.exports = ->
   ctrl =
     fila: []
     loading: false
-    folderKeys: ['images', 'videos', 'audios', 'feeds']
-    createFolders: (tvId) ->
-      folders = []
-      tvFolder = "#{getTvFolderPublic(tvId)}"
-      folders.push tvFolder
-      for it in @folderKeys
-        folders.push "#{tvFolder}/#{it}/"
-
-      for folder in folders
-        if !fs.existsSync(folder)
-          fs.mkdirSync(folder, { recursive: true })
-      return
     exec: (params, opts={})->
       unless params.filePath
         # logs.error "Download -> exec -> faltou passar argumento \"filePath\" para #{params.nome_arquivo}!"
