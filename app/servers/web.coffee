@@ -97,7 +97,7 @@ npmCtrl =
     npmRunCmd = params.cmd
 
     params = req.getParams()
-    console.log  "teste /npm_run params: #{JSON.stringify(params)}"
+    console.log  "/npm_run params: #{JSON.stringify(params)}"
     switch npmRunCmd
       when 'xxxxxxxxxxxxxxxxx'
         console.log 'nada aqui'
