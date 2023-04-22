@@ -13,4 +13,5 @@ sleep 2
 /var/lib/midia_indoor_player/tasks/./update_repository.sh
 
 # reinicia o equipamento
-sudo /sbin/reboot
+# sudo /sbin/reboot
+/sbin/reboot
