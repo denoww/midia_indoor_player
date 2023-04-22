@@ -59,10 +59,10 @@ if [[ "$atualizar_lxde" == "y" || "$atualizar_lxde" == "Y" ]] ; then
   sh -c "sudo cp $projectPath/device_configs/lxde-autostart /etc/xdg/lxsession/LXDE-pi/autostart"
 fi
 
-read -p '--> Instalar xdotool para posisionar o MOUSE no canto da tela? (y/N) ' instalar_xdo
-if [[ "$instalar_xdo" == "y" || "$instalar_xdo" == "Y" ]] ; then
-  sh -c 'sudo apt install xdotool -y'
-fi
+# read -p '--> Instalar xdotool para posisionar o MOUSE no canto da tela? (y/N) ' instalar_xdo
+# if [[ "$instalar_xdo" == "y" || "$instalar_xdo" == "Y" ]] ; then
+#   sh -c 'sudo apt install xdotool -y'
+# fi
 
 read -p '--> Instalar TeamViewer? (y/N) ' instalar_teamv
 if [[ "$instalar_teamv" == "y" || "$instalar_teamv" == "Y" ]] ; then
@@ -93,7 +93,7 @@ if [[ "$instalar_npm_install" == "y" || "$instalar_npm_install" == "Y" ]] ; then
   exit
 fi
 
-read -p "--> Criar atalho para node, npm e npx em /usr/bin (v${nodeVersion})? (y/N) " instalar_atalho
+read -p "--> IMPORTANTE - Criar atalho para node, npm e npx em /usr/bin (v${nodeVersion})? (y/N) " instalar_atalho
 if [[ "$instalar_atalho" == "y" || "$instalar_atalho" == "Y" ]] ; then
   sudo ln -s "$NVM_DIR/versions/node/v$nodeVersion/bin/node" "/usr/bin/node"
   sudo ln -s "$NVM_DIR/versions/node/v$nodeVersion/bin/npm" "/usr/bin/npm"

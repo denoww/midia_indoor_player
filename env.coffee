@@ -1,3 +1,5 @@
+return if global.envCarregado
+global.envCarregado = true
 fs = require 'fs'
 
 

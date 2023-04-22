@@ -5,17 +5,12 @@
   "main": "server.js",
   "private": true,
   "scripts": {
-    "start_dev": "npm run compile-coffee & npm run start_node_dev & sleep 10 && npm run start_player_dev",
-    "start_prod": "npm run start_node_prod & sleep 10 && npm run start_player_prod",
-    "start_node_prod": "nodemon server.js",
-    "start_node_dev": "nodemon --inspect server.js",
-    "start_player": "npm run start_player_prod",
-    "start-electron": "electron --disable-gpu --no-sandbox .",
-    "start_player_dev": "node start_player.js fullscreen=false",
-    "start_player_prod": "node start_player.js fullscreen=true",
+    "start_dev": "npm run compile_coffee & nodemon server.js -- fullscreen=false",
+    "start_prod": "npm run compile_coffee & nodemon server.js -- fullscreen=true",
+    "start_player_prod": "node start_player fullscreen=true",
+    "start_player_dev": "node start_player fullscreen=false",
     "apagar_midias_antigas": "coffee ./tasks/apagar_midias_antigas.coffee",
-    "update_timezone": "coffee ./tasks/update_timezone.coffee",
-    "compile-coffee": "coffee -wc app/assets/**"
+    "compile_coffee": "coffee -wc app/assets/**"
   },
   "dependencies": {
     "@sentry/browser": "6.2.5",

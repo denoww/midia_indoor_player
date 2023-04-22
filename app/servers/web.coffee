@@ -5,11 +5,14 @@ bodyParser = require('body-parser')
 
 module.exports = (opt={}) ->
   app = express()
+  global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
   server = app.listen(ENV.HTTP_PORT)
   scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
 
+  require("#{process.cwd()}/start_player");
+
+
   versao = global.versionsControl?.currentVersion || global.versao_player || '--'
-  global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
   # global.server_started = true
 
   app.use express.static(path.join( __dirname, '../assets/'))

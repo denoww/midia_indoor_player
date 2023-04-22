@@ -5,7 +5,7 @@ projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
 echo "iniciando $projectPath"
 sleep 10 # esperar uma conexao com a internet
 export DISPLAY=":0.0"
-/usr/bin/xdotool mousemove --sync 4000 4000
+# /usr/bin/xdotool mousemove --sync 4000 4000
 
 killall node
 
@@ -27,9 +27,9 @@ done
 
 # cliques na tela para simular acao do usuario para corrigir problema
 # de play nos videossudo
-array=( 200 150 100 50 )
-for i in "${array[@]}"
-do
-  sleep 5 && /usr/bin/xdotool mousemove --sync $i $i click 1 \
-  mousemove_relative --sync 4000 4000
-done
+# array=( 200 150 100 50 )
+# for i in "${array[@]}"
+# do
+#   sleep 5 && /usr/bin/xdotool mousemove --sync $i $i click 1 \
+#   mousemove_relative --sync 4000 4000
+# done
