@@ -9,7 +9,9 @@ module.exports = (opt={}) ->
   server = app.listen(ENV.HTTP_PORT)
   scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
 
-  require("#{process.cwd()}/start_player");
+  setTimeout ->
+    require("#{process.cwd()}/start_player");
+  , 7000
 
 
   versao = global.versionsControl?.currentVersion || global.versao_player || '--'
@@ -59,16 +61,10 @@ module.exports = (opt={}) ->
     console.log  "Request GET /check_tv params: #{JSON.stringify(params)}"
     tvId = params.tvId
     tvId = parseInt(tvId) if tvId
-    resp = {}
-    global.restart_tv_ids ||= []
+    data = global.grade.data[tvId] || {}
 
-    deveReiniciar = global.restart_tv_ids.includes(tvId) if tvId
-    if deveReiniciar
-      global.restart_tv_ids.remove(tvId)
-      xSegundos = 20
-      resp.restart_player_em_x_segundos = xSegundos
-      scPrint.warning "tv ##{tvId} -> Player web será reiniciado em #{xSegundos} segundos"
-      # global.server_started = false
+    resp = {}
+    resp.restart_player_em = data.restart_player_em
     res.send JSON.stringify resp
 
   app.get '/feeds', (req, res) ->

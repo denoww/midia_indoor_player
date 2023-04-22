@@ -8,7 +8,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, descobrirTimezone, onLoaded, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario;
+  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario;
 
   data = {
     body: void 0,
@@ -47,11 +47,11 @@
 
   this.checkTv = function() {
     var error, success;
-    success = (resp) => {
+    gradeObj.restart_player_em !== (success = (resp) => {
       data = resp.data;
       // console.log data
       return restartPlayerSeNecessario(data);
-    };
+    });
     error = (resp) => {
       return console.log(resp);
     };
@@ -61,6 +61,7 @@
   this.gradeObj = {
     tentar: 10,
     tentativas: 0,
+    restart_player_em: null,
     get: function(onSuccess, onError) {
       var error, success;
       if (this.loading) {
@@ -100,6 +101,7 @@
       Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
+      this.restart_player_em = data.restart_player_em;
       vm.grade.data = this.data = data;
     },
     mountWeatherData: function() {
@@ -576,7 +578,13 @@
     return window.location.reload();
   };
 
+  reiniciando = false;
+
   restartBrowserAposXSegundos = function(xSegundos) {
+    if (reiniciando) {
+      return;
+    }
+    reiniciando = true;
     console.log(`Será reiniciado em ${xSegundos} segundos`);
     return setTimeout(() => {
       return restartBrowser();
@@ -584,12 +592,16 @@
   };
 
   restartPlayerSeNecessario = function(data) {
-    var xSegundos;
-    xSegundos = data.restart_player_em_x_segundos;
-    if (!xSegundos) {
-      return;
+    // xSegundos = data.restart_player_em_x_segundos
+    // return unless xSegundos
+
+    // console.log 'gradeObj.restart_player_em'
+    // console.log gradeObj.restart_player_em
+    // console.log 'data.restart_player_em'
+    // console.log data.restart_player_em
+    if (data.restart_player_em !== gradeObj.restart_player_em) {
+      return restartBrowserAposXSegundos(20);
     }
-    return restartBrowserAposXSegundos(xSegundos);
   };
 
   // @timers = []

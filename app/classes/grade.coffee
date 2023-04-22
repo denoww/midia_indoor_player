@@ -25,7 +25,7 @@ module.exports = ->
       return
     checkTv: (tvId) ->
       url = "#{baseUrl}/check_tv.json?id=#{tvId}"
-      console.log "/check_tv.json"
+      console.log "cloud /check_tv.json em tv #{tvId}"
       request url, (error, response, body)=>
         if error || response?.statusCode != 200
           return
@@ -76,12 +76,13 @@ module.exports = ->
       # opt.restart_player = true
       # console.log 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
       # console.log opt.restart_player
-      if opt.restart_player
-        tvId = opt.id
-        # scPrint.warning tvId
-        return unless tvId
-        global.restart_tv_ids ||= []
-        global.restart_tv_ids.push parseInt(tvId)
+      tvId = opt.id
+      return unless tvId
+      dataTv = @data[tvId] || {}
+      if opt.restart_player_em != dataTv.restart_player_em
+        # # scPrint.warning tvId
+        # global.restart_tv_ids ||= []
+        # global.restart_tv_ids.push parseInt(tvId)
         scPrint.warning "Baixando nova grade de TV ##{opt.id}"
         @getList(tvId)
 
@@ -104,6 +105,7 @@ module.exports = ->
         informacoes: jsonData.informacoes
         # versao_player: jsonData.versao_player
         current_version: global.versionsControl?.currentVersion
+        restart_player_em: jsonData.restart_player_em
 
       @data[tvId].finance = jsonData.finance if jsonData.finance
       @data[tvId].weather = jsonData.weather if jsonData.weather

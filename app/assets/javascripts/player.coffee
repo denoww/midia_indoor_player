@@ -40,6 +40,7 @@ onLoaded = ->
   tvId = params.get("tvId")
 
 @checkTv = ->
+  gradeObj.restart_player_em !=
   success = (resp)=>
     data = resp.data
     # console.log data
@@ -54,6 +55,7 @@ onLoaded = ->
 @gradeObj =
   tentar: 10
   tentativas: 0
+  restart_player_em: null
   get: (onSuccess, onError)->
     return if @loading
     @loading = true
@@ -91,7 +93,9 @@ onLoaded = ->
     Vue.http.get('/grade?tvId='+getTvId()).then success, error
     return
   handle: (data)->
+    @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
+
     return
   mountWeatherData: ->
     vm.grade.data.weather ||= {}
@@ -150,6 +154,7 @@ onLoaded = ->
   handle: (data)->
     @data = data
     # pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
+
     for posicao in @posicoes
       vm.grade.data[posicao] ||= []
       feeds = vm.grade.data[posicao].select?((e)-> e.tipo_midia == 'feed') || []
@@ -451,7 +456,11 @@ Vue.filter 'currency', (value)->
 
 restartBrowser = -> window.location.reload()
 
+reiniciando = false
 restartBrowserAposXSegundos = (xSegundos) ->
+  return if reiniciando
+  reiniciando = true
+
   console.log "Será reiniciado em #{xSegundos} segundos"
   setTimeout =>
     restartBrowser()
@@ -460,9 +469,16 @@ restartBrowserAposXSegundos = (xSegundos) ->
 
 
 restartPlayerSeNecessario = (data) ->
-  xSegundos = data.restart_player_em_x_segundos
-  return unless xSegundos
-  restartBrowserAposXSegundos(xSegundos)
+  # xSegundos = data.restart_player_em_x_segundos
+  # return unless xSegundos
+
+  # console.log 'gradeObj.restart_player_em'
+  # console.log gradeObj.restart_player_em
+  # console.log 'data.restart_player_em'
+  # console.log data.restart_player_em
+
+  if data.restart_player_em != gradeObj.restart_player_em
+    restartBrowserAposXSegundos(20)
 
     # @timers = []
     # @timers.push = setTimeout => @exec(), 2000
