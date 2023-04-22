@@ -25,7 +25,7 @@ module.exports = ->
       return
     exec: (params, opts={})->
       unless params.filePath
-        logs.error "Download -> exec -> faltou passar argumento \"filePath\" para #{params.nome_arquivo}!"
+        # logs.error "Download -> exec -> faltou passar argumento \"filePath\" para #{params.nome_arquivo}!"
         return
 
       # fullPath = params.saveOn || params.filePath

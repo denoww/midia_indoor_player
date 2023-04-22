@@ -139,17 +139,19 @@ module.exports = ->
 
       item.nome_arquivo = nome_arquivo
 
-      filePath = getTvFolder(tvId)
-      filePath = "#{filePath}/#{pasta}" if pasta
-      filePath = "#{filePath}/#{nome_arquivo}"
-      item.filePath = filePath
+      if nome_arquivo
+        filePath = getTvFolder(tvId)
+        filePath = "#{filePath}/#{pasta}" if pasta
+        filePath = "#{filePath}/#{nome_arquivo}"
+        item.filePath = filePath
+        Download.exec(item)
       # item.saveOn = filePath
 
       lista ||= @data[tvId]
       lista[vinculo.posicao] ||= []
       lista[vinculo.posicao].push item
-      item.tvId = tvId
-      Download.exec(item)
+      item.filePath ||= item.url
+
       return
     handleInformativo: (tvId, vinculo, item, lista=null)->
       return unless vinculo.mensagem

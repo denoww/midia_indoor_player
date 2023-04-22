@@ -335,6 +335,7 @@
       currentItem.titulo_feed = feed.titulo_feed;
       currentItem.categoria_feed = feed.categoria_feed;
       currentItem.nome_arquivo = feed.nome_arquivo;
+      currentItem.filePath = feed.filePath;
       return currentItem;
     },
     getItemPlaylist: function(playlist) {
@@ -426,6 +427,7 @@
       currentItem.titulo = feed.titulo;
       currentItem.titulo_feed = feed.titulo_feed;
       currentItem.categoria_feed = feed.categoria_feed;
+      currentItem.filePath = feed.filePath;
       return currentItem;
     }
   };

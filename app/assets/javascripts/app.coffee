@@ -269,6 +269,7 @@ onLoaded = ->
     currentItem.titulo_feed = feed.titulo_feed
     currentItem.categoria_feed = feed.categoria_feed
     currentItem.nome_arquivo = feed.nome_arquivo
+    currentItem.filePath = feed.filePath
     currentItem
   getItemPlaylist: (playlist)->
     if !@playlistIndex[playlist.id]?
@@ -336,6 +337,7 @@ onLoaded = ->
     currentItem.titulo = feed.titulo
     currentItem.titulo_feed = feed.titulo_feed
     currentItem.categoria_feed = feed.categoria_feed
+    currentItem.filePath = feed.filePath
     currentItem
 
 descobrirTimezone = (callback) ->
