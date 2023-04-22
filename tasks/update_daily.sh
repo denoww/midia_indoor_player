@@ -6,7 +6,7 @@
 # sudo npm install -g npm
 
 # apaga as imagens antigas dos feeds
-/usr/bin/npm run apagar_arquivos_antigos_de_grades
+/usr/bin/npm run apagar_arquivos_antigos
 sleep 2
 
 # atualiza o repositorio
