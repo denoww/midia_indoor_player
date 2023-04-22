@@ -12,7 +12,8 @@
     "pm2_start_prod": "pm2 delete MIDIAINDOOR; pm2 start server.js --name=MIDIAINDOOR -- fullscreen=true;",
     "apagar_arquivos_antigos_de_grades": "coffee ./tasks/apagar_arquivos_antigos_de_grades.coffee",
     "compile_coffee": "coffee -wc app/assets/**",
-    "deploy": "./tasks/update.sh; pm2 restart MIDIAINDOOR"
+    "git_pull_prod": "git checkout package-lock.json; git checkout package.json; git checkout schema.json; git pull; npm install; npm update sc-node-tools;",
+    "deploy": "npm run git_pull_prod; pm2 restart MIDIAINDOOR"
   },
   "dependencies": {
     "@sentry/browser": "6.2.5",
