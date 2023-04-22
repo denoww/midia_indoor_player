@@ -84,11 +84,15 @@ module.exports = (opt={}) ->
 
 
   app.get  '/npm_run', (req, res) ->
+    # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
+
+    params = req.getParams()
+    global.logs.create "Request GET /feeds params: #{JSON.stringify(params)}"
+
     npmCtrl.execNpmRun(req, res)
 
 npmCtrl =
   execNpmRun: (req, res) ->
-    # GET -> http://portaria-api.seucondominio.com.br/deploy?npm_script=update_code_and_restart
     params = req.getParams()
     npmRunCmd = params.cmd
 
@@ -102,7 +106,7 @@ npmCtrl =
     res.send JSON.stringify({params})
   _npmRun: (npmRunCmd) ->
     return unless npmRunCmd
-    command = "npm run #{npmRunCmd} --prefix ~/workspace/midia_indoor_player"
+    command = "npm run #{npmRunCmd} --prefix /var/lib/midia_indoor_player"
     shell = require("child_process").exec
     shell command, (error, stdout, stderr) ->
       console.log error if error
