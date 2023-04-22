@@ -85,9 +85,10 @@ module.exports = (opt={}) ->
 
   app.get  '/npm_run', (req, res) ->
     # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
-    params = req.getParams()
-    console.log  "/npm_run params: #{JSON.stringify(params)}"
+    npmCtrl.execNpmRun(req, res)
 
+  app.post  '/npm_run', (req, res) ->
+    # POST -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
     npmCtrl.execNpmRun(req, res)
 
 npmCtrl =
@@ -95,6 +96,8 @@ npmCtrl =
     params = req.getParams()
     npmRunCmd = params.cmd
 
+    params = req.getParams()
+    console.log  "/npm_run params: #{JSON.stringify(params)}"
     switch npmRunCmd
       when 'xxxxxxxxxxxxxxxxx'
         console.log 'nada aqui'
