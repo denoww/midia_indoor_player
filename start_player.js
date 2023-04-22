@@ -14,7 +14,7 @@ if(!ENV.TV_ID){
 
   fullscreen = ENV.fullscreen == 'true' || ENV.fullscreen == true
 
-  url = "http://localhost:4001?tvId="+ENV.TV_ID
+  url = "http://localhost:"+ENV.HTTP_PORT+"?tvId="+ENV.TV_ID
   if(fullscreen){
     cmd = "chromium-browser -kiosk "+url
   }else{
