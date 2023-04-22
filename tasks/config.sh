@@ -17,17 +17,19 @@ projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
 # fi
 
 # configurando variaveis de ambiente
+new_env_file=$projectPath/.env
+sample_env_file=$projectPath/.env_sample
+if [ ! -f "$new_env_file" ]; then
+  sh -c "sudo cp $sample_env_file $new_env_file"
+  sh -c "sudo cp $sample_env_file $new_env_file"
+fi
+
 read -p '--> Configurar variáveis de ambiente? (y/N) ' config_vars
 if [[ "$config_vars" == "y" || "$config_vars" == "Y" ]] ; then
-  sh -c "sudo cp $projectPath/.env_sample $projectPath/.env"
-  sh -c "sudo cp $projectPath/.env_sample $projectPath/.env"
   read -p '--> Informe o ID da TV: ' TV_ID
-  # read -p '--> Informe a API_SERVER_URL: ' API_SERVER_URL
-  # echo -e "TV_ID=$TV_ID\nAPI_SERVER_URL=$API_SERVER_URL\nNODE_ENV=production\n" | sudo tee -a $projectPath/.env
-  echo -e "TV_ID=$TV_ID\nNODE_ENV=production\n" | sudo tee -a $projectPath/.env
+  echo -e "TV_ID=$TV_ID\nNODE_ENV=production\n" | sudo tee -a $new_env_file
 
   printSourceEnv=true
-  # source /etc/environment
 fi
 
 
