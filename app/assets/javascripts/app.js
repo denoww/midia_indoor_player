@@ -69,7 +69,7 @@
       this.loading = true;
       success = (resp) => {
         if (this.tentativas > 0) {
-          restartBrowserAposXSegundos(25);
+          restartBrowserAposXSegundos(30);
         }
         this.loading = false;
         this.tentativas = 0;

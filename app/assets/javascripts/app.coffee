@@ -60,7 +60,7 @@ onLoaded = ->
 
     success = (resp)=>
       if @tentativas > 0
-        restartBrowserAposXSegundos(25)
+        restartBrowserAposXSegundos(30)
 
       @loading    = false
       @tentativas = 0
