@@ -79,6 +79,9 @@ Reinicie
 cd /var/lib/midia_indoor_player
 npm install pm2 -g
 npm run pm2_start_prod
+pm2 startup
+Copie o codigo gerado
+pm2 save
 pm2 logs
 ```
 
