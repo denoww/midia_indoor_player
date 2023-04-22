@@ -106,7 +106,8 @@ module.exports = ->
         pasta:          pasta
         nome_arquivo:   nome_arquivo
         categoria_feed: categoriaFeed
-        filePath: "#{getTvFolder(tvId)}/#{pasta}/#{nome_arquivo}"
+
+      feedObj.filePath = "#{getTvFolder(tvId)}/#{pasta}/#{nome_arquivo}" if nome_arquivo
 
 
 
@@ -244,7 +245,7 @@ module.exports = ->
       return
     saveDataJson: (tvId) ->
       dados = JSON.stringify @data[tvId], null, 2
-      folder = getTvFolder(tvId)
+      folder = getTvFolderPublic(tvId)
       try
         fs.writeFile "#{folder}/feeds.json", dados, (error)->
           return global.logs.error "Feeds -> saveDataJson #{error}", tags: class: 'feeds' if error
@@ -253,7 +254,7 @@ module.exports = ->
         global.logs.error "Feeds -> saveDataJson #{e}", tags: class: 'feeds'
       return
     getDataOffline: (tvId) ->
-      folder = getTvFolder(tvId)
+      folder = getTvFolderPublic(tvId)
 
       global.logs.create 'Feeds -> Pegando feeds de feeds.json'
       @data[tvId] ||= {}

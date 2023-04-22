@@ -112,7 +112,7 @@
                           <div class="feed-categoria">{{item.categoria_feed || item.titulo_feed}}</div>
                           <div class="feed-out"></div>
                         </div>
-                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.nome_arquivo ? 'feeds/' + item.nome_arquivo : '/images/no-image.png') + ')'}">&nbsp;</div>
+                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.filePath ? item.filePath : '/images/no-image.png') + ')'}">&nbsp;</div>
                         <div class="feed-titulo" :class="[{'com-qrcode': item.qrcode}]">
                           <div class="feed-data" v-if="item.data">{{item.data | formatDate}}</div>
                           {{item.titulo}}
