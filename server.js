@@ -7,7 +7,6 @@ if (process.versions.electron) {
 global.homePath = (process.env.HOME || process.env.USERPROFILE || process.env.HOMEPATH) + '/';
 
 path = require('path');
-global.configPath = path.join( __dirname, 'public/');
 
 require('coffeescript').register();
 require('./env');

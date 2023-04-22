@@ -12,18 +12,21 @@ module.exports = ->
     data: {}
     diasDataMinima: -14
     totalItensPorCategoria: 15
-    getList: ->
+    getList: (tvId) ->
       feeds = []
       posicoes = ['conteudo_superior', 'conteudo_mensagem']
       @dataMinima = moment().add(@diasDataMinima, 'days')
-      @getDataOffline()
-      return if global.grade?.data?.offline
+      @getDataOffline(tvId)
+      global.grade ||= {}
+      global.grade.data ||= {}
+      data = global.grade.data[tvId] || {}
+      return if data.offline
 
       for posicao in posicoes
-        continue unless global.grade?.data?[posicao]?.length
-        for feed in global.grade.data[posicao].select (item)-> item.tipo_midia == 'feed'
+        continue unless data[posicao]?.length
+        for feed in data[posicao].select (item)-> item.tipo_midia == 'feed'
           feeds.addOrExtend feed
-        playlists = global.grade.data[posicao].select (item)-> item.tipo_midia == 'playlist'
+        playlists = data[posicao].select (item)-> item.tipo_midia == 'playlist'
 
         for playlist in playlists
           for feed in playlist[posicao].select (item)-> item.tipo_midia == 'feed'
@@ -31,10 +34,11 @@ module.exports = ->
 
       return if feeds.empty()
       for params in feeds
+        params.tvId = tvId
         switch params.fonte
           when 'canaltech' then @baixarCanaltech(params)
           else @baixarFeeds(params)
-      @sanitizarFeedsJson(feeds)
+      @sanitizarFeedsJson(tvId, feeds)
     baixarFeeds: (params)->
       parserRSS = new RSS
         defaultRSS: 2.0
@@ -58,8 +62,9 @@ module.exports = ->
     handleFonte: (params, feeds)->
       return if (feeds || []).empty()
 
-      @data[params.fonte] ||= {}
-      @data[params.fonte][params.categoria] ||= []
+      tvId = params.tvId
+      @data[tvId][params.fonte] ||= {}
+      @data[tvId][params.fonte][params.categoria] ||= []
 
       keyData = 'data'
       keyData = 'isoDate' if feeds[0].isoDate
@@ -70,8 +75,9 @@ module.exports = ->
         continue unless data
 
         @handleFeed(params, feed) if moment(data) >= @dataMinima
-      @setTimerToSaveDataJson()
+      @setTimerToSaveDataJson(tvId)
     handleFeed: (params, feed)->
+      tvId = params.tvId
       imageObj = @getImageData(params, feed)
       return unless imageObj
 
@@ -87,6 +93,9 @@ module.exports = ->
         console.log '-----NÂO ENCONTREI O TITULO de:'
         console.log feed
 
+      nome_arquivo = imageObj.nome_arquivo
+      pasta = 'feeds'
+
       feedObj =
         id:             md5 imageObj.url
         url:            imageObj.url
@@ -94,9 +103,11 @@ module.exports = ->
         link:           feed.link
         titulo:         titulo
         titulo_feed:    params.titulo
-        pasta:          'feeds'
-        nome_arquivo:   imageObj.nome_arquivo
+        pasta:          pasta
+        nome_arquivo:   nome_arquivo
         categoria_feed: categoriaFeed
+        filePath: "#{getTvFolder(tvId)}/#{pasta}/#{nome_arquivo}"
+
 
 
       switch params.fonte
@@ -110,10 +121,13 @@ module.exports = ->
           return @getImageOGlobo(params, feedObj, imageObj.url) if imageObj.no_image
       @addToData(params, feedObj)
     addToData: (params, feedObj)->
+      tvId = params.tvId
+      feedObj.tvId = tvId
       Download.exec(feedObj, is_feed: true)
 
-      @data[params.fonte] ||= {}
-      dataFeeds = @data[params.fonte][params.categoria] || []
+      tvId = params.tvId
+      @data[tvId][params.fonte] ||= {}
+      dataFeeds = @data[tvId][params.fonte][params.categoria] || []
       feedIds   = dataFeeds.map (e)-> e.id
 
       # ignorando feeds que já existem e as imagens são .webp
@@ -126,7 +140,7 @@ module.exports = ->
         dataFeeds.addOrExtend feedObj
         dataFeeds = dataFeeds.sortByField 'data', 'desc'
         dataFeeds = dataFeeds.slice 0, ctrl.totalItensPorCategoria
-        ctrl.data[params.fonte][params.categoria] = dataFeeds
+        ctrl.data[tvId][params.fonte][params.categoria] = dataFeeds
 
       return addData() if feedObj.qrcode
       @createQRCode feedObj, addData
@@ -196,49 +210,55 @@ module.exports = ->
 
         UrlExists urls[index], (error, existe)=>
           @loading = false
-          @next()
+          @next(params.tvId)
           return global.logs.error "Feeds -> verificarUrls #{error}", tags: class: 'feeds' if error
 
           if existe
             feedObj.url = urls[index]
+            feedObj.tvId = params.tvId
+
             Download.exec(feedObj, is_feed: true)
             ctrl.addToData(params, feedObj)
             return
 
           index++
           @exec(params, feedObj, urls, index) if urls[index]
-      next: ->
-        return ctrl.setTimerToSaveDataJson(5) unless @fila.length
+      next: (tvId) ->
+        return ctrl.setTimerToSaveDataJson(tvId, 5) unless @fila.length
         item = @fila.shift()
         @exec(item.params, item.feedObj, item.urls, item.index)
-    setTimerToSaveDataJson: (time=10)->
+    setTimerToSaveDataJson: (tvId, time=10)->
       # para nao salvar o @data varias vezes, podendo quebrar o json
       @clearTimerToSaveDataJson()
       @timerToSaveDataJson = setTimeout ->
-        ctrl.saveDataJson()
+        ctrl.saveDataJson(tvId)
       , 1000 * time # default 10 segundos
     clearTimerToSaveDataJson: ->
       clearTimeout @timerToSaveDataJson if @timerToSaveDataJson
-    sanitizarFeedsJson: (feeds)->
+    sanitizarFeedsJson: (tvId, feeds)->
       newFontes = feeds.map (e)-> e.fonte
-      oldFontes = Object.keys @data
+      oldFontes = Object.keys @data[tvId]
 
       oldFontes.remove newFonte for newFonte in newFontes
-      delete @data[oldFonte]    for oldFonte in oldFontes
+      delete @data[tvId][oldFonte]    for oldFonte in oldFontes
       return
-    saveDataJson: ->
-      dados = JSON.stringify @data, null, 2
+    saveDataJson: (tvId) ->
+      dados = JSON.stringify @data[tvId], null, 2
+      folder = getTvFolder(tvId)
       try
-        fs.writeFile 'feeds.json', dados, (error)->
+        fs.writeFile "#{folder}/feeds.json", dados, (error)->
           return global.logs.error "Feeds -> saveDataJson #{error}", tags: class: 'feeds' if error
           global.logs.create 'Feeds -> feeds.json salvo com sucesso!'
       catch e
         global.logs.error "Feeds -> saveDataJson #{e}", tags: class: 'feeds'
       return
-    getDataOffline: ->
+    getDataOffline: (tvId) ->
+      folder = getTvFolder(tvId)
+
       global.logs.create 'Feeds -> Pegando feeds de feeds.json'
+      @data[tvId] ||= {}
       try
-        @data = JSON.parse(fs.readFileSync('feeds.json', 'utf8') || '{}')
+        @data[tvId] = JSON.parse(fs.readFileSync("#{folder}/feeds.json", 'utf8') || '{}')
       catch e
         global.logs.error "Feeds -> getDataOffline #{e}", tags: class: 'feeds'
     getImageUol: (params, feedObj, url)->
@@ -315,12 +335,12 @@ module.exports = ->
         feedObj.nome_arquivo = image.nome_arquivo
         ctrl.addToData(params, feedObj)
       return
-    apagarAntigos: ->
-      @getDataOffline()
-      return if Object.empty(@data || {})
+    apagarAntigos: (tvId) ->
+      @getDataOffline(tvId)
+      return if Object.empty(@data[tvId] || {})
 
       itensAtuais = []
-      for fonte, categorias of @data
+      for fonte, categorias of @data[tvId]
         for categoria, items of categorias || []
           itensAtuais.push item.nome_arquivo for item in items || []
       # console.log itensAtuais

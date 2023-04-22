@@ -3,23 +3,31 @@ path    = require 'path'
 shell   = require 'shelljs'
 request = require 'request'
 
+baseUrl = "#{ENV.API_SERVER_URL}/publicidades"
+
 module.exports = ->
   ctrl =
+    tvIds: []
     data: {}
-    checkTv: ->
-      url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json?id=#{ENV.TV_ID}"
+    checkTv: (tvId) ->
+      url = "#{baseUrl}/check_tv.json?id=#{tvId}"
       console.log "/check_tv.json"
       request url, (error, response, body)=>
         if error || response?.statusCode != 200
           return
-        data = JSON.parse(body)
-        @_restartAppSeNecessario(data)
-    getList: ->
-      url = "#{ENV.API_SERVER_URL}/publicidades/grade.json?id=#{ENV.TV_ID}"
+        resp = JSON.parse(body)
+        @_restartGrade(resp)
+    getList: (tvId) ->
+      Download.createFolders(tvId)
+
+      @tvIds.push(tvId)
+      @tvIds = @tvIds.flatten().unique()
+
+      url = "#{baseUrl}/grade.json?id=#{tvId}"
       global.logs.create "URL: #{url}"
 
-      @getDataOffline()
-      @data.offline = true
+      @getDataOffline(tvId)
+      @data[tvId].offline = true
 
       request url, (error, response, body)=>
         if error || response?.statusCode != 200
@@ -27,17 +35,17 @@ module.exports = ->
           erro += " Status Code: #{response.statusCode}." if response?.statusCode
           erro += " #{error}" if error
           global.logs.create "Grade -> getList -> #{erro}"
-          global.feeds.getList()
+          global.feeds.getList(tvId)
           return
 
-        @data.offline = false
+        @data[tvId].offline = false
         jsonData = JSON.parse(body)
 
         if Object.empty(jsonData || {})
           return global.logs.create 'Grade -> Erro: Não existe Dados da Grade!'
 
-        atualizarPlayer = @data?.versao_player? &&
-          @data.versao_player != jsonData.versao_player
+        atualizarPlayer = global.versao_player? &&
+          global.versao_player != jsonData.versao_player
 
         scPrint.success "============================"
         scPrint.success "cliente_id: #{jsonData.cliente_id}"
@@ -45,41 +53,46 @@ module.exports = ->
         scPrint.success "============================"
 
         @handlelist(jsonData)
-        @saveLogo(jsonData.logo_url)
-        @saveDataJson()
+        @saveLogo(tvId, jsonData.logo_url)
+        @saveDataJson(tvId)
 
         global.versionsControl.exec(atualizarPlayer)
-        global.feeds.getList()
-    _restartAppSeNecessario: (data) ->
-      # data.restart_player = true
-      xSegundos = 1
+        global.feeds.getList(tvId)
+    _restartGrade: (opt) ->
+      # opt.restart_player = true
       # console.log 'xxxxxxxxxxxxxxxxxxxxxxxxxxx'
-      # console.log data.restart_player
-      @data.restart_player = data.restart_player
-      if data.restart_player
-        scPrint.warning "App vai reiniciar daqui #{xSegundos} segundos"
-        setInterval =>
-          restartApp()
-        , xSegundos*1000
+      # console.log opt.restart_player
+      if opt.restart_player
+        tvId = opt.id
+        # scPrint.warning tvId
+        return unless tvId
+        global.restart_tv_ids ||= []
+        global.restart_tv_ids.push parseInt(tvId)
+        scPrint.warning "Baixando nova grade de TV ##{opt.id}"
+        @getList(tvId)
 
     handlelist: (jsonData)->
-      configPath = global.configPath
-      configPath = configPath.split('\\').join('/') if process.platform == 'win32'
+      tvId = jsonData.id
 
-      @data =
-        id:        jsonData.id
+      tvPath = getTvFolder(tvId)
+      tvPath = tvPath.split('\\').join('/') if process.platform == 'win32'
+
+      global.versao_player = jsonData.versao_player
+
+      @data[tvId] =
+        id:        tvId
         cor:       jsonData.cor
-        path:      configPath
+        path:      tvPath
         layout:    jsonData.layout
         cidade:    jsonData.cidade
         offline:   false
         resolucao: jsonData.resolucao
         informacoes: jsonData.informacoes
-        versao_player: jsonData.versao_player
+        # versao_player: jsonData.versao_player
         current_version: global.versionsControl?.currentVersion
 
-      @data.finance = jsonData.finance if jsonData.finance
-      @data.weather = jsonData.weather if jsonData.weather
+      @data[tvId].finance = jsonData.finance if jsonData.finance
+      @data[tvId].weather = jsonData.weather if jsonData.weather
 
       for vinculo in (jsonData.vinculos || []).sortByField('ordem')
         continue unless vinculo.ativado
@@ -94,14 +107,14 @@ module.exports = ->
           tipo_midia: vinculo.tipo_midia
 
         switch vinculo.tipo_midia
-          when 'musica', 'midia' then @handleMidia(vinculo, item)
-          when 'informativo'     then @handleInformativo(vinculo, item)
-          when 'playlist'        then @handlePlaylist(vinculo, item)
-          when 'mensagem'        then @handleMensagem(vinculo, item)
-          when 'clima'           then @handleClima(vinculo, item)
-          when 'feed'            then @handleFeed(vinculo, item)
+          when 'musica', 'midia' then @handleMidia(tvId, vinculo, item)
+          when 'informativo'     then @handleInformativo(tvId, vinculo, item)
+          when 'playlist'        then @handlePlaylist(tvId, vinculo, item)
+          when 'mensagem'        then @handleMensagem(tvId, vinculo, item)
+          when 'clima'           then @handleClima(tvId, vinculo, item)
+          when 'feed'            then @handleFeed(tvId, vinculo, item)
       return
-    handleMidia: (vinculo, item, lista=null)->
+    handleMidia: (tvId, vinculo, item, lista=null)->
       return unless vinculo.midia
 
       item.url      = vinculo.midia.original
@@ -112,29 +125,41 @@ module.exports = ->
       item.is_image = vinculo.midia.is_image
       item.is_video = vinculo.midia.is_video
 
-      item.pasta = "videos" if item.is_video
-      item.pasta = "audios" if item.is_audio
-      item.pasta = "images" if item.is_image
+      pasta = "videos" if item.is_video
+      pasta = "audios" if item.is_audio
+      pasta = "images" if item.is_image
+      item.pasta = pasta
+
+
 
 
       item.content_type = vinculo.midia.content_type
-      item.nome_arquivo = "#{vinculo.midia.id}.#{vinculo.midia.extension}"
-      item.nome_arquivo = @ajustImageNameToWebp item if item.is_image
+      nome_arquivo = "#{vinculo.midia.id}.#{vinculo.midia.extension}"
+      nome_arquivo = @ajustImageNameToWebp item if item.is_image
 
-      lista ||= @data
+      item.nome_arquivo = nome_arquivo
+
+      filePath = getTvFolder(tvId)
+      filePath = "#{filePath}/#{pasta}" if pasta
+      filePath = "#{filePath}/#{nome_arquivo}"
+      item.filePath = filePath
+      # item.saveOn = filePath
+
+      lista ||= @data[tvId]
       lista[vinculo.posicao] ||= []
       lista[vinculo.posicao].push item
+      item.tvId = tvId
       Download.exec(item)
       return
-    handleInformativo: (vinculo, item, lista=null)->
+    handleInformativo: (tvId, vinculo, item, lista=null)->
       return unless vinculo.mensagem
 
       item.mensagem = vinculo.mensagem
-      lista ||= @data
+      lista ||= @data[tvId]
       lista[vinculo.posicao] ||= []
       lista[vinculo.posicao].push item
       return
-    handlePlaylist: (vinculo, item)->
+    handlePlaylist: (tvId, vinculo, item)->
       return unless (vinculo.playlist.vinculos || []).any()
 
       for vinc in (vinculo.playlist.vinculos || []).sortByField('ordem')
@@ -150,24 +175,24 @@ module.exports = ->
           tipo_midia: vinc.tipo_midia
 
         switch vinc.tipo_midia
-          when 'midia' then @handleMidia(vinc, subItem, item)
-          when 'clima' then @handleClima(vinc, subItem, item)
-          when 'feed'  then @handleFeed(vinc, subItem, item)
-          when 'informativo' then @handleInformativo(vinc, subItem, item)
+          when 'midia' then @handleMidia(tvId, vinc, subItem, item)
+          when 'clima' then @handleClima(tvId, vinc, subItem, item)
+          when 'feed'  then @handleFeed(tvId, vinc, subItem, item)
+          when 'informativo' then @handleInformativo(tvId, vinc, subItem, item)
 
-      @data[vinculo.posicao] ||= []
-      @data[vinculo.posicao].push item
+      @data[tvId][vinculo.posicao] ||= []
+      @data[tvId][vinculo.posicao].push item
       return
-    handleMensagem: (vinculo, item)->
+    handleMensagem: (tvId, vinculo, item)->
       return unless vinculo.mensagem
       item.mensagem = vinculo.mensagem.texto
 
-      @data[vinculo.posicao] ||= []
-      @data[vinculo.posicao].push item
+      @data[tvId][vinculo.posicao] ||= []
+      @data[tvId][vinculo.posicao].push item
       return
-    handleClima: (vinculo, item, lista=null)->
+    handleClima: (tvId, vinculo, item, lista=null)->
       return unless vinculo.clima
-      lista ||= @data
+      lista ||= @data[tvId]
 
       item.uf      = vinculo.clima.uf
       item.nome    = vinculo.clima.nome
@@ -175,9 +200,9 @@ module.exports = ->
       lista[vinculo.posicao] ||= []
       lista[vinculo.posicao].push item
       return
-    handleFeed: (vinculo, item, lista=null)->
+    handleFeed: (tvId, vinculo, item, lista=null)->
       return unless vinculo.feed
-      lista ||= @data
+      lista ||= @data[tvId]
 
       item.url       = vinculo.feed.url
       item.fonte     = vinculo.feed.fonte
@@ -192,29 +217,43 @@ module.exports = ->
       imageNome = imageObj.nome_arquivo.split('/').pop().replace(extension, '').removeSpecialCharacters()
       # "#{imageNome}#{extension}"
       "#{imageNome}.webp"
-    saveLogo: (logoUrl)->
-      return @data.logo_nome = null unless logoUrl
-      @data.logo_nome = @ajustImageNameToWebp nome_arquivo: logoUrl
+    saveLogo: (tvId, downloadUrl)->
+      @data[tvId].logo = {}
+      return unless downloadUrl
+      nome_arquivo = @ajustImageNameToWebp(nome_arquivo: 'logo')
+      filePath = "#{getTvFolder(tvId)}/#{nome_arquivo}"
+      @data[tvId].logo.filePath = filePath
 
       params =
-        url: logoUrl
+        tvId: tvId
+        url: downloadUrl
+        filePath: filePath
         is_logo: true
-        nome_arquivo: @data.logo_nome
+        nome_arquivo: nome_arquivo
 
       Download.exec(params)
-    saveDataJson: ->
-      dados = JSON.stringify @data, null, 2
+    saveDataJson: (tvId) ->
+      dados = JSON.stringify @data[tvId], null, 2
+
+      folder = getTvFolderPublic(tvId)
+      if !fs.existsSync(folder)
+        fs.mkdirSync(folder, { recursive: true })
+
+
       try
-        fs.writeFile 'grade.json', dados, (error)->
+        fs.writeFile "#{folder}/grade.json", dados, (error)->
           return global.logs.error "Grade -> saveDataJson -> #{error}", tags: class: 'grade' if error
           global.logs.create 'Grade -> grade.json salvo com sucesso!'
       catch e
         global.logs.error "Grade -> saveDataJson -> #{e}", tags: class: 'grade'
       return
-    getDataOffline: ->
+    getDataOffline: (tvId) ->
+      @data[tvId] ||= {}
+      folder = getTvFolderPublic(tvId)
+
       global.logs.create 'Grade -> Pegando grade de grade.json'
       try
-        @data = JSON.parse(fs.readFileSync('grade.json', 'utf8') || '{}')
+        @data[tvId] = JSON.parse(fs.readFileSync("#{folder}/grade.json", 'utf8') || '{}')
       catch e
         global.logs.error "Grade -> getDataOffline -> #{e}", tags: class: 'grade'
       return
@@ -232,15 +271,19 @@ module.exports = ->
       # return if itensAtuais.empty()
       # removerMidiasAntigas 'feeds', itensAtuais
 
-  setInterval ->
-    return if global.versionsControl.updating
-    global.logs.create 'Grade -> Atualizando lista!'
-    ctrl.getList()
-  , 1000 * 60 * (ENV.TEMPO_ATUALIZAR || 5)
 
-  setInterval ->
-    ctrl.checkTv()
-  , 10000
+    # init: ->
+    #   ctrl.getList()
+    #   setInterval ->
+    #     return if global.versionsControl.updating
+    #     global.logs.create 'Grade -> Atualizando lista!'
+    #     ctrl.getList()
+    #   , 1000 * 60 * (ENV.TEMPO_ATUALIZAR || 5)
 
-  ctrl.getList()
+    init: ->
+      setInterval =>
+        for tvId in @tvIds.flatten().unique()
+          ctrl.checkTv(tvId)
+      , 10000
+  ctrl.init()
   global.grade = ctrl

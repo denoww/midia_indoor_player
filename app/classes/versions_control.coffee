@@ -26,15 +26,15 @@ module.exports = ->
             ctrl.saveCurrentVersion(ctrl.gradeVersion, forceUpdate)
       return
     getGradeVersion: ->
-      return unless global.grade?.data?.versao_player
-      ctrl.gradeVersion = global.grade.data.versao_player
+      return unless global.versao_player
+      ctrl.gradeVersion = global.versao_player
 
       return unless typeof ctrl.gradeVersion == 'string'
       ctrl.gradeVersion = parseFloat ctrl.gradeVersion
 
       unless ctrl.gradeVersion
         ctrl.sendLog "Erro na versão do player", 'error',
-          grade_version: global.grade.data.versao_player
+          grade_version: global.versao_player
       return
     getCurrentVersion: (callback)->
       fs.readFile ctrl.versionFile, 'utf8', (error, contents)->

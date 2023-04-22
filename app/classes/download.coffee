@@ -12,25 +12,24 @@ module.exports = ->
     fila: []
     loading: false
     folderKeys: ['images', 'videos', 'audios', 'feeds']
-    init: ->
+    createFolders: (tvId) ->
       folders = []
-      folders.push global.configPath
+      tvFolder = "#{getTvFolderPublic(tvId)}"
+      folders.push tvFolder
       for it in @folderKeys
-        folders.push global.configPath + "#{it}/"
+        folders.push "#{tvFolder}/#{it}/"
 
       for folder in folders
         if !fs.existsSync(folder)
           fs.mkdirSync(folder, { recursive: true })
       return
     exec: (params, opts={})->
-      pasta = global.configPath + "#{params.pasta}/" if params.pasta
-      pasta = global.configPath if params.is_logo || opts.is_logo
-
-      unless pasta
-        logs.error "Download -> exec -> Nenhuma pasta encontrada para #{params.nome_arquivo}!"
+      unless params.filePath
+        logs.error "Download -> exec -> faltou passar argumento \"filePath\" para #{params.nome_arquivo}!"
         return
 
-      fullPath = pasta + params.nome_arquivo
+      # fullPath = params.saveOn || params.filePath
+      fullPath = "#{pastaPublic()}/#{params.filePath}"
       fs.stat fullPath, (error, stats)=>
         return next() if !error && alreadyExists(params, stats.size) && !opts.force
         return ctrl.fila.push Object.assign {}, params, opts if ctrl.loading
@@ -159,6 +158,6 @@ module.exports = ->
     size <= (params.size + margem) &&
     size >= (params.size - margem)
 
-  ctrl.init()
+  # ctrl.init()
 
   global.Download = ctrl

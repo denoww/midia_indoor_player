@@ -9,6 +9,13 @@ global.restartApp = ->
   shell = require("child_process").exec
   shell "touch #{restartFile}"
 
+global.pastaPublic = -> "#{process.cwd()}/public"
+global.getTvFolder = (tvId) -> "#{tvId}"
+global.getTvFolderPublic = (tvId) -> "#{pastaPublic()}/#{getTvFolder(tvId)}"
+
+
+
+
 global.apagarArquivosAntigosDaGrade = ->
 
   # require('../app/classes/feeds')()
@@ -39,8 +46,7 @@ apagarOutrasMidias = ->
 
 
 global.removerMidiasAntigas = (pasta, arquivosAtuais) ->
-
-  caminho = "#{global.configPath}#{pasta}/"
+  caminho = "#{getTvFolder(tvId)}#{pasta}/"
   console.log "Verificando #{caminho}"
 
   itens = []

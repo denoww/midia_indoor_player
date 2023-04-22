@@ -125,7 +125,7 @@
                     <!-- midia -->
                     <div class="midia-main" v-else-if="item.tipo_midia === 'midia'">
                       <div class="midia-imagem" v-if="item.is_image"
-                        :style="{'background-image': 'url(images/' + item.nome_arquivo + ')'}">
+                        :style="{'background-image': 'url(' + item.filePath + ')'}">
                       </div>
 
                       <video class="midia-video"
@@ -134,7 +134,7 @@
                         preload="auto"
                         autoplay playsinline muted
                       >
-                          <source :src="'videos/' + item.nome_arquivo" :type="item.content_type">
+                          <source :src="item.filePath" :type="item.content_type">
                       </video>
                     </div>
                     <!-- midia -->
@@ -174,9 +174,9 @@
 
         <div class="content-footer">
           <div class="content-logo" :class="[grade.data.cor == 'gray' ? 'black' : '']">
-            <img v-if="grade.data.logo_nome" class="logo" :src="grade.data.logo_nome">
+            <img v-if="grade.data.logo && grade.data.logo.filePath" class="logo" :src="grade.data.logo.filePath">
             <img v-else="" class="logo" :src="'/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png'">
-            <!-- <div v-if="grade.data.logo_nome" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo_nome + ')'}"></div>
+            <!-- <div v-if="grade.data.logo.filePath" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo.filePath + ')'}"></div>
             <div v-else="" class="logo" :style="{'background-image': 'url(/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png)'}"></div> -->
           </div> <!-- content-logo -->
 

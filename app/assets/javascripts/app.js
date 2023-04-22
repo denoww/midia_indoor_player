@@ -8,7 +8,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, descobrirTimezone, onLoaded, relogio, restartPlayerSeNecessario;
+  var data, descobrirTimezone, onLoaded, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario;
 
   data = {
     body: void 0,
@@ -23,7 +23,8 @@
       data: {
         cor: 'black',
         layout: 'layout-2',
-        weather: {}
+        weather: {},
+        logo: {}
       }
     }
   };
@@ -37,6 +38,13 @@
     return timelineConteudoMensagem.init();
   };
 
+  this.getTvId = function() {
+    var params, tvId, uri;
+    uri = window.location.search.substring(1);
+    params = new URLSearchParams(uri);
+    return tvId = params.get("tvId");
+  };
+
   this.checkTv = function() {
     var error, success;
     success = (resp) => {
@@ -47,7 +55,7 @@
     error = (resp) => {
       return console.log(resp);
     };
-    return Vue.http.get('/check_tv').then(success, error);
+    return Vue.http.get('/check_tv?tvId=' + getTvId()).then(success, error);
   };
 
   this.gradeObj = {
@@ -60,6 +68,9 @@
       }
       this.loading = true;
       success = (resp) => {
+        if (this.tentativas > 0) {
+          restartBrowserAposXSegundos(25);
+        }
         this.loading = false;
         this.tentativas = 0;
         this.handle(resp.data);
@@ -81,12 +92,12 @@
         }
         this.tentarNovamenteEm = 1000 * this.tentativas;
         console.warn(`Grade: Tentando em ${this.tentarNovamenteEm / 1000} segundos`);
-        setTimeout((function() {
+        setTimeout(function() {
           return gradeObj.get();
-        }), this.tentarNovamenteEm);
+        }, this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      Vue.http.get('/grade').then(success, error);
+      Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
       vm.grade.data = this.data = data;
@@ -149,7 +160,7 @@
         }), this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      Vue.http.get('/feeds').then(success, error);
+      Vue.http.get('/feeds?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
       var base, base1, base2, base3, feed, feeds, i, j, len, len1, name, name1, posicao, ref;
@@ -559,19 +570,24 @@
     });
   });
 
+  restartBrowser = function() {
+    return window.location.reload();
+  };
+
+  restartBrowserAposXSegundos = function(xSegundos) {
+    console.log(`Será reiniciado em ${xSegundos} segundos`);
+    return setTimeout(() => {
+      return restartBrowser();
+    }, xSegundos * 1000);
+  };
+
   restartPlayerSeNecessario = function(data) {
-    var _exec, xSegundos;
+    var xSegundos;
     xSegundos = data.restart_player_em_x_segundos;
     if (!xSegundos) {
       return;
     }
-    console.log(`restart_player será executado em ${xSegundos} segundos`);
-    _exec = function() {
-      return window.location.reload();
-    };
-    return setTimeout(() => {
-      return _exec();
-    }, xSegundos * 1000);
+    return restartBrowserAposXSegundos(xSegundos);
   };
 
   // @timers = []

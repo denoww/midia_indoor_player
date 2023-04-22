@@ -25,6 +25,7 @@ data =
       cor: 'black'
       layout: 'layout-2'
       weather: {}
+      logo: {}
 
 onLoaded = ->
   vm.loaded ||= gradeObj.loaded && feedsObj.loaded
@@ -32,6 +33,11 @@ onLoaded = ->
 
   timelineConteudoSuperior.init()
   timelineConteudoMensagem.init()
+
+@getTvId = ->
+  uri = window.location.search.substring(1)
+  params = new URLSearchParams(uri)
+  tvId = params.get("tvId")
 
 @checkTv = ->
   success = (resp)=>
@@ -41,7 +47,9 @@ onLoaded = ->
 
   error = (resp) => console.log resp
 
-  Vue.http.get('/check_tv').then success, error
+
+
+  Vue.http.get('/check_tv?tvId='+getTvId()).then success, error
 
 @gradeObj =
   tentar: 10
@@ -51,6 +59,9 @@ onLoaded = ->
     @loading = true
 
     success = (resp)=>
+      if @tentativas > 0
+        restartBrowserAposXSegundos(25)
+
       @loading    = false
       @tentativas = 0
 
@@ -72,10 +83,12 @@ onLoaded = ->
 
       @tentarNovamenteEm = 1000 * @tentativas
       console.warn "Grade: Tentando em #{@tentarNovamenteEm / 1000} segundos"
-      setTimeout (-> gradeObj.get()), @tentarNovamenteEm
+      setTimeout ->
+        gradeObj.get()
+      , @tentarNovamenteEm
       onError?()
 
-    Vue.http.get('/grade').then success, error
+    Vue.http.get('/grade?tvId='+getTvId()).then success, error
     return
   handle: (data)->
     vm.grade.data = @data = data
@@ -132,7 +145,7 @@ onLoaded = ->
       setTimeout (-> feedsObj.get()), @tentarNovamenteEm
       onError?()
 
-    Vue.http.get('/feeds').then success, error
+    Vue.http.get('/feeds?tvId='+getTvId()).then success, error
     return
   handle: (data)->
     @data = data
@@ -434,14 +447,20 @@ Vue.filter 'currency', (value)->
   (value || 0).toLocaleString('pt-Br', minimumFractionDigits: 2, maximumFractionDigits: 2)
 
 
+restartBrowser = -> window.location.reload()
+
+restartBrowserAposXSegundos = (xSegundos) ->
+  console.log "Será reiniciado em #{xSegundos} segundos"
+  setTimeout =>
+    restartBrowser()
+  , xSegundos*1000
+
+
+
 restartPlayerSeNecessario = (data) ->
   xSegundos = data.restart_player_em_x_segundos
   return unless xSegundos
-  console.log "restart_player será executado em #{xSegundos} segundos"
-  _exec = -> window.location.reload()
-  setTimeout =>
-    _exec()
-  , xSegundos*1000
+  restartBrowserAposXSegundos(xSegundos)
 
     # @timers = []
     # @timers.push = setTimeout => @exec(), 2000
