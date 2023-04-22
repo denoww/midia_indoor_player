@@ -38,13 +38,13 @@ module.exports = (opt={}) ->
 
   app.get '/', (req, res) ->
     params = req.getParams()
-    global.logs.create "Request GET / params: #{JSON.stringify(params)}"
+    console.log  "Request GET / params: #{JSON.stringify(params)}"
     res.type "text/html"
     res.sendFile path.join( __dirname, '../assets/templates/index.html')
 
   app.get '/grade', (req, res) ->
     params = req.getParams()
-    global.logs.create "Request GET /grade params: #{JSON.stringify(params)}"
+    console.log  "Request GET /grade params: #{JSON.stringify(params)}"
     tvId = params.tvId
     data = global.grade.data[tvId] || {}
     if Object.empty data
@@ -56,7 +56,7 @@ module.exports = (opt={}) ->
 
   app.get '/check_tv', (req, res) ->
     params = req.getParams()
-    global.logs.create "Request GET /check_tv params: #{JSON.stringify(params)}"
+    console.log  "Request GET /check_tv params: #{JSON.stringify(params)}"
     tvId = params.tvId
     tvId = parseInt(tvId) if tvId
     resp = {}
@@ -73,7 +73,7 @@ module.exports = (opt={}) ->
 
   app.get '/feeds', (req, res) ->
     params = req.getParams()
-    global.logs.create "Request GET /feeds params: #{JSON.stringify(params)}"
+    console.log  "Request GET /feeds params: #{JSON.stringify(params)}"
     tvId = params.tvId
     data = global.feeds.data[tvId] || {}
     if Object.empty data
@@ -87,7 +87,7 @@ module.exports = (opt={}) ->
     # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
 
     params = req.getParams()
-    global.logs.create "Request GET /feeds params: #{JSON.stringify(params)}"
+    console.log  "/deploy params: #{JSON.stringify(params)}"
 
     npmCtrl.execNpmRun(req, res)
 
