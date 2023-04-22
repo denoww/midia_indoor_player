@@ -85,7 +85,6 @@ module.exports = (opt={}) ->
 
   app.get  '/npm_run', (req, res) ->
     # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
-
     params = req.getParams()
     console.log  "/deploy params: #{JSON.stringify(params)}"
 
