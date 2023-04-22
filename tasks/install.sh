@@ -132,7 +132,7 @@ fi
 #fi
 
 # update diário
-read -p '--> Atualizar firmware diariamente (crontab)? (y/N) ' cron
+read -p '--> Atualizar firmware diariamente? - não vai reiniciar a máquina!!!!! (y/N) ' cron
 if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
   file_name_to_copy=midia_indoor_update_diario
   folder_destino="/etc/cron.daily"
@@ -140,7 +140,15 @@ if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
   sh -c "sudo chown root:root $folder_destino/$file_name_to_copy"
 fi
 
-read -p '--> Reiniciar o equipamento agora? (y/N) ' reiniciar
+read -p '--> Reiniciar diariamente? (y/N)'
+if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
+  file_name_to_copy=midia_indoor_reinicio_diario
+  folder_destino="/etc/cron.daily"
+  sh -c "sudo cp $projectPath/device_configs/$file_name_to_copy $folder_destino"
+  sh -c "sudo chown root:root $folder_destino/$file_name_to_copy"
+fi
+
+read -p '--> Reiniciar agora? (y/N) ' reiniciar
 if [[ "$reiniciar" == "y" || "$reiniciar" == "Y" ]] ; then
   sh -c 'sudo reboot'
 fi

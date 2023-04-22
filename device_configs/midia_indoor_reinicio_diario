@@ -1,0 +1,2 @@
+#!/bin/sh
+/var/lib/midia_indoor_player/tasks/./reboot_daily.sh >> /var/lib/midia_indoor_player/cron.log 2>&1
