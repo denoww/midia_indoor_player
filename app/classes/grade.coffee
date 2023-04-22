@@ -35,7 +35,9 @@ module.exports = ->
       @createFolders(tvId)
 
       @tvIds.push(tvId)
+      @tvIds = @tvIds.map (e) -> parseInt(e)
       @tvIds = @tvIds.flatten().unique()
+
 
       url = "#{baseUrl}/grade.json?id=#{tvId}"
       global.logs.create "URL: #{url}"
@@ -308,7 +310,7 @@ module.exports = ->
 
     startCheckTvTimer: ->
       setInterval =>
-        for tvId in @tvIds.flatten().unique()
+        for tvId in @tvIds
           ctrl.checkTv(tvId)
       , 10000
   global.grade = ctrl
