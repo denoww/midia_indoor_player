@@ -12,6 +12,7 @@ module.exports = ->
     # folderKeys: ['images', 'videos', 'audios', 'feeds']
     folderKeys: ['images', 'videos', 'feeds']
     createFolders: (tvId) ->
+      return unless tvId
       folders = []
       tvFolder = "#{getTvFolderPublic(tvId)}"
       folders.push tvFolder
@@ -289,7 +290,7 @@ module.exports = ->
       @getDataOffline(tvId)
       @data ||= {}
       data = @data[tvId] || {}
-      for it in data.conteudo_superior
+      for it in (data.conteudo_superior || [])
         for it2 in (it.conteudo_superior || [])
           pasta = it2.pasta
           nomeArquivo = it2.nome_arquivo

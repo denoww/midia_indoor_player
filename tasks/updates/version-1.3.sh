@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# atualizando tarefa_diaria
-sudo /bin/cp /var/lib/midia_indoor_player/device_configs/tarefa_diaria /etc/cron.daily/
-sudo /bin/chown root:root /etc/cron.daily/tarefa_diaria
+# atualizando midia_indoor_update_diario
+sudo /bin/cp /var/lib/midia_indoor_player/device_configs/midia_indoor_update_diario /etc/cron.daily/
+sudo /bin/chown root:root /etc/cron.daily/midia_indoor_update_diario
 
 # configurando wallpaper do dispositivo
 /bin/cp /var/lib/midia_indoor_player/device_configs/wallpaper.png /var/lib/Pictures/

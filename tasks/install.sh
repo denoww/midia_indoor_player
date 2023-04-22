@@ -118,7 +118,7 @@ if [[ "$executar_npm" == "y" || "$executar_npm" == "Y" ]] ; then
   sh -c 'npm install'
 fi
 
-read -p '--> startup midia indoor on boot? (y/N) ' startup_boot
+read -p '--> Iniciar player no boot? (y/N) ' startup_boot
 if [[ "$startup_boot" == "y" || "$startup_boot" == "Y" ]] ; then
   node $projectPath/start_on_machine_boot.js
 fi
@@ -131,14 +131,16 @@ fi
 #  sh -c 'sudo chown root:root /etc/cron.d/crontab-sc-player'
 #fi
 
-# Reinício diário
-read -p '--> Configurar Reinício diário? (y/N) ' cron
+# update diário
+read -p '--> Atualizar firmware diariamente (crontab)? (y/N) ' cron
 if [[ "$cron" == "y" || "$cron" == "Y" ]] ; then
-  sh -c "sudo cp $projectPath/device_configs/tarefa_diaria /etc/cron.daily/"
-  sh -c "sudo chown root:root /etc/cron.daily/tarefa_diaria"
+  file_name_to_copy=midia_indoor_update_diario
+  folder_destino="/etc/cron.daily"
+  sh -c "sudo cp $projectPath/device_configs/$file_name_to_copy $folder_destino"
+  sh -c "sudo chown root:root $folder_destino/$file_name_to_copy"
 fi
 
-read -p '--> Reiniciar o equipamento? (y/N) ' reiniciar
+read -p '--> Reiniciar o equipamento agora? (y/N) ' reiniciar
 if [[ "$reiniciar" == "y" || "$reiniciar" == "Y" ]] ; then
   sh -c 'sudo reboot'
 fi
