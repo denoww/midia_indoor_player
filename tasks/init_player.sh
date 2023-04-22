@@ -6,7 +6,7 @@ projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
 
 
 cd $projectPath
-/usr/bin/npm run start_player_prod &
+/usr/bin/npm run start_player_fullscreen &
 
 # cliques na tela para simular acao do usuario para corrigir problema
 # de play nos videos

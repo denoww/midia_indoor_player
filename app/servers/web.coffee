@@ -81,3 +81,30 @@ module.exports = (opt={}) ->
       res.sendStatus(400)
       return
     res.send JSON.stringify data
+
+
+  app.get  '/npm_run', (req, res) ->
+    npmCtrl.execNpmRun(req, res)
+
+npmCtrl =
+  execNpmRun: (req, res) ->
+    # GET -> http://portaria-api.seucondominio.com.br/deploy?npm_script=update_code_and_restart
+    params = req.getParams()
+    npmRunCmd = params.cmd
+
+    switch npmRunCmd
+      when 'xxxxxxxxxxxxxxxxx'
+        console.log 'nada aqui'
+        # npmCtrl._execNpmRunPortaria(req, res)
+      else
+        npmCtrl._npmRun(npmRunCmd)
+    res.setHeader 'Content-Type', 'application/json'
+    res.send JSON.stringify({params})
+  _npmRun: (npmRunCmd) ->
+    return unless npmRunCmd
+    command = "npm run #{npmRunCmd} --prefix ~/workspace/midia_indoor_player"
+    shell = require("child_process").exec
+    shell command, (error, stdout, stderr) ->
+      console.log error if error
+      console.log stdout if stdout
+      console.log stderr if stderr

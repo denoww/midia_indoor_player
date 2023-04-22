@@ -35,7 +35,7 @@ cd /var/lib/midia_indoor_player/; tasks/./install.sh
 
 ## ligar modo development
 
-$ npm run start_dev
+$ npm run start
 
 
 ## startup on boot machine
@@ -53,7 +53,7 @@ ligue o servidor produção
 ```
 /var/lib/midia_indoor_player/tasks/init.sh
 ou
-npm run start_prod
+npm run start_fullscreen
 ```
 
 

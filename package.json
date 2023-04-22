@@ -5,13 +5,14 @@
   "main": "server.js",
   "private": true,
   "scripts": {
-    "start_dev": "npm run compile_coffee & nodemon server.js -- fullscreen=false",
-    "start_prod": "npm run compile_coffee & nodemon server.js -- fullscreen=true",
-    "start_player_prod": "node start_player fullscreen=true",
-    "start_player_dev": "node start_player fullscreen=false",
+    "start": "npm run compile_coffee & nodemon server.js -- fullscreen=false",
+    "start_fullscreen": "npm run compile_coffee & nodemon server.js -- fullscreen=true",
+    "start_player_fullscreen": "node start_player fullscreen=true",
+    "start_player": "node start_player fullscreen=false",
     "pm2_start_prod": "pm2 delete MIDIAINDOOR; pm2 start server.js --name=MIDIAINDOOR -- fullscreen=true;",
     "apagar_arquivos_antigos_de_grades": "coffee ./tasks/apagar_arquivos_antigos_de_grades.coffee",
-    "compile_coffee": "coffee -wc app/assets/**"
+    "compile_coffee": "coffee -wc app/assets/**",
+    "update_firmware": "./tasks/update.sh"
   },
   "dependencies": {
     "@sentry/browser": "6.2.5",

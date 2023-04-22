@@ -11,7 +11,7 @@ killall node
 
 cd $projectPath
 /usr/bin/git pull &
-/usr/bin/npm run start_prod &
+/usr/bin/npm run start_fullscreen &
 
 # cd $projectPath
 # /usr/bin/git pull &
