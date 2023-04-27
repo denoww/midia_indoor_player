@@ -8,7 +8,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario;
+  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, updateContent, updateOnlineStatus;
 
   data = {
     body: void 0,
@@ -47,11 +47,11 @@
 
   this.checkTv = function() {
     var error, success;
-    gradeObj.restart_player_em !== (success = (resp) => {
+    success = (resp) => {
       data = resp.data;
       // console.log data
       return restartPlayerSeNecessario(data);
-    });
+    };
     error = (resp) => {
       return console.log(resp);
     };
@@ -99,6 +99,18 @@
         return typeof onError === "function" ? onError() : void 0;
       };
       Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
+    },
+    downloadNewContent: function() {
+      var error, success;
+      success = (resp) => {
+        return this.get(function() {
+          return console.log("Novo Conteúdo baixado");
+        });
+      };
+      error = (resp) => {
+        return console.log(resp);
+      };
+      return Vue.http.get('/download_new_content?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
       this.restart_player_em = data.restart_player_em;
@@ -484,6 +496,40 @@
 
   // @elemHora.innerHTML = hour + ':' + min + ':' + sec if @elemHora
   // setTimeout relogio.exec, 1000
+  updateOnlineStatus = function() {
+    var old, passouDeOfflineParaOnline;
+    if (!this.vm) {
+      return;
+    }
+    if (this.vm.loading) {
+      return;
+    }
+    old = vm.online;
+    vm.online = navigator.onLine;
+    passouDeOfflineParaOnline = old !== vm.online && vm.online;
+    if (passouDeOfflineParaOnline) {
+      return this.gradeObj.downloadNewContent();
+    }
+  };
+
+  // alert('entrou')
+  updateContent = function() {
+    if (!this.vm) {
+      return;
+    }
+    // return if @vm.loading
+    return gradeObj.get(function() {
+      return feedsObj.get(function() {
+        vm.loading = false;
+        return vm.loaded = true;
+      });
+    });
+  };
+
+  window.addEventListener('online', updateOnlineStatus);
+
+  window.addEventListener('offline', updateOnlineStatus);
+
   this.vm = new Vue({
     el: '#main-player',
     data: data,
@@ -506,40 +552,24 @@
       }
     },
     mounted: function() {
-      var updateOnlineStatus;
       this.loading = true;
       this.mouse();
       relogio.exec();
-      updateOnlineStatus = function() {
-        return vm.online = navigator.onLine;
-      };
       setInterval(function() {
         // return if vm.loaded
         return checkTv();
-      }, 1000 * 3); // 1 segundo
+      }, 1000 * 3); // 3 segundo
       setTimeout(function() {
         if (vm.loaded) {
           return;
         }
-        updateOnlineStatus();
-        return gradeObj.get(function() {
-          return feedsObj.get(function() {
-            vm.loading = false;
-            return vm.loaded = true;
-          });
-        });
+        return updateContent();
       }, 1000 * 1); // 1 segundo
       setInterval(function() {
-        updateOnlineStatus();
-        return gradeObj.get(function() {
-          return feedsObj.get(function() {
-            vm.loading = false;
-            return vm.loaded = true;
-          });
-        });
+        updateContent();
+        return updateOnlineStatus();
+      // , 1000 * 2 # a cada 2 minutos
       }, 1000 * 60 * 2); // a cada 2 minutos
-      window.addEventListener('online', updateOnlineStatus);
-      window.addEventListener('offline', updateOnlineStatus);
     }
   });
 

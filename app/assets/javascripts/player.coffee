@@ -40,7 +40,6 @@ onLoaded = ->
   tvId = params.get("tvId")
 
 @checkTv = ->
-  gradeObj.restart_player_em !=
   success = (resp)=>
     data = resp.data
     # console.log data
@@ -56,6 +55,7 @@ onLoaded = ->
   tentar: 10
   tentativas: 0
   restart_player_em: null
+
   get: (onSuccess, onError)->
     return if @loading
     @loading = true
@@ -92,6 +92,13 @@ onLoaded = ->
 
     Vue.http.get('/grade?tvId='+getTvId()).then success, error
     return
+  downloadNewContent: ->
+    success = (resp)=>
+      @get ->
+        console.log "Novo Conteúdo baixado"
+    error = (resp) => console.log resp
+
+    Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
   handle: (data)->
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
@@ -389,6 +396,28 @@ relogio =
       # setTimeout relogio.exec, 1000
 
 
+updateOnlineStatus = ->
+  return unless @vm
+  return if @vm.loading
+  old = vm.online
+  vm.online = navigator.onLine
+  passouDeOfflineParaOnline = old != vm.online && vm.online
+  if passouDeOfflineParaOnline
+
+    @gradeObj.downloadNewContent()
+    # alert('entrou')
+updateContent = ->
+  return unless @vm
+  # return if @vm.loading
+  gradeObj.get ->
+    feedsObj.get ->
+      vm.loading = false
+      vm.loaded = true
+
+window.addEventListener 'online',  updateOnlineStatus
+window.addEventListener 'offline',  updateOnlineStatus
+
+
 @vm = new Vue
   el:   '#main-player'
   data: data
@@ -409,33 +438,25 @@ relogio =
     @mouse()
     relogio.exec()
 
-    updateOnlineStatus = ->
-      vm.online = navigator.onLine
+
 
     setInterval ->
       # return if vm.loaded
       checkTv()
-    , 1000 * 3 # 1 segundo
+    , 1000 * 3 # 3 segundo
 
     setTimeout ->
       return if vm.loaded
-      updateOnlineStatus()
-      gradeObj.get ->
-        feedsObj.get ->
-          vm.loading = false
-          vm.loaded = true
+      updateContent()
     , 1000 * 1 # 1 segundo
 
     setInterval ->
+      updateContent()
       updateOnlineStatus()
-      gradeObj.get ->
-        feedsObj.get ->
-          vm.loading = false
-          vm.loaded = true
+    # , 1000 * 2 # a cada 2 minutos
     , 1000 * 60 * 2 # a cada 2 minutos
 
-    window.addEventListener 'online',  updateOnlineStatus
-    window.addEventListener 'offline',  updateOnlineStatus
+
     return
 
 Vue.filter 'formatDayMonth', (value)->

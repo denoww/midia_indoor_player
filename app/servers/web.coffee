@@ -67,6 +67,17 @@ module.exports = (opt={}) ->
     resp.restart_player_em = data.restart_player_em
     res.send JSON.stringify resp
 
+  app.get '/download_new_content', (req, res) ->
+    params = req.getParams()
+    console.log  "Request GET /download_new_content params: #{JSON.stringify(params)}"
+    tvId = params.tvId
+    tvId = parseInt(tvId) if tvId
+    global.grade.getList(tvId) if tvId
+
+    resp = {}
+    res.send JSON.stringify resp
+
+
   app.get '/feeds', (req, res) ->
     params = req.getParams()
     console.log  "Request GET /feeds params: #{JSON.stringify(params)}"
