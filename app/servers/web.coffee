@@ -72,10 +72,10 @@ module.exports = (opt={}) ->
     console.log  "Request GET /feeds params: #{JSON.stringify(params)}"
     tvId = params.tvId
     data = global.feeds.data[tvId] || {}
-    if Object.empty data
-      global.feeds.getList(tvId)
-      res.sendStatus(400)
-      return
+    # if Object.empty data
+    #   global.feeds.getList(tvId)
+    #   res.sendStatus(400)
+    #   return
     res.send JSON.stringify data
 
 

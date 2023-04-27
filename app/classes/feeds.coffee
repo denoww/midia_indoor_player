@@ -32,7 +32,9 @@ module.exports = ->
           for feed in playlist[posicao].select (item)-> item.tipo_midia == 'feed'
             feeds.addOrExtend feed
 
-      return if feeds.empty()
+      if feeds.empty()
+        # ctrl.saveDataJson(tvId)
+        return
       for params in feeds
         params.tvId = tvId
         switch params.fonte
@@ -60,7 +62,9 @@ module.exports = ->
           global.logs.error "Feeds -> baixarCanaltech #{e}", tags: class: 'feeds'
       return
     handleFonte: (params, feeds)->
-      return if (feeds || []).empty()
+      if (feeds || []).empty()
+        # ctrl.saveDataJson(tvId)
+        return
 
       tvId = params.tvId
       @data[tvId][params.fonte] ||= {}
@@ -244,7 +248,8 @@ module.exports = ->
       delete @data[tvId][oldFonte]    for oldFonte in oldFontes
       return
     saveDataJson: (tvId) ->
-      dados = JSON.stringify @data[tvId], null, 2
+      data = @data[tvId] || {}
+      dados = JSON.stringify data, null, 2
       folder = getTvFolderPublic(tvId)
       try
         fs.writeFile "#{folder}/feeds.json", dados, (error)->
