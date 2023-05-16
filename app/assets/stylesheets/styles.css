@@ -139,9 +139,14 @@ p {
 .layout-3 .content-footer { width: 100vw; height: 15vh; }
 
 .layout-4 .content-top    {}
-.layout-4 .content-side   { display: none; }
-.layout-4 .content-player { width:  100vw; height: 50vh; }
-.layout-4 .content-footer { width: 100vw; height: 50vh; }
+.layout-4 .content-side   { display: none }
+.layout-4 .content-player { width: 100vw; height: 85vh; }
+.layout-4 .content-footer { width: 100vw; height: 15vh; }
+
+.layout-TELA-METADE .content-top    {}
+.layout-TELA-METADE .content-side   { display: none; }
+.layout-TELA-METADE .content-player { width:  100vw; height: 50vh; }
+.layout-TELA-METADE .content-footer { width: 100vw; height: 50vh; }
 /* --------------- LAYOUTS --------------- */
 
 /* --------------- CORES --------------- */
@@ -398,6 +403,7 @@ p {
   overflow: hidden;
 }
 
+/* layout-1  */
 .content-player .informativo.layout-1 .conteudo {
   display: flex;
   flex-direction: column;
@@ -420,6 +426,8 @@ p {
 .content-player .informativo.layout-1 .conteudo .mensagem > div {
   font-size: 30px;
 }
+
+/* layout-2  */
 .content-player .informativo.layout-2 .conteudo {
   margin: 63px 82px 0 725px;
   height: 950px;
@@ -439,6 +447,8 @@ p {
 .content-player .informativo.layout-2 .conteudo .mensagem > div {
   font-size: 30px;
 }
+
+/* layout-3  */
 .content-player .informativo.layout-3 .conteudo {
   margin: 114px 628px 0 70px;
   height: 810px;
@@ -458,9 +468,11 @@ p {
 .content-player .informativo.layout-3 .conteudo .mensagem > div {
   font-size: 30px;
 }
+
+/* layout-4  */
 .content-player .informativo.layout-4 .conteudo {
-  margin: 96px 160px 0;
-  height: 890px;
+  margin: 114px 628px 0 70px;
+  height: 810px;
   overflow: hidden;
 }
 .content-player .informativo.layout-4 .conteudo .titulo {
@@ -475,6 +487,27 @@ p {
   padding: 20px 70px 0;
 }
 .content-player .informativo.layout-4 .conteudo .mensagem > div {
+  font-size: 30px;
+}
+
+/* layout-TELA-METADE  */
+.content-player .informativo.layout-TELA-METADE .conteudo {
+  margin: 96px 160px 0;
+  height: 890px;
+  overflow: hidden;
+}
+.content-player .informativo.layout-TELA-METADE .conteudo .titulo {
+  line-height: 1;
+  padding: 60px 70px 20px;
+}
+.content-player .informativo.layout-TELA-METADE .conteudo .titulo > div {
+  font-size: 50px;
+  font-weight: bold;
+}
+.content-player .informativo.layout-TELA-METADE .conteudo .mensagem {
+  padding: 20px 70px 0;
+}
+.content-player .informativo.layout-TELA-METADE .conteudo .mensagem > div {
   font-size: 30px;
 }
 /* layout 4 */
