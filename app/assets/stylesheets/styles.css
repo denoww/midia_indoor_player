@@ -404,6 +404,7 @@ p {
 }
 
 /* layout-1  */
+
 .content-player .informativo.layout-1 .conteudo {
   display: flex;
   flex-direction: column;
@@ -490,26 +491,6 @@ p {
   font-size: 30px;
 }
 
-/* layout-TELA-METADE  */
-.content-player .informativo.layout-TELA-METADE .conteudo {
-  margin: 96px 160px 0;
-  height: 890px;
-  overflow: hidden;
-}
-.content-player .informativo.layout-TELA-METADE .conteudo .titulo {
-  line-height: 1;
-  padding: 60px 70px 20px;
-}
-.content-player .informativo.layout-TELA-METADE .conteudo .titulo > div {
-  font-size: 50px;
-  font-weight: bold;
-}
-.content-player .informativo.layout-TELA-METADE .conteudo .mensagem {
-  padding: 20px 70px 0;
-}
-.content-player .informativo.layout-TELA-METADE .conteudo .mensagem > div {
-  font-size: 30px;
-}
 /* layout 4 */
 /* --------------- INFORMATIVO --------------- */
 
