@@ -199,6 +199,7 @@ module.exports = ->
           when 'clima' then @handleClima(tvId, vinc, subItem, item)
           when 'feed'  then @handleFeed(tvId, vinc, subItem, item)
           when 'informativo' then @handleInformativo(tvId, vinc, subItem, item)
+          when 'mensagem'  then @handleMensagem(tvId, vinc, subItem)
 
       @data[tvId][vinculo.posicao] ||= []
       @data[tvId][vinculo.posicao].push item
@@ -209,6 +210,7 @@ module.exports = ->
 
       @data[tvId][vinculo.posicao] ||= []
       @data[tvId][vinculo.posicao].push item
+      @data[tvId][vinculo.posicao] = @data[tvId][vinculo.posicao].unique()
       return
     handleClima: (tvId, vinculo, item, lista=null)->
       return unless vinculo.clima
