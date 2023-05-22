@@ -12,6 +12,9 @@ sleep 2
 # atualiza o repositorio
 /var/lib/midia_indoor_player/tasks/./update_repository.sh
 
+# atualizar chrome
+sudo apt-get update -y
+sudo apt --only-upgrade -y install chromium-browser
 
 /var/lib/midia_indoor_player/tasks/./init.sh
 # reinicia o equipamento
