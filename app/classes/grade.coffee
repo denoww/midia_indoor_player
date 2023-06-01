@@ -180,9 +180,13 @@ module.exports = ->
       lista[vinculo.posicao].push item
       return
     handlePlaylist: (tvId, vinculo, item)->
-      return unless (vinculo.playlist.vinculos || []).any()
+      playlist = vinculo.playlist
+      return unless playlist?.ativado
 
-      for vinc in (vinculo.playlist.vinculos || []).sortByField('ordem')
+      playlist.vinculos ||= []
+      return if playlist.vinculos.empty()
+
+      for vinc in playlist.vinculos.sortByField('ordem')
         continue unless vinc.ativado
 
         subItem =
