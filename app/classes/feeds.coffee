@@ -29,7 +29,7 @@ module.exports = ->
         playlists = data[posicao].select (item)-> item.tipo_midia == 'playlist'
 
         for playlist in playlists
-          for feed in playlist[posicao].select (item)-> item.tipo_midia == 'feed'
+          for feed in (playlist[posicao] || []).select (item)-> item.tipo_midia == 'feed'
             feeds.addOrExtend feed
 
       if feeds.empty()
