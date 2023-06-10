@@ -9,6 +9,8 @@ teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão 
 beelink religar em queda de energia
 aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
 
+## Orangtes
+
 #### orange 3: caso for cria imagem para microsd -> de preferencia para ubuntu bionic desktop por ser mais leve
 #### orange 4: caso for cria imagem para microsd -> de preferencia para ubuntu jammy desktop por ser mais leve
 
