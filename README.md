@@ -1,3 +1,14 @@
+## Config windows
+
+criar o executavel
+ache chrome -> criar atalho no desktop -> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
+
+abrir executavel  no boot
+teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão direito -> novo -> shortcut ou atalho -> coloque o tv que criou no desktop
+
+beelink religar em queda de energia
+aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
+
 #### orange 3: caso for cria imagem para microsd -> de preferencia para ubuntu bionic desktop por ser mais leve
 #### orange 4: caso for cria imagem para microsd -> de preferencia para ubuntu jammy desktop por ser mais leve
 
