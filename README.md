@@ -4,6 +4,7 @@ criar o executavel
 ache chrome -> criar atalho no desktop -> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
 
 abrir executavel  no boot
+<br>
 teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão direito -> novo -> shortcut ou atalho -> coloque o tv que criou no desktop
 
 beelink religar em queda de energia
@@ -11,6 +12,10 @@ aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac 
 
 windows update automático (sem abrir caixas na frente do player)
 Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
+
+Teamviewer
+Baixe a versão HOST
+Para não pedir password >> opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 
 ## Oranges
 
