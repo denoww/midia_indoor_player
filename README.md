@@ -9,6 +9,9 @@ teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão 
 beelink religar em queda de energia
 aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
 
+windows update automático (sem abrir caixas na frente do player)
+Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
+
 ## Oranges
 
 #### orange 3: caso for cria imagem para microsd -> de preferencia para ubuntu bionic desktop por ser mais leve
