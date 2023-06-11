@@ -19,7 +19,13 @@ Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encont
 Teamviewer
 <br>
 Baixe a versão HOST
-Para não pedir password >> opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
+<br>
+Para não pedir password 
+<br>
+opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
+<br>
+opções >> security >> marque grant easy access
+
 
 ## Oranges
 
