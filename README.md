@@ -18,6 +18,8 @@ Teamviewer
 <br>
 Baixe a versão HOST
 <br>
+https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
+<br>
 Para não pedir password 
 <br>
 opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
