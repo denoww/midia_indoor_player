@@ -10,10 +10,6 @@ abrir executavel  no boot
 <br>
 teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão direito -> novo -> shortcut ou atalho -> coloque o tv que criou no desktop
 
-beelink religar em queda de energia
-<br>
-aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
-
 windows update automático (sem abrir caixas na frente do player)
 <br>
 Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
@@ -27,6 +23,10 @@ Para não pedir password
 opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 <br>
 opções >> security >> marque grant easy access
+
+beelink religar em queda de energia
+<br>
+aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
 
 
 ## Oranges
