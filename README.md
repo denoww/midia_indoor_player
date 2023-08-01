@@ -1,5 +1,7 @@
 ## Config windows
 
+Instale o Chrome
+
 criar o executavel
 <br>
 ache chrome -> criar atalho no desktop -> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
