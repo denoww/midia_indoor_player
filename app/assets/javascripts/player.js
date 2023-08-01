@@ -243,9 +243,9 @@
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
-      itemAtual = this.getNextItem();
+      itemAtual = this.getNextItemConteudoSuperior();
       if (!itemAtual) {
-        return console.error("@getNextItem() - itemAtual é indefinido!", itemAtual);
+        return console.error("@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual);
       }
       vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField('id', itemAtual.id);
       if (vm.indexConteudoSuperior == null) {
@@ -291,12 +291,12 @@
       }
       this.ultimoVideo = null;
     },
-    getNextItem: function() {
+    getNextItemConteudoSuperior: function() {
       var currentItem, index, lista, total;
       lista = vm.grade.data.conteudo_superior || [];
       total = lista.length;
       if (!total) {
-        return console.warn("vm.grade.data.conteudo_superior está vazio!", lista);
+        return console.error("vm.grade.data.conteudo_superior está vazio!", lista);
       }
       index = this.nextIndex;
       if (index >= total) {
@@ -387,7 +387,7 @@
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
-      itemAtual = this.getNextItem();
+      itemAtual = this.getNextItemMsg();
       if (!itemAtual) {
         return;
       }
@@ -401,7 +401,7 @@
         return timelineConteudoMensagem.executar();
       }, segundos);
     },
-    getNextItem: function() {
+    getNextItemMsg: function() {
       var currentItem, index, lista, total;
       lista = vm.grade.data.conteudo_mensagem || [];
       total = lista.length;

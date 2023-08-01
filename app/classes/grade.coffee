@@ -181,7 +181,7 @@ module.exports = ->
       return
     handlePlaylist: (tvId, vinculo, item)->
       playlist = vinculo.playlist
-      return unless playlist?.ativado
+      return if playlist?.ativado == false
 
       playlist.vinculos ||= []
       return if playlist.vinculos.empty()

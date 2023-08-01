@@ -194,8 +194,8 @@ onLoaded = ->
   executar: ->
     clearTimeout @promessa if @promessa
 
-    itemAtual = @getNextItem()
-    return console.error "@getNextItem() - itemAtual é indefinido!", itemAtual unless itemAtual
+    itemAtual = @getNextItemConteudoSuperior()
+    return console.error "@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual unless itemAtual
 
     vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
     if !vm.indexConteudoSuperior?
@@ -233,10 +233,10 @@ onLoaded = ->
     video.pause() if video
     @ultimoVideo = null
     return
-  getNextItem: ->
+  getNextItemConteudoSuperior: ->
     lista = vm.grade.data.conteudo_superior || []
     total = lista.length
-    return console.warn "vm.grade.data.conteudo_superior está vazio!", lista unless total
+    return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless total
 
     index = @nextIndex
     index = 0 if index >= total
@@ -307,7 +307,7 @@ onLoaded = ->
   executar: ->
     clearTimeout @promessa if @promessa
 
-    itemAtual = @getNextItem()
+    itemAtual = @getNextItemMsg()
     return unless itemAtual
 
     vm.indexConteudoMensagem = vm.listaConteudoMensagem.getIndexByField 'id', itemAtual.id
@@ -320,7 +320,8 @@ onLoaded = ->
       timelineConteudoMensagem.executar()
     , segundos
     return
-  getNextItem: ->
+  getNextItemMsg: ->
+
     lista = vm.grade.data.conteudo_mensagem || []
     total = lista.length
     return unless total
