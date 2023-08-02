@@ -1,5 +1,11 @@
 ## Config windows
 
+Ao ligar mini pc configure: 
+<br>lingua inglesa
+<br>teclado portuquese (Brazil ABNT2)
+<br>quando pedir login clique em offline account
+
+
 Instale o Chrome
 
 criar o executavel
