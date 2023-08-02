@@ -12,6 +12,7 @@ Ao ligar mini pc configure:
 
 
 Instale o Chrome
+https://www.google.pt/intl/pt-PT/chrome
 
 criar o executavel
 <br>
