@@ -1,30 +1,42 @@
 ## Config windows
 
+Ao ligar mini pc configure: 
+<br>lingua inglesa
+<br>teclado portuquese (Brazil ABNT2)
+<br>quando pedir login clique em offline account e depois em limited experience
+<br>nome do pc: TV
+<br>senha: DEIXE VAZIO (importante não precisar de senha para logar)
+<br>não usar speech recognition
+<br>marcar não e skip em tudo a partir de agora (exceto gps localization)
+
+
+
+Instale o Chrome
+https://www.google.pt/intl/pt-PT/chrome
+
 criar o executavel
 <br>
-ache chrome -> criar atalho no desktop -> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
+no desktop -> botão direito no chrome -> criar atalho-> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
 
 abrir executavel  no boot
 <br>
-teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão direito -> novo -> shortcut ou atalho -> coloque o tv que criou no desktop
-
-beelink religar em queda de energia
-<br>
-aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
+teclas -> windows + r -> escreva -> shell:startup -> copie o atalho criado no desktop e cole nessa pasta que abriu
 
 windows update automático (sem abrir caixas na frente do player)
 <br>
 Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
 
 Teamviewer
+<br>Baixe a versão HOST
+<br>https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
+<br>Para não pedir password 
+<br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
+<br>opções >> security >> marque grant easy access
+<br>opções >> random password >> desabilitar
+
+beelink religar em queda de energia
 <br>
-Baixe a versão HOST
-<br>
-Para não pedir password 
-<br>
-opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
-<br>
-opções >> security >> marque grant easy access
+aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
 
 
 ## Oranges
