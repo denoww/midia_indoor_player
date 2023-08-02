@@ -284,15 +284,16 @@ onLoaded = ->
     currentItem.filePath = feed.filePath
     currentItem
   getItemPlaylist: (playlist)->
+    contentSup = playlist.conteudo_superior || []
     if !@playlistIndex[playlist.id]?
       @playlistIndex[playlist.id] = 0
     else
       @playlistIndex[playlist.id]++
 
-    if @playlistIndex[playlist.id] >= playlist.conteudo_superior.length
+    if @playlistIndex[playlist.id] >= contentSup.length
       @playlistIndex[playlist.id] = 0
 
-    currentItem = playlist.conteudo_superior[@playlistIndex[playlist.id]]
+    currentItem = contentSup[@playlistIndex[playlist.id]]
 
     return currentItem if currentItem.tipo_midia != 'feed'
     @getItemFeed(currentItem)

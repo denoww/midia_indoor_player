@@ -353,16 +353,17 @@
       return currentItem;
     },
     getItemPlaylist: function(playlist) {
-      var currentItem;
+      var contentSup, currentItem;
+      contentSup = playlist.conteudo_superior || [];
       if (this.playlistIndex[playlist.id] == null) {
         this.playlistIndex[playlist.id] = 0;
       } else {
         this.playlistIndex[playlist.id]++;
       }
-      if (this.playlistIndex[playlist.id] >= playlist.conteudo_superior.length) {
+      if (this.playlistIndex[playlist.id] >= contentSup.length) {
         this.playlistIndex[playlist.id] = 0;
       }
-      currentItem = playlist.conteudo_superior[this.playlistIndex[playlist.id]];
+      currentItem = contentSup[this.playlistIndex[playlist.id]];
       if (currentItem.tipo_midia !== 'feed') {
         return currentItem;
       }
