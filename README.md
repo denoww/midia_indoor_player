@@ -6,6 +6,8 @@ Ao ligar mini pc configure:
 <br>quando pedir login clique em offline account e depois em limited experience
 <br>nome do pc: TV
 <br>senha: DEIXE VAZIO (importante não precisar de senha para logar)
+<br>não usar speech recognition
+<br>marcar não em tudo a partir de agora (exceto gps localization)
 
 
 
