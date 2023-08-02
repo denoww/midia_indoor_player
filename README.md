@@ -3,7 +3,10 @@
 Ao ligar mini pc configure: 
 <br>lingua inglesa
 <br>teclado portuquese (Brazil ABNT2)
-<br>quando pedir login clique em offline account
+<br>quando pedir login clique em offline account e depois em limited experience
+<br>nome do pc: TV
+<br>senha: DEIXE VAZIO (importante não precisar de senha para logar)
+
 
 
 Instale o Chrome
