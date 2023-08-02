@@ -27,18 +27,12 @@ windows update automático (sem abrir caixas na frente do player)
 Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
 
 Teamviewer
-<br>
-Baixe a versão HOST
-<br>
-https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
-<br>
-Para não pedir password 
-<br>
-opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
-<br>
-opções >> security >> marque grant easy access
-<br>
-opções >> random password >> desabilitar
+<br>Baixe a versão HOST
+<br>https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
+<br>Para não pedir password 
+<br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
+<br>opções >> security >> marque grant easy access
+<br>opções >> random password >> desabilitar
 
 beelink religar em queda de energia
 <br>
