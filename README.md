@@ -16,11 +16,11 @@ https://www.google.pt/intl/pt-PT/chrome
 
 criar o executavel
 <br>
-ache chrome -> criar atalho no desktop -> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
+no desktop -> botão direito no chrome -> criar atalho-> renomear para de tv -> botao direito -> propriedades -> no campo target ou destino colocar -> "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk http://midiaindoor.seucondominio.com.br:4001/?tvId=45 -> troque o tvId
 
 abrir executavel  no boot
 <br>
-teclas -> windows + r -> escreva -> shell:startup -> no espaço vazio -> botão direito -> novo -> shortcut ou atalho -> coloque o tv que criou no desktop
+teclas -> windows + r -> escreva -> shell:startup -> copie o atalho criado no desktop e cole nessa pasta que abriu
 
 windows update automático (sem abrir caixas na frente do player)
 <br>
