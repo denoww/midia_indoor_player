@@ -292,29 +292,32 @@
       this.ultimoVideo = null;
     },
     getNextItemConteudoSuperior: function() {
-      var currentItem, index, lista, total;
+      var currentItem, index, lista, listaQtd;
       lista = vm.grade.data.conteudo_superior || [];
-      total = lista.length;
-      if (!total) {
+      listaQtd = lista.length;
+      if (!listaQtd) {
         return console.error("vm.grade.data.conteudo_superior está vazio!", lista);
       }
       index = this.nextIndex;
-      if (index >= total) {
+      if (index >= listaQtd) {
         index = 0;
       }
       this.nextIndex++;
-      if (this.nextIndex >= total) {
+      if (this.nextIndex >= listaQtd) {
         this.nextIndex = 0;
       }
       currentItem = lista[index];
-      switch (currentItem.tipo_midia) {
+      switch (currentItem != null ? currentItem.tipo_midia : void 0) {
         case 'feed':
-          return this.getItemFeed(currentItem);
+          currentItem = this.getItemFeed(currentItem);
+          break;
         case 'playlist':
-          return this.getItemPlaylist(currentItem);
-        default:
-          return currentItem;
+          currentItem = this.getItemPlaylist(currentItem);
+          if (!currentItem && listaQtd > 1) {
+            currentItem = this.getNextItemConteudoSuperior();
+          }
       }
+      return currentItem;
     },
     getItemFeed: function(currentItem) {
       var base, categ, feed, feedItems, fonte, index, ref;
@@ -364,7 +367,7 @@
         this.playlistIndex[playlist.id] = 0;
       }
       currentItem = contentSup[this.playlistIndex[playlist.id]];
-      if (currentItem.tipo_midia !== 'feed') {
+      if ((currentItem != null ? currentItem.tipo_midia : void 0) !== 'feed') {
         return currentItem;
       }
       return this.getItemFeed(currentItem);
@@ -418,7 +421,7 @@
         this.nextIndex = 0;
       }
       currentItem = lista[index];
-      switch (currentItem.tipo_midia) {
+      switch (currentItem != null ? currentItem.tipo_midia : void 0) {
         case 'feed':
           return this.getItemFeed(currentItem);
         default:

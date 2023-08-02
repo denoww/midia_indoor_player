@@ -235,20 +235,28 @@ onLoaded = ->
     return
   getNextItemConteudoSuperior: ->
     lista = vm.grade.data.conteudo_superior || []
-    total = lista.length
-    return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless total
+    listaQtd = lista.length
+    return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless listaQtd
 
     index = @nextIndex
-    index = 0 if index >= total
+    index = 0 if index >= listaQtd
 
     @nextIndex++
-    @nextIndex = 0 if @nextIndex >= total
+    @nextIndex = 0 if @nextIndex >= listaQtd
+
 
     currentItem = lista[index]
-    switch currentItem.tipo_midia
-      when 'feed'     then @getItemFeed(currentItem)
-      when 'playlist' then @getItemPlaylist(currentItem)
-      else currentItem
+    switch currentItem?.tipo_midia
+      when 'feed'
+        currentItem = @getItemFeed(currentItem)
+      when 'playlist'
+        currentItem = @getItemPlaylist(currentItem)
+        if !currentItem && listaQtd > 1
+          currentItem = @getNextItemConteudoSuperior()
+
+
+
+    currentItem
   getItemFeed: (currentItem)->
     feedItems = feedsObj.data[currentItem.fonte]?[currentItem.categoria] || []
     if feedItems.empty()
@@ -295,7 +303,7 @@ onLoaded = ->
 
     currentItem = contentSup[@playlistIndex[playlist.id]]
 
-    return currentItem if currentItem.tipo_midia != 'feed'
+    return currentItem if currentItem?.tipo_midia != 'feed'
     @getItemFeed(currentItem)
 
 @timelineConteudoMensagem =
@@ -334,7 +342,7 @@ onLoaded = ->
     @nextIndex = 0 if @nextIndex >= total
 
     currentItem = lista[index]
-    switch currentItem.tipo_midia
+    switch currentItem?.tipo_midia
       when 'feed' then @getItemFeed(currentItem)
       else currentItem
   getItemFeed: (currentItem)->
