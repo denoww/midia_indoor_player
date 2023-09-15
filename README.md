@@ -32,7 +32,7 @@ Teamviewer
 <br>Para não pedir password 
 <br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 <br>opções >> security >> marque grant easy access
-<br>opções >> random password >> desabilitar
+<br>opções >> security >> random password >> desabilitar
 
 beelink religar em queda de energia
 <br>
