@@ -2,7 +2,7 @@
 
 1. Adquira o modelo android tv: pro eletronic smart prosb-3000/16
 2. conecte na internet (wifi ou cabo): no caso de wifi >> configuracoes >> rede e internet >> entre no sru wifi
-3. Baixe o app:  abra o google chrome >> modo mouse (aperte ícone do mouse do controle remoto) >> na barra de endereço do chrome coloque >> http://bit.ly/corpflix >> baixe  >> instale >> abra o app >> clique em ligar tv >> coloque o codigo da sua tv ou coloque 58 (tv teste)
+3. Baixe o app: google play -> corpflix ..OU.. faça por APK >> abra o google chrome >> modo mouse (aperte ícone do mouse do controle remoto) >> na barra de endereço do chrome coloque >> http://bit.ly/corpflix >> baixe  >> instale >> abra o app >> clique em ligar tv >> coloque o codigo da sua tv ou coloque 58 (tv teste)
 4. Garanta que app reabra em queda de energia: >> configurações >> apps >> acesso especial a apps >> sobrepor a outros apps >> marcar corpflix >> desligar >> ligar >> apos ligar completamente esperar mais 2 minutos até abrir
 
 ## Config windows
