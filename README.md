@@ -1,3 +1,12 @@
+## trocar logo
+
+1. $ midiaindoorcloudssh
+2. $ cd /var/lib/midia_indoor_player/public
+3. apague a pasta da tv (pasta 45 por exemplo)
+4. entre na tela de grade e playlist -> edite e salve (não precisa modificar nada)
+5. entre na tela de tv e clique em reiniciar player
+
+
 ## Config android tv
 
 1. Adquira o modelo android tv: pro eletronic smart prosb-3000/16
