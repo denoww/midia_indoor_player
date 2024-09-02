@@ -1,3 +1,4 @@
+// deploy
 console.log("-----------------------------------------------------------------");
 require('coffeescript').register();
 require('./env');
