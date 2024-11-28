@@ -47,10 +47,10 @@ beelink religar em queda de energia
 fique apertando DEL no boot até abrir a tela de configurações "azul com cinza" -> aba chipset -> aperte ENTER -> south cluster configuration -> aperte ENTER ->  restore ac power loss -> aperte ENTER -> power on -> aperte ENTER -> aperte ESC -> aba save & exit > save changes and exit 
 
 
-Teamviewer
+Teamviewer 
+<br>deixe pro Rodrigo fazer esse passo
 <br>Baixe a versão HOST
 <br>https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
-<br>os próximos passos abaixo do teamviewer deixa para o Rodrigo finalizar
 <br>Para não pedir password 
 <br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 <br>opções >> security >> marque grant easy access
