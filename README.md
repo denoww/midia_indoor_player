@@ -42,17 +42,20 @@ windows update automático (sem abrir caixas na frente do player)
 <br>
 Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encontrar o serviço "Windows Update" -> botão direito em "Windows Update" -> "Propriedades" -> "Geral" -> "startup type" -> "startup type" -> "Automático (delayed start)"-> "Aplicar" -> depois "OK"
 
+beelink religar em queda de energia
+<br>
+aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
+
+
 Teamviewer
 <br>Baixe a versão HOST
 <br>https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
+<br>os próximos passos do teamviewer deixa para o Rodrigo finalizar
 <br>Para não pedir password 
 <br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 <br>opções >> security >> marque grant easy access
 <br>opções >> security >> random password >> desabilitar
 
-beelink religar em queda de energia
-<br>
-aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> salve
 
 
 ## Oranges
