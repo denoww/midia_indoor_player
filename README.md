@@ -50,7 +50,7 @@ aperte DEL no boot -> aba chipset -> south cluster configuration ->  restore ac 
 Teamviewer
 <br>Baixe a versão HOST
 <br>https://download.teamviewer.com/download/TeamViewer_Host_Setup.exe
-<br>os próximos passos do teamviewer deixa para o Rodrigo finalizar
+<br>os próximos passos abaixo do teamviewer deixa para o Rodrigo finalizar
 <br>Para não pedir password 
 <br>opções >> avançada >> acess controll >> tire o show confirmation e coloque desativado
 <br>opções >> security >> marque grant easy access
