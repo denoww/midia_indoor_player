@@ -44,7 +44,7 @@ Windows + R -> Digite services.msc -> "Serviços" -> role para baixo até encont
 
 beelink religar em queda de energia
 <br>
-fique apertando DEL no boot até abrir a tela de configurações "azul com cinza" -> aba chipset -> south cluster configuration ->  restore ac power loss -> power on -> aba save & exit > save changes and exit 
+fique apertando DEL no boot até abrir a tela de configurações "azul com cinza" -> aba chipset -> aperte ENTER -> south cluster configuration -> aperte ENTER ->  restore ac power loss -> aperte ENTER -> power on -> aperte ENTER -> aperte ESC -> aba save & exit > save changes and exit 
 
 
 Teamviewer
