@@ -17,3 +17,7 @@ require('./app/classes/feeds')()
 
 require('./app/servers/web')()
 global.grade.startCheckTvTimer()
+
+
+# Garante que o processo continue vivo (mesmo sem requisições)
+setInterval -> null, 1000 * 60 * 60
