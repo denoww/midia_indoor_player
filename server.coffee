@@ -22,7 +22,7 @@ require('./app/classes/grade')()
 require('./app/classes/feeds')()
 
 require('./app/servers/web')()
-# global.grade.startCheckTvTimer()
+global.grade.startCheckTvTimer()
 
 
 # Garante que o processo continue vivo (mesmo sem requisições)
