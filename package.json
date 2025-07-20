@@ -2,7 +2,6 @@
   "name": "midia_indoor_player",
   "version": "2.3.0",
   "description": "Player",
-  "main": "server.coffee",
   "private": true,
   "scripts": {
     "start": "npm run compile_coffee & nodemon server.coffee -- fullscreen=false",
