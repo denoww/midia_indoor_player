@@ -20,6 +20,6 @@ global.grade.startCheckTvTimer()
 
 
 # Garante que o processo continue vivo (mesmo sem requisições)
-setInterval ->
-  console.log "⏳ Servidor ainda ativo: #{new Date()}"
-, 60000
+# setInterval ->
+#   console.log "⏳ Servidor ainda ativo: #{new Date()}"
+# , 60000
