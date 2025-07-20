@@ -11,7 +11,7 @@ module.exports = (opt={}) ->
   scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
 
   setTimeout ->
-    require("#{process.cwd()}/start_player");
+    # require("#{process.cwd()}/start_player");
   , 7000
 
 
