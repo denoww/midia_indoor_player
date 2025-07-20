@@ -49,7 +49,8 @@ module.exports = (opt={}) ->
     params = req.getParams()
     console.log  "Request GET /grade params: #{JSON.stringify(params)}"
     tvId = params.tvId
-    data = global.grade.data[tvId] || {}
+    data = global?.grade?.data?[tvId] ? {}
+    return unless data?
     if Object.empty data
       global.grade.getList(tvId)
       res.sendStatus(400)
