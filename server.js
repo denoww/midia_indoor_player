@@ -19,7 +19,7 @@ require('coffeescript/register');
 // Carrega configurações e módulos
 require('./env');
 require('sc-node-tools');
-// require('./app/classes/logs')(true);
+require('./app/classes/logs')(true);
 
 require('./app/classes/commons');
 // require('./app/classes/versions_control')();
