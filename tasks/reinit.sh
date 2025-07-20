@@ -4,7 +4,8 @@ projectPath=$(builtin cd "$(dirname $0)/.."; pwd)
 
 
 verify_servers(){
-  SERVICE_NODE="node server.js"
+  SERVICE_NODE="node server.coffee"
+  # SERVICE_NODE="node server.js"
   SERVICE_PLAYER="chromium"
   # SERVICE_PLAYER="node_modules/electron"
 
