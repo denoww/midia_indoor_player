@@ -16,7 +16,7 @@ require 'sc-node-tools'
 require('./app/classes/logs')(true)
 
 require './app/classes/commons'
-require('./app/classes/versions_control')()
+# require('./app/classes/versions_control')()
 require('./app/classes/download')()
 require('./app/classes/grade')()
 require('./app/classes/feeds')()
