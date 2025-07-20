@@ -134,13 +134,14 @@ Feito isso, após a reinicialização, o player já esta rodando. \o/
 ```
 sccamerasproductionssh
 cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
-cd /var/lib/midia_indoor_player/; tasks/./install.sh
+
 
 Reinicie
 
 cd /var/lib/midia_indoor_player
 npm install pm2 -g
 npm install -g coffeescript
+npm install
 npm run pm2_start_prod
 pm2 startup
 Copie o codigo gerado
