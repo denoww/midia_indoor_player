@@ -1,3 +1,4 @@
+# web.coffee
 express = require 'express'
 path    = require 'path'
 bodyParser = require('body-parser')
@@ -14,7 +15,7 @@ module.exports = (opt={}) ->
   , 7000
 
 
-  versao = global.versionsControl?.currentVersion || global.versao_player || '--'
+  # versao = global.versionsControl?.currentVersion || global.versao_player || '--'
   # global.server_started = true
 
   app.use express.static(path.join( __dirname, '../assets/'))

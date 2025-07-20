@@ -72,7 +72,7 @@ module.exports = ->
         @saveLogo(tvId, jsonData.logo_url)
         @saveDataJson(tvId)
 
-        global.versionsControl.exec(atualizarPlayer)
+        # global.versionsControl.exec(atualizarPlayer)
         global.feeds.getList(tvId)
     _restartGrade: (opt) ->
       # opt.restart_player = true
@@ -106,7 +106,7 @@ module.exports = ->
         resolucao: jsonData.resolucao
         informacoes: jsonData.informacoes
         # versao_player: jsonData.versao_player
-        current_version: global.versionsControl?.currentVersion
+        # current_version: global.versionsControl?.currentVersion
         restart_player_em: jsonData.restart_player_em
 
       @data[tvId].finance = jsonData.finance if jsonData.finance
