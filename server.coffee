@@ -1,5 +1,11 @@
 # server.coffee
 
+process.on 'SIGTERM', -> console.log "🔴 Recebeu SIGTERM externo!"
+process.on 'SIGINT',  -> console.log "🔴 Recebeu SIGINT externo!"
+process.on 'exit', (code) -> console.log "⚠️ Processo finalizado com código #{code}"
+
+
+
 global.homePath = (process.env.HOME or process.env.USERPROFILE or process.env.HOMEPATH) + '/'
 
 path = require 'path'
