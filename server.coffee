@@ -10,15 +10,15 @@ global.homePath = (process.env.HOME or process.env.USERPROFILE or process.env.HO
 
 path = require 'path'
 
+require 'coffeescript/register'
 require './env'
-# require 'coffeescript/register'
 require 'sc-node-tools'
-# require('./app/classes/logs')(true)
+require('./app/classes/logs')(true)
 
-# require './app/classes/commons'
-# require('./app/classes/download')()
-# require('./app/classes/grade')()
-# require('./app/classes/feeds')()
+require './app/classes/commons'
+require('./app/classes/download')()
+require('./app/classes/grade')()
+require('./app/classes/feeds')()
 require('./app/servers/web')()
 # global.grade.startCheckTvTimer()
 
