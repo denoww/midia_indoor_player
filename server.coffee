@@ -1,7 +1,7 @@
 # server.coffee
 
-process.on 'SIGTERM', -> console.log "🔴 Recebeu SIGTERM externo!"
-process.on 'SIGINT',  -> console.log "🔴 Recebeu SIGINT externo!"
+process.on 'SIGTERM', -> console.log "🔴 Recebeu SIGTERM externo para matar servidor !"
+process.on 'SIGINT',  -> console.log "🔴 Recebeu SIGINT externo para matar servidor !"
 process.on 'exit', (code) -> console.log "⚠️ Processo finalizado com código #{code}"
 
 
@@ -22,7 +22,7 @@ require('./app/classes/download')()
 require('./app/classes/grade')()
 require('./app/classes/feeds')()
 require('./app/servers/web')()
-# global.grade.startCheckTvTimer()
+global.grade.startCheckTvTimer()
 
 
 # Garante que o processo continue vivo (mesmo sem requisições)
