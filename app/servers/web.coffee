@@ -52,7 +52,7 @@ module.exports = (opt={}) ->
     data = global?.grade?.data?[tvId] ? {}
     return unless data?
     if Object.empty data
-      global.grade.getList(tvId)
+      global.grade.getList(tvId) if global.grade
       res.sendStatus(400)
       return
     res.send JSON.stringify data
