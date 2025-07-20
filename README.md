@@ -140,6 +140,7 @@ Reinicie
 
 cd /var/lib/midia_indoor_player
 npm install pm2 -g
+npm install -g coffeescript
 npm run pm2_start_prod
 pm2 startup
 Copie o codigo gerado
