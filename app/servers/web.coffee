@@ -6,7 +6,7 @@ bodyParser = require('body-parser')
 
 module.exports = (opt={}) ->
   app = express()
-  global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
+  # global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
   server = app.listen(ENV.HTTP_PORT)
   scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
 
