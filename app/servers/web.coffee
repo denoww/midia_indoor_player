@@ -62,7 +62,8 @@ module.exports = (opt={}) ->
     console.log  "Request GET /check_tv params: #{JSON.stringify(params)}"
     tvId = params.tvId
     tvId = parseInt(tvId) if tvId
-    data = global.grade.data[tvId] || {}
+    data = global?.grade?.data?[tvId] ? {}
+    return unless data?
 
     resp = {}
     resp.restart_player_em = data.restart_player_em
