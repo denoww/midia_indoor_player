@@ -15,5 +15,5 @@ require('./app/classes/download')()
 require('./app/classes/grade')()
 require('./app/classes/feeds')()
 
-# require('./app/servers/web')()
-# global.grade.startCheckTvTimer()
+require('./app/servers/web')()
+global.grade.startCheckTvTimer()
