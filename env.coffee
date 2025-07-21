@@ -36,7 +36,7 @@ if fs.existsSync(envFile)
 
 # console.log process?.argv?.slice?(2, 100)
 processArgs = process?.argv?.slice?(2) || []
-obj = {}
+# obj = {}
 
 for arg in processArgs
   # Garante que o argumento é uma string e tem formato esperado
