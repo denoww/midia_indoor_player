@@ -53,7 +53,7 @@ module.exports = ->
         doDownloadAlternative(params, callback)
         return
 
-      logs.create "Download -> #{params.nome_arquivo}, URL: #{params.url}"
+      logs.create "Download iniciado -> #{params.nome_arquivo}, URL: #{params.url}"
 
       posicaoCover = Jimp.VERTICAL_ALIGN_MIDDLE
       if image.bitmap.width / image.bitmap.height < 0.7
@@ -72,7 +72,7 @@ module.exports = ->
     file      = fs.createWriteStream(fullPath)
     protocolo = http
     protocolo = https if params.url.match(/https/)
-    logs.create "Download -> #{params.nome_arquivo}, URL: #{params.url}"
+    logs.create "Download alternativo -> #{params.nome_arquivo}, URL: #{params.url}"
 
     protocolo.get params.url, (res)->
       res.on 'data', (data)->
