@@ -97,7 +97,10 @@ cd /var/lib/midia_indoor_player/; tasks/./install.sh
 
 ## ligar modo development
 
-$ midiaindoors
+```
+cp ~/workspace/midia_indoor_player/.env_sample ~/workspace/midia_indoor_player/.env;
+midiaindoors
+```
 
 
 ## startup on boot machine
