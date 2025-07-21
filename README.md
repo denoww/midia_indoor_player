@@ -97,7 +97,7 @@ cd /var/lib/midia_indoor_player/; tasks/./install.sh
 
 ## ligar modo development
 
-$ npm run start
+$ midiaindoors
 
 
 ## startup on boot machine
