@@ -34,15 +34,20 @@ if fs.existsSync(envFile)
 
 # console.log process.env
 
-processArgs = process?.argv?.slice?(2, 100) || [] # vem da linha de comando que LIGA server.coffee
-for arg in processArgs
-  # Exemplo: nodemon --inspect server.coffee -- LINKERCLOUD=true
-  # Exemplo: pm2 delete portaria; pm2 start server.coffee --name=portaria -- LINKERCLOUD=true; pm2 logs
-  [k, v] = arg.split('=')
-  # v = false if v == 'false'
-  # v = true if v == 'true'
-  obj[k] = v
+# console.log process?.argv?.slice?(2, 100)
+processArgs = process?.argv?.slice?(2) || []
+obj = {}
 
+for arg in processArgs
+  # Garante que o argumento é uma string e tem formato esperado
+  if typeof arg is 'string' and arg.startsWith('--') and arg.includes('=')
+    clean = arg.replace('--', '')
+    [k, v] = clean.split('=')
+    if v == 'false'
+      v = false
+    else if v == 'true'
+      v = true
+    obj[k] = v
 
 console.log obj
 Object.assign(process.env, obj);

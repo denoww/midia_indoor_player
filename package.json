@@ -4,7 +4,7 @@
   "description": "Player",
   "private": true,
   "scripts": {
-    "start": "npm run compile_coffee & nodemon server.coffee -- fullscreen=false",
+    "start": "npm run compile_coffee & nodemon server.coffee --fullscreen=false",
     "start_fullscreen": "npm run compile_coffee & node server.coffee -- fullscreen=true",
     "start_player_fullscreen": "node start_player fullscreen=true",
     "start_player": "node start_player fullscreen=false",
