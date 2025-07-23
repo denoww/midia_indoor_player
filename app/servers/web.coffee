@@ -67,6 +67,7 @@ module.exports = (opt={}) ->
     return unless data?
 
     resp = {}
+    resp.tvId = data.tvId
     resp.restart_player_em = data.restart_player_em
     res.send JSON.stringify resp
 
