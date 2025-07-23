@@ -1,8 +1,8 @@
 # server.coffee
 
-process.on 'SIGTERM', -> console.log "🔴 Recebeu SIGTERM externo para matar servidor !"
-process.on 'SIGINT',  -> console.log "🔴 Recebeu SIGINT externo para matar servidor !"
-process.on 'exit', (code) -> console.log "⚠️ Processo finalizado com código #{code}"
+# process.on 'SIGTERM', -> console.log "🔴 Recebeu SIGTERM externo para matar servidor !"
+# process.on 'SIGINT',  -> console.log "🔴 Recebeu SIGINT externo para matar servidor !"
+# process.on 'exit', (code) -> console.log "⚠️ Processo finalizado com código #{code}"
 
 
 
