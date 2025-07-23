@@ -5,6 +5,7 @@ request = require 'request'
 
 baseUrl = "#{ENV.API_SERVER_URL}/publicidades"
 
+
 module.exports = ->
   ctrl =
     tvIds: []
