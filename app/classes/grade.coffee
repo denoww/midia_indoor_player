@@ -11,6 +11,12 @@ module.exports = ->
     data: {}
     # folderKeys: ['images', 'videos', 'audios', 'feeds']
     folderKeys: ['images', 'videos', 'feeds']
+    apagarFolder: (tvId) ->
+      return unless tvId
+      tvFolder = "#{getTvFolderPublic(tvId)}"
+      if fs.existsSync(tvFolder)
+        fs.rmSync(tvFolder, { recursive: true, force: true })
+
     createFolders: (tvId) ->
       return unless tvId
       folders = []
@@ -25,13 +31,16 @@ module.exports = ->
       return
     checkTv: (tvId) ->
       url = "#{baseUrl}/check_tv.json?id=#{tvId}"
-      console.log "cloud /check_tv.json em tv #{tvId}"
+      console.log "cloud #{url}"
       request url, (error, response, body)=>
         if error || response?.statusCode != 200
           return
         resp = JSON.parse(body)
         @_restartGrade(resp)
-    getList: (tvId) ->
+    getList: (tvId, opt={}) ->
+      if opt.refazerArquivos
+        @apagarFolder(tvId)
+
       @createFolders(tvId)
 
       @tvIds.push(tvId)
@@ -86,7 +95,7 @@ module.exports = ->
         # global.restart_tv_ids ||= []
         # global.restart_tv_ids.push parseInt(tvId)
         scPrint.warning "Baixando nova grade de TV ##{opt.id}"
-        @getList(tvId)
+        @getList(tvId, refazerArquivos: true)
 
     handlelist: (jsonData)->
       tvId = jsonData.id
