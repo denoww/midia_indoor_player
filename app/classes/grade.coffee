@@ -316,7 +316,9 @@ module.exports = ->
 
     startCheckTvTimer: ->
       setInterval =>
-        console.log("chamar ctrl.checkTv de  #{@tvIds}")
+        console.log("=========================================================")
+        console.log("Checar se grade mudou: chamar ctrl.checkTv de  #{@tvIds}")
+        console.log("=========================================================")
         for tvId in @tvIds
           ctrl.checkTv(tvId)
       , 10000
