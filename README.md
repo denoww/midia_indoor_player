@@ -142,6 +142,7 @@ cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midi
 Reinicie
 
 cd /var/lib/midia_indoor_player
+cp .env_sample .env
 npm install pm2 -g
 npm install -g coffeescript
 npm install
