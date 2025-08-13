@@ -156,6 +156,7 @@ source ~/.bashrc
 
 Reinicie
 
+```
 cd /var/lib/midia_indoor_player
 cp .env_sample .env
 npm install pm2 -g
