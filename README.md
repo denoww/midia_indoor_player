@@ -137,6 +137,21 @@ Feito isso, após a reinicialização, o player já esta rodando. \o/
 ```
 midiaindoorcloudssh
 cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
+```
+## instale node
+
+[https://github.com/nodesource/distributions/#debinstall
+](https://nodesource.com/products/distributions)
+
+## arrumar pastas node
+
+```
+mkdir "${HOME}/.npm-global"
+npm config set prefix "${HOME}/.npm-global"
+export PATH="$HOME/.npm-global/bin:$PATH"
+echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
 
 
 Reinicie
