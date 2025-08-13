@@ -159,9 +159,18 @@ Reinicie
 ```
 cd /var/lib/midia_indoor_player
 cp .env_sample .env
+```
+```
 npm install pm2 -g
+```
+```
 npm install -g coffeescript
+```
+```
 npm install
+```
+
+```
 npm run pm2_start_prod
 pm2 startup
 Copie o codigo gerado
