@@ -99,7 +99,7 @@ module.exports = ->
         # # scPrint.warning tvId
         # global.restart_tv_ids ||= []
         # global.restart_tv_ids.push parseInt(tvId)
-        scPrint.warning "Baixando nova grade de TV ##{tvId}"
+        scPrint.warning "Baixando nova grade de TV ##{tvId}:"
         @getList(tvId, refazerArquivos: true)
 
     handlelist: (jsonData)->
