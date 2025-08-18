@@ -179,6 +179,8 @@ module.exports = ->
         filePath = "#{filePath}/#{pasta}" if pasta
         filePath = "#{filePath}/#{nome_arquivo}"
         item.filePath = filePath
+        console.log "fazendo Download de:"
+        console.log item
         Download.exec(item)
       # item.saveOn = filePath
 
