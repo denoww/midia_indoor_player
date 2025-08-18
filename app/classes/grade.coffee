@@ -75,14 +75,18 @@ module.exports = ->
 
         scPrint.success "============================"
         scPrint.success "cliente_id: #{jsonData.cliente_id}"
-        scPrint.success "tv_id: #{ENV.TV_ID}"
+        scPrint.success "tv_id: #{tvId}"
         scPrint.success "============================"
 
+        console.log "entrou em @handlelist(jsonData)"
         @handlelist(jsonData)
+        console.log "entrou em saveLogo"
         @saveLogo(tvId, jsonData.logo_url)
+        console.log "entrou em saveDataJson"
         @saveDataJson(tvId)
 
         # global.versionsControl.exec(atualizarPlayer)
+        console.log "entrou em getList"
         global.feeds.getList(tvId)
     _restartGrade: (opt) ->
       # opt.restart_player = true
@@ -134,6 +138,8 @@ module.exports = ->
           segundos:   vinculo.segundos
           tipo_midia: vinculo.tipo_midia
 
+        console.log "estou em handlelist #{vinculo.tipo_midia}"
+
         switch vinculo.tipo_midia
           when 'musica', 'midia' then @handleMidia(tvId, vinculo, item)
           when 'informativo'     then @handleInformativo(tvId, vinculo, item)
@@ -143,6 +149,7 @@ module.exports = ->
           when 'feed'            then @handleFeed(tvId, vinculo, item)
       return
     handleMidia: (tvId, vinculo, item, lista=null)->
+      console.log "estou em handleMidia vinculo: #{vinculo}"
       return unless vinculo.midia
 
       item.url      = vinculo.midia.original
@@ -255,6 +262,7 @@ module.exports = ->
       "#{imageNome}.webp"
     saveLogo: (tvId, downloadUrl)->
       @data[tvId].logo = {}
+      console.log "saveLogo tvId: #{tvId} url: #{downloadUrl}"
       return unless downloadUrl
       nome_arquivo = @ajustImageNameToWebp(nome_arquivo: 'logo')
       filePath = "#{getTvFolder(tvId)}/#{nome_arquivo}"
@@ -267,6 +275,7 @@ module.exports = ->
         is_logo: true
         nome_arquivo: nome_arquivo
 
+      console.log "saveLogo Download: #{params}"
       Download.exec(params)
     saveDataJson: (tvId) ->
       dados = JSON.stringify @data[tvId], null, 2
