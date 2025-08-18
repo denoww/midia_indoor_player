@@ -99,7 +99,7 @@ module.exports = ->
         # # scPrint.warning tvId
         # global.restart_tv_ids ||= []
         # global.restart_tv_ids.push parseInt(tvId)
-        scPrint.warning "Baixando nova grade de TV ##{opt.id}"
+        scPrint.warning "Baixando nova grade de TV ##{tvId}"
         @getList(tvId, refazerArquivos: true)
 
     handlelist: (jsonData)->
@@ -138,7 +138,7 @@ module.exports = ->
           segundos:   vinculo.segundos
           tipo_midia: vinculo.tipo_midia
 
-        console.log "estou em handlelist #{vinculo.tipo_midia}"
+        console.log "tvId #{tvId} estou em handlelist #{vinculo.tipo_midia}"
 
         switch vinculo.tipo_midia
           when 'musica', 'midia' then @handleMidia(tvId, vinculo, item)
@@ -179,7 +179,7 @@ module.exports = ->
         filePath = "#{filePath}/#{pasta}" if pasta
         filePath = "#{filePath}/#{nome_arquivo}"
         item.filePath = filePath
-        console.log "fazendo Download de:"
+        console.log "tvId #{tvId} fazendo Download de:"
         console.log item
         Download.exec(item)
       # item.saveOn = filePath
