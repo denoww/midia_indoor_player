@@ -94,13 +94,13 @@ module.exports = (opt={}) ->
     res.send JSON.stringify data
 
 
-  app.get  '/npm_run', (req, res) ->
-    # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
-    npmCtrl.execNpmRun(req, res)
+  # app.get  '/npm_run', (req, res) ->
+  #   # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
+  #   npmCtrl.execNpmRun(req, res)
 
-  app.post  '/npm_run', (req, res) ->
-    # POST -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
-    npmCtrl.execNpmRun(req, res)
+  # app.post  '/npm_run', (req, res) ->
+  #   # POST -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
+  #   npmCtrl.execNpmRun(req, res)
 
 npmCtrl =
   execNpmRun: (req, res) ->

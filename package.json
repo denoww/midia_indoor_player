@@ -9,10 +9,7 @@
     "start_player_fullscreen": "node start_player fullscreen=true",
     "start_player": "node start_player fullscreen=false",
     "pm2_start_prod": "pm2 delete MIDIAINDOOR; pm2 start server.coffee --name=MIDIAINDOOR --interpreter=$(which coffee)",
-    "apagar_arquivos_antigos": "coffee ./tasks/apagar_arquivos_antigos.coffee",
-    "compile_coffee": "coffee -wc app/assets/**",
-    "git_pull_prod": "git checkout package-lock.json; git checkout package.json; git checkout schema.json; git pull; npm install; npm update sc-node-tools;",
-    "deploy": "npm run git_pull_prod; npm run apagar_arquivos_antigos; pm2 restart MIDIAINDOOR"
+    "compile_coffee": "coffee -wc app/assets/**"
   },
   "dependencies": {
     "@sentry/browser": "6.2.5",
