@@ -134,8 +134,9 @@ Feito isso, após a reinicialização, o player já esta rodando. \o/
 
 ## Midia Indoor CLOUD - instale na núvem
 
+entre no ssh da numvem
+
 ```
-midiaindoorcloudssh
 cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
 ```
 ## instale node
