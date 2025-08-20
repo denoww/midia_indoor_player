@@ -175,7 +175,11 @@ npm install
 npm run pm2_start_prod
 pm2 startup
 Copie o codigo gerado
+```
+```
 pm2 save
+```
+```
 pm2 logs
 ```
 
