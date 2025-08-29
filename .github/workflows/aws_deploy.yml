@@ -9,7 +9,7 @@ on:
 jobs:
 
   ligar_ec2_nos_loadbalancers:
-    needs: rodar_imagem_docker_no_ec2
+    # needs: rodar_imagem_docker_no_ec2
     strategy:
       fail-fast: false
       matrix:
