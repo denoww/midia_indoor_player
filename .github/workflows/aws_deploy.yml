@@ -14,12 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - EC2_COM_TAG_PROJETOS: socket-server-seucondominio
-            DOCKER_PORTS: "5200"
-            DOCKER_CMD: npm run run_docker_image
+          - EC2_COM_TAG_PROJETOS: midia_indoor_player
+            # DOCKER_PORTS: "4001"
+            # DOCKER_CMD: npm run run_docker_image
             AWS_REGION: us-east-1
 
-            # LOADBALANCE_ALB_NAME: seucondominio-web
             LOADBALANCE_ALB_NAME: seucondominio-web
             LOADBALANCE_PORTS: "https:4001:http:4001"
             LOADBALANCE_CERTIFICADO_HTTPS: "arn:aws:acm:us-east-1:516862767124:certificate/99570c7a-1fb8-4e70-b340-637f7bcaa535"
