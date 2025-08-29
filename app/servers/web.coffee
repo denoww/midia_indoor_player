@@ -44,7 +44,12 @@ module.exports = (opt={}) ->
     console.log  "Request GET / params: #{JSON.stringify(params)}"
     res.type "text/html"
     res.sendFile path.join( __dirname, '../assets/templates/index.html')
+  
+  app.get '/health', (req, res) ->
+    resp = {}
+    res.json resp
 
+    
   app.get '/grade', (req, res) ->
     params = req.getParams()
     console.log  "Request GET /grade params: #{JSON.stringify(params)}"
