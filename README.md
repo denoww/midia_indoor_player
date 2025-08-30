@@ -1,3 +1,75 @@
+## Midia Indoor CLOUD - instale na núvem
+
+entre no ssh da numvem
+
+```
+cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
+```
+### instale node
+
+[https://github.com/nodesource/distributions/#debinstall
+](https://nodesource.com/products/distributions)
+
+### arrumar pastas node
+
+```
+mkdir "${HOME}/.npm-global"
+npm config set prefix "${HOME}/.npm-global"
+export PATH="$HOME/.npm-global/bin:$PATH"
+echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+
+Reinicie
+
+```
+cd /var/lib/midia_indoor_player
+cp .env_sample .env
+```
+```
+npm install pm2 -g
+```
+```
+npm install -g coffeescript
+```
+```
+npm install
+```
+
+```
+npm run pm2_start_prod
+```
+```
+pm2 startup
+```
+Copie o codigo gerado
+
+```
+pm2 save
+```
+```
+pm2 logs
+```
+
+#### Atualizar Load Balance
+
+1. Abra o link:  
+   [Run Workflow](https://github.com/denoww/midia_indoor_player/actions/workflows/aws_deploy.yml)
+
+2. Clique em **"Run workflow"**.
+
+3. Escolha a branch e confirme.  
+
+4. Aguarde terminar e pronto.
+
+
+
+
+============================================================
+============================================================
+============================================================
+
 ## trocar logo
 
 1. $ midiaindoorcloudssh
@@ -131,60 +203,6 @@ Depois configure o Teamviewer nomeando o dispositivo como midia_indoor_player [I
 Feito isso, após a reinicialização, o player já esta rodando. \o/
 
 ---
-
-## Midia Indoor CLOUD - instale na núvem
-
-entre no ssh da numvem
-
-```
-cd /var/lib; sudo chmod 7777 -R . ;sudo git clone https://github.com/denoww/midia_indoor_player.git; cd /var/lib/midia_indoor_player/; sudo chown -R $(whoami) .
-```
-## instale node
-
-[https://github.com/nodesource/distributions/#debinstall
-](https://nodesource.com/products/distributions)
-
-## arrumar pastas node
-
-```
-mkdir "${HOME}/.npm-global"
-npm config set prefix "${HOME}/.npm-global"
-export PATH="$HOME/.npm-global/bin:$PATH"
-echo 'export PATH="$HOME/.npm-global/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-
-Reinicie
-
-```
-cd /var/lib/midia_indoor_player
-cp .env_sample .env
-```
-```
-npm install pm2 -g
-```
-```
-npm install -g coffeescript
-```
-```
-npm install
-```
-
-```
-npm run pm2_start_prod
-```
-```
-pm2 startup
-```
-Copie o codigo gerado
-
-```
-pm2 save
-```
-```
-pm2 logs
-```
 
 
 
