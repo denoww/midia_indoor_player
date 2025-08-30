@@ -57,11 +57,7 @@ pm2 logs
 1. Abra o link:  
    [Run Workflow](https://github.com/denoww/midia_indoor_player/actions/workflows/aws_deploy.yml)
 
-2. Clique em **"Run workflow"**.
-
-3. Escolha a branch e confirme.  
-
-4. Aguarde terminar e pronto.
+2. Clique em **"Run workflow"** na branch master
 
 
 
