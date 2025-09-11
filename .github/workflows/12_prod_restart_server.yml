@@ -1,4 +1,4 @@
-# name: 12_prod_restart_server
+name: desabilitado_12_prod_restart_server
 
 # on:
 #   workflow_dispatch: {}
