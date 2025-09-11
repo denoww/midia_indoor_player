@@ -16,7 +16,7 @@ jobs:
   #   secrets: inherit
 
   ligar_load_balance:
-    needs: restart_server
+    # needs: restart_server
     uses: ./.github/workflows/13_prod_ligar_load_balance.yml
     secrets: inherit
 
