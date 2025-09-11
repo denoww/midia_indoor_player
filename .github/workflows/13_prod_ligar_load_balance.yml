@@ -1,0 +1,26 @@
+name: 13_prod_ligar_load_balance
+
+on:
+  workflow_dispatch: {}
+  workflow_call:
+
+jobs:
+  ligar_ec2_nos_loadbalancers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - EC2_COM_TAG_PROJETOS: "midia_indoor_player"
+            AWS_REGION: "us-east-1"
+            LOADBALANCE_ALB_NAME: "seucondominio-web"
+            LOADBALANCE_PORTS: "http:4001:http:4001"
+            LOADBALANCE_CERTIFICADO_HTTPS: "arn:aws:acm:us-east-1:516862767124:certificate/99570c7a-1fb8-4e70-b340-637f7bcaa535"
+
+    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
+    with:
+      aws_region:  ${{ matrix.AWS_REGION }}
+      ec2_com_tag: ${{ matrix.EC2_COM_TAG_PROJETOS }}
+      remote_cmd: >-
+        curl -fsSL https://gist.githubusercontent.com/denoww/5044b8da36f85afabb920263925684e9/raw |
+        sudo -E env HOME="$HOME" bash -s -- --tags "projetos=${{ matrix.EC2_COM_TAG_PROJETOS }}" --alb-name "${{ matrix.LOADBALANCE_ALB_NAME }}" --ports "${{ matrix.LOADBALANCE_PORTS }}" --tcp-healthy-threshold 3 --tcp-unhealthy-threshold 3 --region "${{ matrix.AWS_REGION }}" --certificado-https-arn "${{ matrix.LOADBALANCE_CERTIFICADO_HTTPS }}"
+    secrets: inherit

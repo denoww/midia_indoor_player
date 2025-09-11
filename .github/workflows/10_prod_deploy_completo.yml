@@ -1,0 +1,22 @@
+name: 10_prod_deploy_completo
+
+on:
+  # push:
+  #   branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  # build_image:
+  #   uses: ./.github/workflows/11_prod_build_image.yml
+  #   secrets: inherit
+
+  # restart_server:
+  #   needs: build_image
+  #   uses: ./.github/workflows/12_prod_restart_server.yml
+  #   secrets: inherit
+
+  ligar_load_balance:
+    needs: restart_server
+    uses: ./.github/workflows/13_prod_ligar_load_balance.yml
+    secrets: inherit
+

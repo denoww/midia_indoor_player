@@ -1,0 +1,20 @@
+# name: 11_prod_build_image
+
+# on:
+#   workflow_dispatch: {}
+#   workflow_call:
+
+# jobs:
+#   diego_build_docker_image_and_upload_to_ecr:
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - ECR_REPO_NAME: "midia_indoor_player"
+#             AWS_REGION: "us-east-1"
+
+#     uses: denoww/github_actions/.github/workflows/build_docker_image_and_upload_to_ecr.yml@main
+#     with:
+#       aws_region:     ${{ matrix.AWS_REGION }}
+#       ecr_repository: ${{ matrix.ECR_REPO_NAME }}
+#     secrets: inherit

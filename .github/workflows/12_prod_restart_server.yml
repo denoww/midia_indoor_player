@@ -1,0 +1,34 @@
+# name: 12_prod_restart_server
+
+# on:
+#   workflow_dispatch: {}
+#   workflow_call:
+
+# jobs:
+#   start_docker_image_on_ec2:
+#     strategy:
+#       fail-fast: false
+#       max-parallel: 1
+#       matrix:
+#         include:
+#           - EC2_COM_TAG_PROJETOS: "midia_indoor_player"
+#             ECR_REPO_NAME: "midia_indoor_player"
+#             DOCKER_PORTS: "4001"
+#             DOCKER_CMD: npm run run_docker_image
+#             ENV_NAME: "production"
+#             WORKDIR_ON_IMAGE: "/src"
+#             CONTAINER_NAME: "midia_indoor_player"
+#             NOME_PASTA_NO_S3: "midia_indoor_player"
+#             AWS_REGION: "us-east-1"
+
+#     uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
+#     with:
+#       aws_region:  ${{ matrix.AWS_REGION }}
+#       ec2_com_tag: ${{ matrix.EC2_COM_TAG_PROJETOS }}
+#       remote_cmd: >-
+#         curl -fsSL https://gist.githubusercontent.com/denoww/4ed3acb2d942da7fc9c70adb5406c44d/raw
+#         | sudo -E env HOME="$HOME" bash -s -- "${{ matrix.ECR_REPO_NAME }}" "${{ matrix.DOCKER_PORTS }}"
+#         "${{ matrix.DOCKER_CMD }}" "${{ matrix.ENV_NAME }}" "${{ matrix.WORKDIR_ON_IMAGE }}"
+#         "${{ matrix.CONTAINER_NAME }}" "${{ matrix.NOME_PASTA_NO_S3 }}"
+#     secrets: inherit
+
