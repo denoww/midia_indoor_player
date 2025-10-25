@@ -13,7 +13,7 @@ jobs:
           - EC2_COM_TAG_PROJETOS: "midia_indoor_player"
             AWS_REGION: "us-east-1"
             LOADBALANCE_ALB_NAME: "seucondominio-web"
-            LOADBALANCE_PORTS: "http:4001:http:4001"
+            LOADBALANCE_PORTS: "https:4002:http:4001,http:4001:http:4001"
             LOADBALANCE_CERTIFICADO_HTTPS: "arn:aws:acm:us-east-1:516862767124:certificate/99570c7a-1fb8-4e70-b340-637f7bcaa535"
 
     uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
