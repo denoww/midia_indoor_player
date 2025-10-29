@@ -181,7 +181,7 @@
       Vue.http.get('/feeds?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
-      var base, base1, base2, base3, feed, feeds, i, j, len, len1, name, name1, posicao, ref;
+      var base, base1, base2, base3, feed, feeds, i, k, len, len1, name, name1, posicao, ref;
       this.data = data;
       ref = this.posicoes;
       // pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
@@ -191,15 +191,15 @@
         feeds = (typeof (base1 = vm.grade.data[posicao]).select === "function" ? base1.select(function(e) {
           return e.tipo_midia === 'feed';
         }) : void 0) || [];
-        for (j = 0, len1 = feeds.length; j < len1; j++) {
-          feed = feeds[j];
+        for (k = 0, len1 = feeds.length; k < len1; k++) {
+          feed = feeds[k];
           (base2 = this.data)[name = feed.fonte] || (base2[name] = {});
           (base3 = this.data[feed.fonte])[name1 = feed.categoria] || (base3[name1] = []);
         }
       }
     },
     verificarNoticias: function() {
-      var base, base1, categoria, categorias, fonte, i, item, items, j, len, len1, noticias, posicao, ref, ref1, ref2;
+      var base, base1, categoria, categorias, fonte, i, item, items, k, len, len1, noticias, posicao, ref, ref1, ref2;
       ref = this.data;
       // serve para remover feeds que nao tem noticias
       for (fonte in ref) {
@@ -218,8 +218,8 @@
                 return e.fonte === fonte && e.categoria === categoria;
               }) : void 0;
               ref2 = items || [];
-              for (j = 0, len1 = ref2.length; j < len1; j++) {
-                item = ref2[j];
+              for (k = 0, len1 = ref2.length; k < len1; k++) {
+                item = ref2[k];
                 vm.grade.data[posicao].removeById(item.id);
               }
             }
@@ -518,26 +518,38 @@
   };
 
   descobrirTimezone = function(callback) {
-    var error, success;
-    if (timezoneGlobal != null) {
-      return callback(timezoneGlobal);
+    var done, e, tz;
+    // fallback em caso de erro
+    done = function(tz) {
+      return typeof callback === "function" ? callback(tz || "America/Sao_Paulo") : void 0;
+    };
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) {
+        return done(tz);
+      }
+    } catch (error1) {
+      e = error1;
+      console.warn("Intl timezone falhou:", e);
     }
-    // ... faz a requisição uma vez ...
-    success = (resp) => {
-      var ref;
-      console.log('sucesso em request para descobrir timezone');
-      timezoneGlobal = (resp.status === 200 && ((ref = resp.data) != null ? ref.timezone : void 0)) || 'America/Sao_Paulo';
-      // console.log timezoneGlobal
-      console.log(`Timezone: ${timezoneGlobal}`);
-      return callback(timezoneGlobal);
-    };
-    error = function() {
-      console.log('erro em request para descobrir timezone');
-      timezoneGlobal = 'America/Sao_Paulo';
-      return callback(timezoneGlobal);
-    };
-    console.log('request para descobrir timezone');
-    return Vue.http.get('http://ip-api.com/json').then(success, error);
+    return fetch('http://ip-api.com/json').then(function(r) {
+      return r.json();
+    }).then(function(j) {
+      if (j != null ? j.timezone : void 0) {
+        return done(j.timezone);
+      } else {
+        throw new Error("timezone não encontrado");
+      }
+    }).catch(function() {
+      return fetch('https://worldtimeapi.org/api/ip').then(function(r) {
+        return r.json();
+      }).then(function(j) {
+        return done(j != null ? j.timezone : void 0);
+      }).catch(function(e) {
+        console.warn("Falha ao detectar timezone:", e);
+        return done("America/Sao_Paulo");
+      });
+    });
   };
 
   // descobrirTimezone = (callback) ->
@@ -560,6 +572,7 @@
     exec: function() {
       return descobrirTimezone(function(timezone) {
         var hour, min, now;
+        console.log(`Timezone: ${timezone}`);
         // now = moment.tz(new Date, 'America/Los_Angeles');
         now = moment.tz(new Date(), timezone);
         hour = now.get('hour');

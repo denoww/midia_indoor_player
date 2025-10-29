@@ -416,22 +416,33 @@ onLoaded = ->
 
 
 descobrirTimezone = (callback) ->
-  return callback(timezoneGlobal) if timezoneGlobal?
-  # ... faz a requisição uma vez ...
-  success = (resp)=>
-    console.log 'sucesso em request para descobrir timezone'
-    timezoneGlobal = (resp.status == 200 && resp.data?.timezone) || 'America/Sao_Paulo'
-    # console.log timezoneGlobal
-    console.log "Timezone: #{timezoneGlobal}"
+  # fallback em caso de erro
+  done = (tz) ->
+    callback?(tz or "America/Sao_Paulo")
 
-    callback(timezoneGlobal)
-  error = ->
-    console.log 'erro em request para descobrir timezone'
+  try
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if tz
+      return done(tz)
+  catch e
+    console.warn "Intl timezone falhou:", e
 
-    timezoneGlobal = 'America/Sao_Paulo'
-    callback(timezoneGlobal)
-  console.log 'request para descobrir timezone'
-  Vue.http.get('http://ip-api.com/json').then success, error
+  fetch('http://ip-api.com/json')
+    .then((r) -> r.json())
+    .then((j) ->
+      if j?.timezone
+        done(j.timezone)
+      else
+        throw new Error("timezone não encontrado")
+    )
+    .catch ->
+      fetch('https://worldtimeapi.org/api/ip')
+        .then((r) -> r.json())
+        .then((j) -> done(j?.timezone))
+        .catch((e) ->
+          console.warn "Falha ao detectar timezone:", e
+          done("America/Sao_Paulo")
+        )
 
 # descobrirTimezone = (callback) ->
 #   console.log "Descobrindo timezone..."
@@ -455,6 +466,7 @@ relogio =
   exec: ->
 
     descobrirTimezone (timezone) ->
+      console.log "Timezone: #{timezone}"
 
       # now = moment.tz(new Date, 'America/Los_Angeles');
       now = moment.tz(new Date, timezone);
