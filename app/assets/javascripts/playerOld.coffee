@@ -8,7 +8,6 @@
 #   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
 # alert('2')
-timezoneGlobal = null
 
 data =
   body:    undefined
@@ -202,13 +201,8 @@ onLoaded = ->
 
     vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
     if !vm.indexConteudoSuperior?
-
-      # console.log itemAtual
-      vm.listaConteudoSuperior = [itemAtual] # mantém a lista com *apenas* o item atual
-      vm.indexConteudoSuperior = 0
-
-      # vm.listaConteudoSuperior.push itemAtual
-      # vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
+      vm.listaConteudoSuperior.push itemAtual
+      vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
 
     @stopUltimoVideo()
 
@@ -222,69 +216,25 @@ onLoaded = ->
   playVideo: (itemAtual)->
     @ultimoVideo = "video-player-#{itemAtual.id}"
 
-    clearTimeout(@playTimer1) if @playTimer1?
-    clearTimeout(@playTimer2) if @playTimer2?
+    setTimeout =>
+      video = document.getElementById(@ultimoVideo)
+      if video
+        video.currentTime = 0
+        video.play()
 
-    getUltimoVideo = -> document.getElementById(@ultimoVideo)
-
-    @playTimer1 = setTimeout =>
-      v = getUltimoVideo()
-      if v?
-        v.currentTime = 0
-        v.play().catch((e)-> console.warn('play falhou', e))
-    , 0
-
-    @playTimer2 = setTimeout =>
-      v = getUltimoVideo()
-      if v?.paused
-        v.play().catch((e)-> console.warn('replay falhou', e))
+    setTimeout =>
+      video = document.getElementById(@ultimoVideo)
+      video.play() if video?.paused
     , 1000
     return
-
-  # playVideo: (itemAtual)->
-  #   @ultimoVideo = "video-player-#{itemAtual.id}"
-
-  #   setTimeout =>
-  #     video = document.getElementById(@ultimoVideo)
-  #     if video
-  #       video.currentTime = 0
-  #       video.play()
-
-  #   setTimeout =>
-  #     video = document.getElementById(@ultimoVideo)
-  #     video.play() if video?.paused
-  #   , 1000
-  #   return
   stopUltimoVideo: ->
     videoId = @ultimoVideo
     return unless videoId
 
-    v = document.getElementById(videoId)
-    if v?
-      try v.pause() catch e then null
-      try
-        # remove src/source para liberar decoder/buffer
-        v.removeAttribute('src')
-        while v.firstChild?
-          v.removeChild(v.firstChild) # remove <source>
-        v.load()  # força desalocar
-      catch e then null
+    video = document.getElementById(videoId)
+    video.pause() if video
     @ultimoVideo = null
-
-    # limpa timers de play (ver D)
-    clearTimeout(@playTimer1) if @playTimer1?
-    clearTimeout(@playTimer2) if @playTimer2?
-    @playTimer1 = @playTimer2 = null
     return
-
-  # stopUltimoVideo: ->
-  #   videoId = @ultimoVideo
-  #   return unless videoId
-
-  #   video = document.getElementById(videoId)
-  #   video.pause() if video
-  #   @ultimoVideo = null
-  #   return
   getNextItemConteudoSuperior: ->
     lista = vm.grade.data.conteudo_superior || []
     listaQtd = lista.length
@@ -414,47 +364,29 @@ onLoaded = ->
     currentItem.filePath = feed.filePath
     currentItem
 
-
 descobrirTimezone = (callback) ->
-  return callback(timezoneGlobal) if timezoneGlobal?
-  # ... faz a requisição uma vez ...
-  success = (resp)=>
-    console.log 'sucesso em request para descobrir timezone'
-    timezoneGlobal = (resp.status == 200 && resp.data?.timezone) || 'America/Sao_Paulo'
-    # console.log timezoneGlobal
-    console.log "Timezone: #{timezoneGlobal}"
+  console.log "Descobrindo timezone..."
 
-    callback(timezoneGlobal)
+  timezone = 'America/Sao_Paulo'
   error = ->
-    console.log 'erro em request para descobrir timezone'
+    console.log 'erro em descobrirTimezone'
+    callback(timezone)
+  success = (resp)=>
+    success = resp.status == 200
+    if success
+      data = resp.data
+      timezone = data.timezone
+    callback(timezone)
 
-    timezoneGlobal = 'America/Sao_Paulo'
-    callback(timezoneGlobal)
-  console.log 'request para descobrir timezone'
-  Vue.http.get('http://ip-api.com/json').then success, error
-
-# descobrirTimezone = (callback) ->
-#   console.log "Descobrindo timezone..."
-
-#   timezone = 'America/Sao_Paulo'
-#   error = ->
-#     console.log 'erro em descobrirTimezone'
-#     callback(timezone)
-#   success = (resp)=>
-#     success = resp.status == 200
-#     if success
-#       data = resp.data
-#       timezone = data.timezone
-#     callback(timezone)
-
-#   url = 'http://ip-api.com/json'
-#   Vue.http.get(url).then success, error
+  url = 'http://ip-api.com/json'
+  Vue.http.get(url).then success, error
 
 
 relogio =
   exec: ->
 
     descobrirTimezone (timezone) ->
+      console.log "Timezone: #{timezone}"
 
       # now = moment.tz(new Date, 'America/Los_Angeles');
       now = moment.tz(new Date, timezone);

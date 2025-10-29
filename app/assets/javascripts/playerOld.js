@@ -10,9 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
-
-  timezoneGlobal = null;
+  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, updateContent, updateOnlineStatus;
 
   data = {
     body: void 0,
@@ -253,12 +251,9 @@
       }
       vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField('id', itemAtual.id);
       if (vm.indexConteudoSuperior == null) {
-        // console.log itemAtual
-        vm.listaConteudoSuperior = [itemAtual]; // mantém a lista com *apenas* o item atual
-        vm.indexConteudoSuperior = 0;
+        vm.listaConteudoSuperior.push(itemAtual);
+        vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1;
       }
-      // vm.listaConteudoSuperior.push itemAtual
-      // vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
       this.stopUltimoVideo();
       segundos = (itemAtual.segundos * 1000) || 5000;
       this.promessa = setTimeout(function() {
@@ -269,95 +264,35 @@
       }
     },
     playVideo: function(itemAtual) {
-      var getUltimoVideo;
       this.ultimoVideo = `video-player-${itemAtual.id}`;
-      if (this.playTimer1 != null) {
-        clearTimeout(this.playTimer1);
-      }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
-      }
-      getUltimoVideo = function() {
-        return document.getElementById(this.ultimoVideo);
-      };
-      this.playTimer1 = setTimeout(() => {
-        var v;
-        v = getUltimoVideo();
-        if (v != null) {
-          v.currentTime = 0;
-          return v.play().catch(function(e) {
-            return console.warn('play falhou', e);
-          });
+      setTimeout(() => {
+        var video;
+        video = document.getElementById(this.ultimoVideo);
+        if (video) {
+          video.currentTime = 0;
+          return video.play();
         }
-      }, 0);
-      this.playTimer2 = setTimeout(() => {
-        var v;
-        v = getUltimoVideo();
-        if (v != null ? v.paused : void 0) {
-          return v.play().catch(function(e) {
-            return console.warn('replay falhou', e);
-          });
+      });
+      setTimeout(() => {
+        var video;
+        video = document.getElementById(this.ultimoVideo);
+        if (video != null ? video.paused : void 0) {
+          return video.play();
         }
       }, 1000);
     },
-    // playVideo: (itemAtual)->
-    //   @ultimoVideo = "video-player-#{itemAtual.id}"
-
-    //   setTimeout =>
-    //     video = document.getElementById(@ultimoVideo)
-    //     if video
-    //       video.currentTime = 0
-    //       video.play()
-
-    //   setTimeout =>
-    //     video = document.getElementById(@ultimoVideo)
-    //     video.play() if video?.paused
-    //   , 1000
-    //   return
     stopUltimoVideo: function() {
-      var e, v, videoId;
+      var video, videoId;
       videoId = this.ultimoVideo;
       if (!videoId) {
         return;
       }
-      v = document.getElementById(videoId);
-      if (v != null) {
-        try {
-          v.pause();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
-        try {
-          // remove src/source para liberar decoder/buffer
-          v.removeAttribute('src');
-          while (v.firstChild != null) {
-            v.removeChild(v.firstChild); // remove <source>
-          }
-          v.load(); // força desalocar
-        } catch (error1) {
-          e = error1;
-          null;
-        }
+      video = document.getElementById(videoId);
+      if (video) {
+        video.pause();
       }
       this.ultimoVideo = null;
-      if (this.playTimer1 != null) {
-        // limpa timers de play (ver D)
-        clearTimeout(this.playTimer1);
-      }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
-      }
-      this.playTimer1 = this.playTimer2 = null;
     },
-    // stopUltimoVideo: ->
-    //   videoId = @ultimoVideo
-    //   return unless videoId
-
-    //   video = document.getElementById(videoId)
-    //   video.pause() if video
-    //   @ultimoVideo = null
-    //   return
     getNextItemConteudoSuperior: function() {
       var currentItem, index, lista, listaQtd;
       lista = vm.grade.data.conteudo_superior || [];
@@ -518,48 +453,30 @@
   };
 
   descobrirTimezone = function(callback) {
-    var error, success;
-    if (timezoneGlobal != null) {
-      return callback(timezoneGlobal);
-    }
-    // ... faz a requisição uma vez ...
-    success = (resp) => {
-      var ref;
-      console.log('sucesso em request para descobrir timezone');
-      timezoneGlobal = (resp.status === 200 && ((ref = resp.data) != null ? ref.timezone : void 0)) || 'America/Sao_Paulo';
-      // console.log timezoneGlobal
-      console.log(`Timezone: ${timezoneGlobal}`);
-      return callback(timezoneGlobal);
-    };
+    var error, success, timezone, url;
+    console.log("Descobrindo timezone...");
+    timezone = 'America/Sao_Paulo';
     error = function() {
-      console.log('erro em request para descobrir timezone');
-      timezoneGlobal = 'America/Sao_Paulo';
-      return callback(timezoneGlobal);
+      console.log('erro em descobrirTimezone');
+      return callback(timezone);
     };
-    console.log('request para descobrir timezone');
-    return Vue.http.get('http://ip-api.com/json').then(success, error);
+    success = (resp) => {
+      success = resp.status === 200;
+      if (success) {
+        data = resp.data;
+        timezone = data.timezone;
+      }
+      return callback(timezone);
+    };
+    url = 'http://ip-api.com/json';
+    return Vue.http.get(url).then(success, error);
   };
 
-  // descobrirTimezone = (callback) ->
-  //   console.log "Descobrindo timezone..."
-
-  //   timezone = 'America/Sao_Paulo'
-  //   error = ->
-  //     console.log 'erro em descobrirTimezone'
-  //     callback(timezone)
-  //   success = (resp)=>
-  //     success = resp.status == 200
-  //     if success
-  //       data = resp.data
-  //       timezone = data.timezone
-  //     callback(timezone)
-
-  //   url = 'http://ip-api.com/json'
-  //   Vue.http.get(url).then success, error
   relogio = {
     exec: function() {
       return descobrirTimezone(function(timezone) {
         var hour, min, now;
+        console.log(`Timezone: ${timezone}`);
         // now = moment.tz(new Date, 'America/Los_Angeles');
         now = moment.tz(new Date(), timezone);
         hour = now.get('hour');
