@@ -1,3 +1,10 @@
+## Midia Indoor CLOUD - update nuvem
+
+faça ssh na nuvem
+```
+cd /var/lib/midia_indoor_player/; git pull; pm2 restart MIDIAINDOOR
+```
+
 ## Midia Indoor CLOUD - instale na núvem
 
 entre no ssh da numvem
