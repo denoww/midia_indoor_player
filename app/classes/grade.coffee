@@ -5,7 +5,6 @@ request = require 'request'
 
 baseUrl = "#{ENV.API_SERVER_URL}/publicidades"
 
-
 module.exports = ->
   ctrl =
     tvIds: []
@@ -187,7 +186,10 @@ module.exports = ->
       lista ||= @data[tvId]
       lista[vinculo.posicao] ||= []
       item.filePath ||= item.url
+
       item.arquivoUrl = item.url || item.filePath
+      # item.arquivoUrl = item.filePath
+
       lista[vinculo.posicao].push item
 
 
@@ -272,7 +274,9 @@ module.exports = ->
       filePath = "#{getTvFolder(tvId)}/#{nome_arquivo}"
       logoObj.filePath = filePath
       logoObj.url = downloadUrl
+
       logoObj.arquivoUrl = downloadUrl || filePath
+      # logoObj.arquivoUrl = filePath
 
 
       @data[tvId].logo = logoObj
