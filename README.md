@@ -172,10 +172,17 @@ $ cd /var/lib; sudo chmod 7777 -R . ;sudo git clone --depth 1 https://github.com
 cd /var/lib/midia_indoor_player/; tasks/./install.sh
 ```
 
-## ligar modo development
+## developmente
 
+instalar 
 ```
+cd ~/workspace; git clone git@github.com:denoww/midia_indoor_player.git
 cp ~/workspace/midia_indoor_player/.env_sample ~/workspace/midia_indoor_player/.env;
+npm install;
+```
+
+ligar server
+```
 midiaindoors
 ```
 
