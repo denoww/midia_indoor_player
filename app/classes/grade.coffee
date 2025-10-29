@@ -186,8 +186,10 @@ module.exports = ->
 
       lista ||= @data[tvId]
       lista[vinculo.posicao] ||= []
-      lista[vinculo.posicao].push item
       item.filePath ||= item.url
+      item.arquivoUrl = item.url || item.filePath
+      lista[vinculo.posicao].push item
+
 
       return
     handleInformativo: (tvId, vinculo, item, lista=null)->
@@ -263,12 +265,17 @@ module.exports = ->
       # "#{imageNome}#{extension}"
       "#{imageNome}.webp"
     saveLogo: (tvId, downloadUrl)->
-      @data[tvId].logo = {}
+      logoObj = {}
       console.log "saveLogo tvId: #{tvId} url: #{downloadUrl}"
       return unless downloadUrl
       nome_arquivo = @ajustImageNameToWebp(nome_arquivo: 'logo')
       filePath = "#{getTvFolder(tvId)}/#{nome_arquivo}"
-      @data[tvId].logo.filePath = filePath
+      logoObj.filePath = filePath
+      logoObj.url = downloadUrl
+      logoObj.arquivoUrl = downloadUrl || filePath
+
+
+      @data[tvId].logo = logoObj
 
       params =
         tvId: tvId

@@ -418,7 +418,8 @@ onLoaded = ->
 descobrirTimezone = (callback) ->
   # fallback em caso de erro
   done = (tz) ->
-    callback?(tz or "America/Sao_Paulo")
+    timezoneGlobal = tz or "America/Sao_Paulo"
+    callback?(timezoneGlobal)
 
   try
     tz = Intl.DateTimeFormat().resolvedOptions().timeZone

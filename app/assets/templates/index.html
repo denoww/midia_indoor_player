@@ -114,7 +114,7 @@
                           <div class="feed-categoria">{{item.categoria_feed || item.titulo_feed}}</div>
                           <div class="feed-out"></div>
                         </div>
-                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.filePath ? item.filePath : '/images/no-image.png') + ')'}">&nbsp;</div>
+                        <div class="feed-imagem" :style="{'background-image': 'url(' + (item.arquivoUrl ? item.arquivoUrl : '/images/no-image.png') + ')'}">&nbsp;</div>
                         <div class="feed-titulo" :class="[{'com-qrcode': item.qrcode}]">
                           <div class="feed-data" v-if="item.data">{{item.data | formatDate}}</div>
                           {{item.titulo}}
@@ -127,16 +127,17 @@
                     <!-- midia -->
                     <div class="midia-main" v-else-if="item.tipo_midia === 'midia'">
                       <div class="midia-imagem" v-if="item.is_image"
-                        :style="{'background-image': 'url(' + item.filePath + ')'}">
+                        :style="{'background-image': 'url(' + item.arquivoUrl + ')'}">
                       </div>
 
                       <video class="midia-video"
                         v-if="item.is_video"
                         :id="'video-player-' + item.id"
-                        preload="auto"
+                        preload="none"
                         autoplay playsinline muted
                       >
-                          <source :src="item.filePath" :type="item.content_type">
+                          <source :src="item.arquivoUrl" :type="item.content_type">
+                          <!-- <source :src="item.arquivoUrl" :type="item.content_type"> -->
                       </video>
                     </div>
                     <!-- midia -->
@@ -176,9 +177,9 @@
 
         <div class="content-footer">
           <div class="content-logo" :class="[grade.data.cor == 'gray' ? 'black' : '']">
-            <img v-if="grade.data.logo && grade.data.logo.filePath" class="logo" :src="grade.data.logo.filePath">
+            <img v-if="grade.data.logo && grade.data.logo.arquivoUrl" class="logo" :src="grade.data.logo.arquivoUrl">
             <img v-else="" class="logo" :src="'/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png'">
-            <!-- <div v-if="grade.data.logo.filePath" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo.filePath + ')'}"></div>
+            <!-- <div v-if="grade.data.logo.arquivoUrl" class="logo" :style="{'background-image': 'url(sc-protocol://' + grade.data.path + 'downloads/' + grade.data.logo.arquivoUrl + ')'}"></div>
             <div v-else="" class="logo" :style="{'background-image': 'url(/images/logo' + (grade.data.cor != 'gray' ? '-white' : '') + '.png)'}"></div> -->
           </div> <!-- content-logo -->
 

@@ -521,7 +521,8 @@
     var done, e, tz;
     // fallback em caso de erro
     done = function(tz) {
-      return typeof callback === "function" ? callback(tz || "America/Sao_Paulo") : void 0;
+      timezoneGlobal = tz || "America/Sao_Paulo";
+      return typeof callback === "function" ? callback(timezoneGlobal) : void 0;
     };
     try {
       tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
