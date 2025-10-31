@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch: {}
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true # somente 1 deploy por vez - cancelar atual
+
 jobs:
   # build_image:
   #   uses: ./.github/workflows/11_prod_build_image.yml
