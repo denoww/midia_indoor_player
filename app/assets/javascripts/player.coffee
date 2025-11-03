@@ -63,43 +63,99 @@ preAquecerVideo = (url) ->
   return unless url?
   return if preAquecerCache.has(url)
   preAquecerCache.add(url)
+
   try
     link = document.createElement('link')
-    link.rel = 'prefetch'     # pode usar 'preload' também
-    link.as  = 'video'
+    link.rel  = 'preload'      # melhor que prefetch para mídia
+    link.as   = 'video'
     link.href = url
     link.crossOrigin = 'anonymous'
     document.head.appendChild(link)
   catch e then null
 
+  # GET normal (sem Range) para permitir cache do corpo
   fetch(url,
     method: 'GET'
     mode: 'cors'
     credentials: 'omit'
-    headers:
-      'Range': 'bytes=0-2097151'   # ~2MB
+    cache: 'force-cache'       # tenta usar/cachear
   ).catch (e) ->
-    preAquecerCache.delete(url) # deixa re-tentar no próximo ciclo
+    preAquecerCache.delete(url) # permite re-tentar depois
+
+# preAquecerVideo = (url) ->
+#   return unless url?
+#   return if preAquecerCache.has(url)
+#   preAquecerCache.add(url)
+
+#   try
+#     link = document.createElement('link')
+#     link.rel = 'prefetch'     # pode usar 'preload' também
+#     link.as  = 'video'
+#     link.href = url
+#     link.crossOrigin = 'anonymous'
+#     document.head.appendChild(link)
+#   catch e then null
+
+#   fetch(url,
+#     method: 'GET'
+#     mode: 'cors'
+#     credentials: 'omit'
+#     headers:
+#       'Range': 'bytes=0-2097151'   # ~2MB
+#   ).catch (e) ->
+#     preAquecerCache.delete(url) # deixa re-tentar no próximo ciclo
 
 preAquecerImagem = (url) ->
   return unless url?
   return if preAquecerCache.has(url)
   preAquecerCache.add(url)
+
+  # 1) Sinaliza intenção ao navegador
   try
     link = document.createElement('link')
-    link.rel = 'prefetch'   # pode usar 'preload' também
-    link.as  = 'image'
+    link.rel  = 'preload'   # pode ser 'prefetch'; 'preload' tende a priorizar melhor
+    link.as   = 'image'
     link.href = url
     document.head.appendChild(link)
   catch e then null
 
-  # fallback simples: aquece cache sem precisar de CORS
+  # 2) Baixa e deixa no HTTP cache
+  fetch(url,
+    method: 'GET'
+    mode: 'cors'
+    credentials: 'omit'
+    cache: 'force-cache'
+  ).catch (e) ->
+    preAquecerCache.delete(url)
+
+  # 3) Fallback leve (usa o cache do próprio Image)
   try
     img = new Image()
-    img.referrerPolicy = 'no-referrer'
     img.decoding = 'async'
+    img.referrerPolicy = 'no-referrer'
     img.src = url
   catch e then null
+
+
+# preAquecerImagem = (url) ->
+#   return unless url?
+#   return if preAquecerCache.has(url)
+#   preAquecerCache.add(url)
+#   try
+#     link = document.createElement('link')
+#     link.rel = 'prefetch'   # pode usar 'preload' também
+#     link.as  = 'image'
+#     link.href = url
+#     document.head.appendChild(link)
+#   catch e then null
+
+#   # fallback simples: aquece cache sem precisar de CORS
+#   try
+#     img = new Image()
+#     img.referrerPolicy = 'no-referrer'
+#     img.decoding = 'async'
+#     img.src = url
+#   catch e then null
 
 preAquecerMidia = (item) ->
   return unless item?
