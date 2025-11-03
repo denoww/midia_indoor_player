@@ -1,18 +1,36 @@
 <!-- index.html -->
-
 <html>
   <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#000000">
+
+    <link rel="manifest" href="/offline-app.webmanifest">
+    <link rel="icon" href="/images/favicon.png">
+
     <title>Player</title>
 
-    <script src="/javascripts/lib/array.js"></script>
-    <script src="/javascripts/lib/date.js"></script>
-    <script src="/javascripts/lib/object.js"></script>
-    <script src="/javascripts/lib/string.js"></script>
+    <!-- App shell CSS e libs (serão pré-cacheados pelo SW) -->
+    <link rel="stylesheet" href="/stylesheets/fonts.css">
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/sc-icons.css">
 
-    <link rel="icon" href="/images/favicon.png">
-    <link rel="stylesheet" type="text/css" href="stylesheets/fonts.css">
-    <link rel="stylesheet" type="text/css" href="stylesheets/styles.css">
-    <link rel="stylesheet" type="text/css" href="stylesheets/sc-icons.css">
+    <script src="/javascripts/lib/array.js" defer></script>
+    <script src="/javascripts/lib/date.js" defer></script>
+    <script src="/javascripts/lib/object.js" defer></script>
+    <script src="/javascripts/lib/string.js" defer></script>
+
+    <!-- <script src="/javascripts/lib/sentry.min.js" integrity="sha384-/x1aHz0nKRd6zVUazsV6CbQvjJvr6zQL2CHbQZf3yoLkezyEtZUpqUNnOLW9Nt3v" crossorigin="anonymous" defer></script> -->
+    <!-- <script src="/javascripts/lib/sentry-vue.min.js" crossorigin="anonymous" defer></script> -->
+
+    <script src="/javascripts/lib/moment.min.js" defer></script>
+    <script src="/javascripts/lib/moment-timezone.js" defer></script>
+    <script src="/javascripts/lib/moment_pt-br.js" defer></script>
+    <script src="/javascripts/lib/vue.min.js" defer></script>
+    <script src="/javascripts/lib/vue-resource.min.js" defer></script>
+
+    <!-- seu player compilado -->
+    <script src="/javascripts/player.js" defer></script>
   </head>
 
   <body id="body-player">
@@ -228,13 +246,16 @@
 
   </body>
 
-  <script src="/javascripts/lib/sentry.min.js" integrity="sha384-/x1aHz0nKRd6zVUazsV6CbQvjJvr6zQL2CHbQZf3yoLkezyEtZUpqUNnOLW9Nt3v" crossorigin="anonymous"></script>
-  <script src="/javascripts/lib/sentry-vue.min.js" crossorigin="anonymous"></script>
 
-  <script src="/javascripts/lib/moment.min.js"></script>
-  <script src="/javascripts/lib/moment-timezone.js"></script>
-  <script src="/javascripts/lib/moment_pt-br.js"></script>
-  <script src="/javascripts/lib/vue.min.js"></script>
-  <script src="/javascripts/lib/vue-resource.min.js"></script>
-  <script src="/javascripts/player.js"></script>
+  <!-- Registra o Service Worker -->
+  <script>
+    (function () {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/offline-app-service-worker.js', { scope: '/' })
+            .catch(function (e) { console.warn('SW register fail', e); });
+        });
+      }
+    })();
+  </script>
 </html>

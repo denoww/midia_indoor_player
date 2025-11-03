@@ -8,12 +8,6 @@
 #   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
 # alert('2')
-USAR_VIDEO_COM_BLOB_CACHE = true
-USAR_APP_OFFLINE = !!(navigator?.storage?.getDirectory)
-
-
-
-
 timezoneGlobal = null
 
 data =
@@ -35,65 +29,6 @@ data =
       layout: 'layout-2'
       weather: {}
       logo: {}
-
-# ================= OPFS (Origin Private File System) =================
-
-ensurePersistence = ->
-  return Promise.resolve() unless navigator?.storage?.persist
-  navigator.storage.persist()
-
-opfsRoot = ->
-  navigator.storage.getDirectory()
-
-# normaliza um nome único por TV + caminho
-opfsKeyFor = (item) ->
-  # tenta usar filePath/arquivoUrl pra preservar estrutura
-  raw = item?.filePath or item?.arquivoUrl or item?.url or "#{item?.id}.bin"
-  # remove query/hash e espaços
-  clean = (raw.split('#')[0] or '').split('?')[0].replace(/\s+/g, '_')
-  # isola por TV (evita conflito entre TVs)
-  "tv#{getTvId()}__#{clean}"
-
-hasFileOPFS = (name) ->
-  opfsRoot().then (root) ->
-    root.getFileHandle(name).then(-> true).catch(-> false)
-
-# grava Response no disco **streaming**, sem carregar tudo na RAM
-writeResponseToOPFS = (name, response) ->
-  opfsRoot().then (root) ->
-    root.getFileHandle(name, {create: true}).then (fh) ->
-      fh.createWritable().then (w) ->
-        response.body.pipeTo(w)
-
-fileToBlobURL = (name) ->
-  opfsRoot().then (root) ->
-    root.getFileHandle(name).then (fh) ->
-      fh.getFile().then (file) ->
-        URL.createObjectURL(file)
-
-# baixa para OPFS se ainda não existir
-downloadToOPFS = (name, url) ->
-  hasFileOPFS(name).then (exists) ->
-    return null if exists
-    fetch(url, {mode:'cors', credentials:'omit'}).then (r) ->
-      throw new Error("HTTP #{r.status}") unless r.ok
-      writeResponseToOPFS(name, r).then(-> true)
-
-# tenta resolver URL final: se tiver no disco, usa blob: do OPFS; senão retorna a URL online e dispara download em bg
-resolveMediaURL = (item) ->
-  return Promise.resolve(item?.arquivoUrl) unless USAR_APP_OFFLINE
-  name = opfsKeyFor(item)
-  hasFileOPFS(name).then (exists) ->
-    if exists
-      fileToBlobURL(name)
-    else
-      # preferir tua URL local (arquivoUrl) se já está servido pelo teu servidor local;
-      # se quiser forçar S3/HTTP, use item.url.
-      src = item?.arquivoUrl or item?.url
-      # baixa em bg, sem bloquear o play
-      downloadToOPFS(name, src).catch(-> null)
-      src
-
 
 onLoaded = ->
   vm.loaded ||= gradeObj.loaded && feedsObj.loaded
@@ -127,6 +62,7 @@ mod = (a, b) -> ((a % b) + b) % b
 # === config flag ===
 # === flag
 # === config flag ===
+USAR_VIDEO_COM_BLOB_CACHE = true
 
 # caches
 blobCache     = new Map()   # key -> { url, type, size }
@@ -201,14 +137,8 @@ preAquecerImagem = (url) ->
 
 preAquecerMidia = (item) ->
   return unless item?
-  if item.is_video and (item.arquivoUrl or item.url)
-    if USAR_APP_OFFLINE
-      downloadToOPFS(opfsKeyFor(item), item.arquivoUrl or item.url).catch(-> null)
-    else
-      preAquecerVideo(item.arquivoUrl or item.url)  # teu pré-aquecimento antigo em RAM
-  else if item.is_image and item.arquivoUrl
-    preAquecerImagem(item.arquivoUrl)
-
+  if item.is_video and item.arquivoUrl then preAquecerVideo(item.arquivoUrl)
+  else if item.is_image and item.arquivoUrl then preAquecerImagem(item.arquivoUrl)
 
 
 # === helpers de URL/cache ===
@@ -277,21 +207,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
 
-    # ===== predownload para offline =====
-    if USAR_APP_OFFLINE
-      ensurePersistence()
-      # vídeos
-      for item in (@data.conteudo_superior or []) when item?.is_video and (item?.arquivoUrl or item?.url)
-        do (item) ->
-          name = opfsKeyFor(item)
-          src  = item?.arquivoUrl or item?.url
-          downloadToOPFS(name, src).catch(-> null)
-      # logo/imagens (opcional)
-      if @data?.logo?.arquivoUrl
-        downloadToOPFS(opfsKeyFor(@data.logo), @data.logo.arquivoUrl).catch(-> null)
-
     return
-
   mountWeatherData: ->
     vm.grade.data.weather ||= {}
     return unless (vm.grade.data.weather.proximos_dias || []).length
@@ -515,13 +431,17 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     pend      = pendingBlobs.get(key)
 
     chooseAndPlay = (v) =>
-      # resolve do OPFS se disponível; senão, usa URL atual e baixa em bg
-      resolveMediaURL(itemAtual).then (finalVideoUrl) =>
-        ctype = itemAtual.content_type or 'video/mp4'
-        injectSource(v, finalVideoUrl, ctype)
-        v.currentTime = 0
-        v.play().catch (e) -> console.warn('play falhou', e)
+      entry = blobCache.get(key)
+      finalVideoUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.cachedUrl then entry.cachedUrl else itemAtual.arquivoUrl
 
+      console.log "Play video id #{videoId}"
+      console.log "finalVideoUrl: #{finalVideoUrl}"
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
+
+      ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
+      injectSource(v, finalVideoUrl, ctype)
+      v.currentTime = 0
+      v.play().catch (e) -> console.warn('play falhou', e)
 
     @playTimer1 = setTimeout =>
       v = document.getElementById(@elUltimoVideo)
