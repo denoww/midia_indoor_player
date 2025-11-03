@@ -187,8 +187,8 @@ module.exports = ->
       lista[vinculo.posicao] ||= []
       item.filePath ||= item.url
 
-      # item.arquivoUrl = item.url || item.filePath
-      item.arquivoUrl = item.filePath
+      item.arquivoUrl = item.url || item.filePath
+      # item.arquivoUrl = item.filePath
 
       lista[vinculo.posicao].push item
 
@@ -275,8 +275,8 @@ module.exports = ->
       logoObj.filePath = filePath
       logoObj.url = downloadUrl
 
-      # logoObj.arquivoUrl = downloadUrl || filePath
-      logoObj.arquivoUrl = filePath
+      logoObj.arquivoUrl = downloadUrl || filePath
+      # logoObj.arquivoUrl = filePath
 
 
       @data[tvId].logo = logoObj

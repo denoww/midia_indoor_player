@@ -33,10 +33,10 @@ module.exports = (opt={}) ->
 
   # Exponha as pastas estáticas ANTES do app.all '*'
   # Vídeos por TV: /:tvId/videos/<arquivo>.mp4 -> /var/lib/midia_indoor_player/videos/<arquivo>.mp4
-  # app.use '/:tvId/videos', express.static('/var/lib/midia_indoor_player/videos', longCache)
+  app.use '/:tvId/videos', express.static('/var/lib/midia_indoor_player/videos', longCache)
 
   # Imagens (se tiver): /images/* -> cache longo
-  # app.use '/images', express.static('/var/lib/midia_indoor_player/images', longCache)
+  app.use '/images', express.static('/var/lib/midia_indoor_player/images', longCache)
 
   # Seus assets públicos (mantive como estava; ajuste para longCache se forem fingerprintados)
   app.use express.static(path.join(__dirname, '../assets/'), revalidateCache)
