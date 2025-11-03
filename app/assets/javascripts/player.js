@@ -107,7 +107,7 @@
         blob = new Blob([buf], {type});
         blobUrl = URL.createObjectURL(blob);
         blobCache.set(key, {
-          url: blobUrl,
+          cachedUrl: blobUrl,
           type,
           size: buf.byteLength
         });
@@ -558,14 +558,14 @@
       key = keyForUrl(itemAtual.arquivoUrl);
       pend = pendingBlobs.get(key);
       chooseAndPlay = (v) => {
-        var ctype, entry, finalUrl;
+        var ctype, entry, finalVideoUrl;
         entry = blobCache.get(key);
-        finalUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.url : void 0) ? entry.url : itemAtual.arquivoUrl;
+        finalVideoUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.cachedUrl : void 0) ? entry.cachedUrl : itemAtual.arquivoUrl;
         console.log(`Play video id ${videoId}`);
-        console.log(`finalUrl: ${itemAtual.finalUrl}`);
+        console.log(`finalVideoUrl: ${itemAtual.finalVideoUrl}`);
         console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
         ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
-        injectSource(v, finalUrl, ctype);
+        injectSource(v, finalVideoUrl, ctype);
         v.currentTime = 0;
         return v.play().catch(function(e) {
           return console.warn('play falhou', e);

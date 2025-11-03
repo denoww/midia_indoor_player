@@ -84,7 +84,7 @@ preAquecerVideo = (url) ->
       .then ([buf, type]) ->
         blob = new Blob([buf], {type})
         blobUrl = URL.createObjectURL(blob)
-        blobCache.set(key, {url: blobUrl, type, size: buf.byteLength})
+        blobCache.set(key, {cachedUrl: blobUrl, type, size: buf.byteLength})
         console.log "blob pronto", key, blobUrl
         blobUrl
       .catch (e) ->
@@ -432,14 +432,14 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
     chooseAndPlay = (v) =>
       entry = blobCache.get(key)
-      finalUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.url then entry.url else itemAtual.arquivoUrl
+      finalVideoUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.cachedUrl then entry.cachedUrl else itemAtual.arquivoUrl
 
       console.log "Play video id #{videoId}"
-      console.log "finalUrl: #{itemAtual.finalUrl}"
+      console.log "finalVideoUrl: #{itemAtual.finalVideoUrl}"
       console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
 
       ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
-      injectSource(v, finalUrl, ctype)
+      injectSource(v, finalVideoUrl, ctype)
       v.currentTime = 0
       v.play().catch (e) -> console.warn('play falhou', e)
 
