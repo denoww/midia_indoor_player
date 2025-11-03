@@ -61,16 +61,14 @@ mod = (a, b) -> ((a % b) + b) % b
 
 # === config flag ===
 # === flag
+# === config flag ===
 FORCE_BLOB_PLAYBACK = true
 
-blobCache = new Map()       # url_original -> { url, type, size }
-preAquecerCache = new Set() # só pra evitar repetição
-
-FORCE_BLOB_PLAYBACK = true
-
+# caches
 blobCache     = new Map()   # key -> { url, type, size }
 pendingBlobs  = new Map()   # key -> Promise que resolve quando blob estiver pronto
 preAquecerSet = new Set()
+preAquecerCache = new Set()
 
 preAquecerVideo = (url) ->
   return unless url?
@@ -88,7 +86,6 @@ preAquecerVideo = (url) ->
         blobUrl = URL.createObjectURL(blob)
         blobCache.set(key, {url: blobUrl, type, size: buf.byteLength})
         console.log "blob pronto", key, blobUrl
-
         blobUrl
       .catch (e) ->
         console.warn 'preAquecerVideo(blob) falhou', url, e
@@ -99,14 +96,14 @@ preAquecerVideo = (url) ->
     p.finally -> pendingBlobs.delete(key)
   else
     fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
-      .catch (e) ->
-        preAquecerSet.delete(key)
+      .catch (e) -> preAquecerSet.delete(key)
 
-getPlayUrl = (item) ->
-  return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
-  key = keyForUrl(item.arquivoUrl)
-  cached = blobCache.get(key)
-  cached?.url or item.arquivoUrl
+
+# getPlayUrl = (item) ->
+#   return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
+#   key = keyForUrl(item.arquivoUrl)
+#   cached = blobCache.get(key)
+#   cached?.url or item.arquivoUrl
 
 injectSource = (v, url, type) ->
   while v.firstChild? then v.removeChild(v.firstChild)
@@ -423,18 +420,19 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   # =============== Vídeo ===============
 
   # playVideo injeta a <source> dinâmica
+  # =============== Vídeo ===============
   playVideo: (itemAtual) ->
     @ultimoVideo = "video-player-#{itemAtual.id}"
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
-    key = keyForUrl(itemAtual.arquivoUrl)
-    blobEntry = blobCache.get(key)
-    pend = pendingBlobs.get(key)
+    key       = keyForUrl(itemAtual.arquivoUrl)
+    pend      = pendingBlobs.get(key)
 
     chooseAndPlay = (v) =>
-      finalUrl = if FORCE_BLOB_PLAYBACK and blobCache.get(key)?.url then blobCache.get(key).url else itemAtual.arquivoUrl
-      ctype    = blobCache.get(key)?.type or itemAtual.content_type or 'video/mp4'
+      entry = blobCache.get(key)
+      finalUrl = if FORCE_BLOB_PLAYBACK and entry?.url then entry.url else itemAtual.arquivoUrl
+      ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
       injectSource(v, finalUrl, ctype)
       v.currentTime = 0
       v.play().catch (e) -> console.warn('play falhou', e)
@@ -443,13 +441,13 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
       v = document.getElementById(@ultimoVideo)
       return unless v?
 
-      if FORCE_BLOB_PLAYBACK and pend? and not blobEntry?
-        # espera até 5s o blob ficar pronto
+      # Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
+      if FORCE_BLOB_PLAYBACK and pend? and not blobCache.get(key)?
         Promise.race([
           pend.then -> 'ok'
-          new Promise (res) -> setTimeout (-> res('timeout')), 5000
+          new Promise (res) -> setTimeout (-> res('timeout')), 10000
         ]).finally =>
-          chooseAndPlay(v)
+          chooseAndPlay(v)   # se blob não existir ainda, cairá na URL original
       else
         chooseAndPlay(v)
     , 0
@@ -458,25 +456,21 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
       v = document.getElementById(@ultimoVideo)
       v?.paused and v.play().catch (e) -> console.warn('replay falhou', e)
     , 1000
+
     return
 
 
   # revoga blob ao parar, eliminando vazamento e caches velhos
+  # NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
   stopUltimoVideo: ->
     return unless @ultimoVideo
     v = document.getElementById(@ultimoVideo)
     if v?
       try v.pause() catch e then null
       try
-        srcEl  = v.querySelector('source')
-        playUrl = srcEl?.getAttribute('src')
-        if playUrl?.startsWith('blob:')
-          try URL.revokeObjectURL(playUrl) catch e then null
-          for [orig, obj] from blobCache.entries()
-            if obj?.url == playUrl then blobCache.delete(orig); break
         v.removeAttribute('src')
-        while v.firstChild? then v.removeChild(v.firstChild)
-        v.load()
+        while v.firstChild? then v.removeChild(v.firstChild)  # remove <source>
+        v.load()  # desaloca o decoder sem mexer no blobCache
       catch e then null
     @ultimoVideo = null
     clearTimeout(@playTimer1) if @playTimer1?

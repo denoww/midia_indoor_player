@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getContentType, getPlayUrl, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   timezoneGlobal = null;
 
@@ -70,19 +70,17 @@
 
   // === config flag ===
   // === flag
+  // === config flag ===
   FORCE_BLOB_PLAYBACK = true;
 
-  blobCache = new Map(); // url_original -> { url, type, size }
-
-  preAquecerCache = new Set(); // só pra evitar repetição
-
-  FORCE_BLOB_PLAYBACK = true;
-
+  // caches
   blobCache = new Map(); // key -> { url, type, size }
 
   pendingBlobs = new Map(); // key -> Promise que resolve quando blob estiver pronto
 
   preAquecerSet = new Set();
+
+  preAquecerCache = new Set();
 
   preAquecerVideo = function(url) {
     var key, p;
@@ -135,16 +133,11 @@
     }
   };
 
-  getPlayUrl = function(item) {
-    var cached, key;
-    if (!(FORCE_BLOB_PLAYBACK && (item != null ? item.is_video : void 0))) {
-      return item != null ? item.arquivoUrl : void 0;
-    }
-    key = keyForUrl(item.arquivoUrl);
-    cached = blobCache.get(key);
-    return (cached != null ? cached.url : void 0) || item.arquivoUrl;
-  };
-
+  // getPlayUrl = (item) ->
+  //   return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
+  //   key = keyForUrl(item.arquivoUrl)
+  //   cached = blobCache.get(key)
+  //   cached?.url or item.arquivoUrl
   injectSource = function(v, url, type) {
     var s;
     while (v.firstChild != null) {
@@ -551,8 +544,9 @@
     // =============== Vídeo ===============
 
     // playVideo injeta a <source> dinâmica
+    // =============== Vídeo ===============
     playVideo: function(itemAtual) {
-      var blobEntry, chooseAndPlay, key, pend;
+      var chooseAndPlay, key, pend;
       this.ultimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
@@ -561,12 +555,12 @@
         clearTimeout(this.playTimer2);
       }
       key = keyForUrl(itemAtual.arquivoUrl);
-      blobEntry = blobCache.get(key);
       pend = pendingBlobs.get(key);
       chooseAndPlay = (v) => {
-        var ctype, finalUrl, ref, ref1;
-        finalUrl = FORCE_BLOB_PLAYBACK && ((ref = blobCache.get(key)) != null ? ref.url : void 0) ? blobCache.get(key).url : itemAtual.arquivoUrl;
-        ctype = ((ref1 = blobCache.get(key)) != null ? ref1.type : void 0) || itemAtual.content_type || 'video/mp4';
+        var ctype, entry, finalUrl;
+        entry = blobCache.get(key);
+        finalUrl = FORCE_BLOB_PLAYBACK && (entry != null ? entry.url : void 0) ? entry.url : itemAtual.arquivoUrl;
+        ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
         injectSource(v, finalUrl, ctype);
         v.currentTime = 0;
         return v.play().catch(function(e) {
@@ -579,8 +573,8 @@
         if (v == null) {
           return;
         }
-        if (FORCE_BLOB_PLAYBACK && (pend != null) && (blobEntry == null)) {
-          // espera até 5s o blob ficar pronto
+        // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
+        if (FORCE_BLOB_PLAYBACK && (pend != null) && (blobCache.get(key) == null)) {
           return Promise.race([
             pend.then(function() {
               return 'ok';
@@ -589,10 +583,10 @@
               return setTimeout((function() {
                 return res('timeout');
               }),
-            5000);
+            10000);
             })
           ]).finally(() => {
-            return chooseAndPlay(v);
+            return chooseAndPlay(v); // se blob não existir ainda, cairá na URL original
           });
         } else {
           return chooseAndPlay(v);
@@ -607,8 +601,9 @@
       }, 1000);
     },
     // revoga blob ao parar, eliminando vazamento e caches velhos
+    // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
     stopUltimoVideo: function() {
-      var e, obj, orig, playUrl, ref, srcEl, v, x;
+      var e, v;
       if (!this.ultimoVideo) {
         return;
       }
@@ -621,29 +616,11 @@
           null;
         }
         try {
-          srcEl = v.querySelector('source');
-          playUrl = srcEl != null ? srcEl.getAttribute('src') : void 0;
-          if (playUrl != null ? playUrl.startsWith('blob:') : void 0) {
-            try {
-              URL.revokeObjectURL(playUrl);
-            } catch (error1) {
-              e = error1;
-              null;
-            }
-            ref = blobCache.entries();
-            for (x of ref) {
-              [orig, obj] = x;
-              if ((obj != null ? obj.url : void 0) === playUrl) {
-                blobCache.delete(orig);
-                break;
-              }
-            }
-          }
           v.removeAttribute('src');
           while (v.firstChild != null) {
-            v.removeChild(v.firstChild);
+            v.removeChild(v.firstChild); // remove <source>
           }
-          v.load();
+          v.load(); // desaloca o decoder sem mexer no blobCache
         } catch (error1) {
           e = error1;
           null;
