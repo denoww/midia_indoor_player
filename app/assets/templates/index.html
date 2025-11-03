@@ -133,7 +133,7 @@
                       <video class="midia-video"
                         v-if="item.is_video"
                         :id="'video-player-' + item.id"
-                        preload="metadata"
+                        preload="none"
                         autoplay playsinline muted
                       >
                           <source :src="item.arquivoUrl" :type="item.content_type">

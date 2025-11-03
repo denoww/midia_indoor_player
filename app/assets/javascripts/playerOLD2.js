@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getPlayUrl, mod, onLoaded, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var data, descobrirTimezone, mod, onLoaded, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   timezoneGlobal = null;
 
@@ -67,11 +67,6 @@
     return ((a % b) + b) % b;
   };
 
-  // === config flag ===
-  FORCE_BLOB_PLAYBACK = true; // force mode (muda pra false se quiser voltar ao cache HTTP)
-
-  blobCache = new Map(); // url_original -> { url: blobUrl, type: 'video/mp4', size: n }
-
   preAquecerCache = new Set();
 
   preAquecerVideo = function(url) {
@@ -82,43 +77,40 @@
       return;
     }
     preAquecerCache.add(url);
-    if (FORCE_BLOB_PLAYBACK) {
-      // baixa tudo e guarda em blob (reprodução 100% offline)
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).then(function(r) {
-        if (!r.ok) {
-          return Promise.reject(new Error(`HTTP ${r.status}`));
-        }
-        return r.arrayBuffer().then(function(buf) {
-          var blob, blobUrl, ref, type;
-          type = ((ref = r.headers) != null ? ref.get('Content-Type') : void 0) || 'video/mp4';
-          blob = new Blob([buf], {type});
-          blobUrl = URL.createObjectURL(blob);
-          return blobCache.set(url, {
-            url: blobUrl,
-            type,
-            size: buf.byteLength
-          });
-        });
-      }).catch(function(e) {
-        console.warn('preAquecerVideo(blob) falhou', e);
-        return preAquecerCache.delete(url);
-      });
-    } else {
-      // modo leve: só popula o HTTP cache
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).catch(function(e) {
-        return preAquecerCache.delete(url);
-      });
-    }
+    // Remova qualquer criação de <link rel="preload" as="video"> para evitar range implícito
+    // Faça apenas um GET normal para popular o HTTP cache com 200 OK
+    return fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'force-cache' // usa e popula cache se os headers permitirem
+    }).catch(function(e) {
+      return preAquecerCache.delete(url);
+    });
   };
 
+  // preAquecerVideo = (url) ->
+  //   return unless url?
+  //   return if preAquecerCache.has(url)
+  //   preAquecerCache.add(url)
+
+  //   try
+  //     link = document.createElement('link')
+  //     link.rel = 'prefetch'     # pode usar 'preload' também
+  //     link.as  = 'video'
+  //     link.href = url
+  //     link.crossOrigin = 'anonymous'
+  //     document.head.appendChild(link)
+  //   catch e then null
+
+  //   fetch(url,
+  //     method: 'GET'
+  //     mode: 'cors'
+  //     credentials: 'omit'
+  //     headers:
+  //       'Range': 'bytes=0-2097151'   # ~2MB
+  //   ).catch (e) ->
+  //     preAquecerCache.delete(url) # deixa re-tentar no próximo ciclo
   preAquecerImagem = function(url) {
     var e, img;
     if (url == null) {
@@ -148,6 +140,25 @@
     }
   };
 
+  // preAquecerImagem = (url) ->
+  //   return unless url?
+  //   return if preAquecerCache.has(url)
+  //   preAquecerCache.add(url)
+  //   try
+  //     link = document.createElement('link')
+  //     link.rel = 'prefetch'   # pode usar 'preload' também
+  //     link.as  = 'image'
+  //     link.href = url
+  //     document.head.appendChild(link)
+  //   catch e then null
+
+  //   # fallback simples: aquece cache sem precisar de CORS
+  //   try
+  //     img = new Image()
+  //     img.referrerPolicy = 'no-referrer'
+  //     img.decoding = 'async'
+  //     img.src = url
+  //   catch e then null
   preAquecerMidia = function(item) {
     if (item == null) {
       return;
@@ -156,20 +167,6 @@
       return preAquecerVideo(item.arquivoUrl);
     } else if (item.is_image && item.arquivoUrl) {
       return preAquecerImagem(item.arquivoUrl);
-    }
-  };
-
-  // helper pra resolver a URL final de reprodução
-  getPlayUrl = function(item) {
-    var cached;
-    if (!(FORCE_BLOB_PLAYBACK && (item != null ? item.is_video : void 0))) {
-      return item.arquivoUrl;
-    }
-    cached = blobCache.get(item.arquivoUrl);
-    if (cached != null ? cached.url : void 0) {
-      return cached.url;
-    } else {
-      return item.arquivoUrl;
     }
   };
 
@@ -507,7 +504,7 @@
     },
     // =============== Vídeo ===============
     playVideo: function(itemAtual) {
-      var finalUrl, getUltimoVideo, ref;
+      var getUltimoVideo;
       this.ultimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
@@ -515,35 +512,18 @@
       if (this.playTimer2 != null) {
         clearTimeout(this.playTimer2);
       }
-      // escolhe URL final (blob se já pré-carregado)
-      finalUrl = FORCE_BLOB_PLAYBACK ? ((ref = blobCache.get(itemAtual.arquivoUrl)) != null ? ref.url : void 0) || itemAtual.arquivoUrl : itemAtual.arquivoUrl;
       getUltimoVideo = () => {
         return document.getElementById(this.ultimoVideo);
       };
       this.playTimer1 = setTimeout(() => {
-        var e, ref1, s, v;
+        var v;
         v = getUltimoVideo();
-        if (v == null) {
-          return;
+        if (v != null) {
+          v.currentTime = 0;
+          return v.play().catch(function(e) {
+            return console.warn('play falhou', e);
+          });
         }
-        try {
-          // zera e injeta <source> com a URL final ANTES de tocar
-          while (v.firstChild != null) {
-            v.removeChild(v.firstChild);
-          }
-          s = document.createElement('source');
-          s.src = finalUrl;
-          s.type = itemAtual.content_type || ((ref1 = blobCache.get(itemAtual.arquivoUrl)) != null ? ref1.type : void 0) || 'video/mp4';
-          v.appendChild(s);
-          v.load();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
-        v.currentTime = 0;
-        return v.play().catch(function(e) {
-          return console.warn('play falhou', e);
-        });
       }, 0);
       this.playTimer2 = setTimeout(() => {
         var v;
@@ -556,7 +536,7 @@
       }, 1000);
     },
     stopUltimoVideo: function() {
-      var e, obj, orig, playUrl, ref, srcEl, v, videoId, x;
+      var e, v, videoId;
       videoId = this.ultimoVideo;
       if (!videoId) {
         return;
@@ -570,26 +550,6 @@
           null;
         }
         try {
-          // se a source atual for blob, revoga e remove do blobCache
-          srcEl = v.querySelector('source');
-          playUrl = srcEl != null ? srcEl.getAttribute('src') : void 0;
-          if (playUrl != null ? playUrl.startsWith('blob:') : void 0) {
-            try {
-              URL.revokeObjectURL(playUrl);
-            } catch (error1) {
-              e = error1;
-              null;
-            }
-            ref = blobCache.entries();
-            // remove a entrada correspondente do blobCache
-            for (x of ref) {
-              [orig, obj] = x;
-              if ((obj != null ? obj.url : void 0) === playUrl) {
-                blobCache.delete(orig);
-                break;
-              }
-            }
-          }
           v.removeAttribute('src');
           while (v.firstChild != null) {
             v.removeChild(v.firstChild); // remove <source>

@@ -57,13 +57,6 @@ onLoaded = ->
 # resto “sempre positivo”
 mod = (a, b) -> ((a % b) + b) % b
 
-
-# === config flag ===
-FORCE_BLOB_PLAYBACK = true   # force mode (muda pra false se quiser voltar ao cache HTTP)
-
-blobCache = new Map()        # url_original -> { url: blobUrl, type: 'video/mp4', size: n }
-
-
 preAquecerCache = new Set()
 
 preAquecerVideo = (url) ->
@@ -71,25 +64,39 @@ preAquecerVideo = (url) ->
   return if preAquecerCache.has(url)
   preAquecerCache.add(url)
 
-  if FORCE_BLOB_PLAYBACK
-    # baixa tudo e guarda em blob (reprodução 100% offline)
-    fetch(url, { mode: 'cors', credentials: 'omit', cache: 'force-cache' })
-      .then (r) ->
-        return Promise.reject(new Error("HTTP #{r.status}")) unless r.ok
-        r.arrayBuffer().then (buf) ->
-          type = r.headers?.get('Content-Type') or 'video/mp4'
-          blob = new Blob([buf], { type })
-          blobUrl = URL.createObjectURL(blob)
-          blobCache.set(url, { url: blobUrl, type, size: buf.byteLength })
-      .catch (e) ->
-        console.warn 'preAquecerVideo(blob) falhou', e
-        preAquecerCache.delete(url)
-  else
-    # modo leve: só popula o HTTP cache
-    fetch(url, { mode:'cors', credentials:'omit', cache:'force-cache' })
-      .catch (e) ->
-        preAquecerCache.delete(url)
+  # Remova qualquer criação de <link rel="preload" as="video"> para evitar range implícito
+  # Faça apenas um GET normal para popular o HTTP cache com 200 OK
+  fetch(url,
+    method: 'GET'
+    mode: 'cors'
+    credentials: 'omit'
+    cache: 'force-cache'   # usa e popula cache se os headers permitirem
+  ).catch (e) ->
+    preAquecerCache.delete(url)
 
+
+# preAquecerVideo = (url) ->
+#   return unless url?
+#   return if preAquecerCache.has(url)
+#   preAquecerCache.add(url)
+
+#   try
+#     link = document.createElement('link')
+#     link.rel = 'prefetch'     # pode usar 'preload' também
+#     link.as  = 'video'
+#     link.href = url
+#     link.crossOrigin = 'anonymous'
+#     document.head.appendChild(link)
+#   catch e then null
+
+#   fetch(url,
+#     method: 'GET'
+#     mode: 'cors'
+#     credentials: 'omit'
+#     headers:
+#       'Range': 'bytes=0-2097151'   # ~2MB
+#   ).catch (e) ->
+#     preAquecerCache.delete(url) # deixa re-tentar no próximo ciclo
 
 preAquecerImagem = (url) ->
   return unless url?
@@ -112,17 +119,31 @@ preAquecerImagem = (url) ->
     img.src = url
   catch e then null
 
+# preAquecerImagem = (url) ->
+#   return unless url?
+#   return if preAquecerCache.has(url)
+#   preAquecerCache.add(url)
+#   try
+#     link = document.createElement('link')
+#     link.rel = 'prefetch'   # pode usar 'preload' também
+#     link.as  = 'image'
+#     link.href = url
+#     document.head.appendChild(link)
+#   catch e then null
+
+#   # fallback simples: aquece cache sem precisar de CORS
+#   try
+#     img = new Image()
+#     img.referrerPolicy = 'no-referrer'
+#     img.decoding = 'async'
+#     img.src = url
+#   catch e then null
 
 preAquecerMidia = (item) ->
   return unless item?
   if item.is_video and item.arquivoUrl then preAquecerVideo(item.arquivoUrl)
   else if item.is_image and item.arquivoUrl then preAquecerImagem(item.arquivoUrl)
 
-# helper pra resolver a URL final de reprodução
-getPlayUrl = (item) ->
-  return item.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
-  cached = blobCache.get(item.arquivoUrl)
-  if cached?.url then cached.url else item.arquivoUrl
 
 
 @gradeObj =
@@ -395,29 +416,13 @@ getPlayUrl = (item) ->
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
-    # escolhe URL final (blob se já pré-carregado)
-    finalUrl =
-      if FORCE_BLOB_PLAYBACK then (blobCache.get(itemAtual.arquivoUrl)?.url or itemAtual.arquivoUrl)
-      else itemAtual.arquivoUrl
-
     getUltimoVideo = => document.getElementById(@ultimoVideo)
 
     @playTimer1 = setTimeout =>
       v = getUltimoVideo()
-      return unless v?
-
-      # zera e injeta <source> com a URL final ANTES de tocar
-      try
-        while v.firstChild? then v.removeChild(v.firstChild)
-        s = document.createElement('source')
-        s.src  = finalUrl
-        s.type = itemAtual.content_type or blobCache.get(itemAtual.arquivoUrl)?.type or 'video/mp4'
-        v.appendChild(s)
-        v.load()
-      catch e then null
-
-      v.currentTime = 0
-      v.play().catch((e)-> console.warn('play falhou', e))
+      if v?
+        v.currentTime = 0
+        v.play().catch((e)-> console.warn('play falhou', e))
     , 0
 
     @playTimer2 = setTimeout =>
@@ -435,17 +440,6 @@ getPlayUrl = (item) ->
     if v?
       try v.pause() catch e then null
       try
-        # se a source atual for blob, revoga e remove do blobCache
-        srcEl = v.querySelector('source')
-        playUrl = srcEl?.getAttribute('src')
-        if playUrl?.startsWith('blob:')
-          try URL.revokeObjectURL(playUrl) catch e then null
-          # remove a entrada correspondente do blobCache
-          for [orig, obj] from blobCache.entries()
-            if obj?.url == playUrl
-              blobCache.delete(orig)
-              break
-
         v.removeAttribute('src')
         while v.firstChild?
           v.removeChild(v.firstChild) # remove <source>
@@ -457,8 +451,6 @@ getPlayUrl = (item) ->
     clearTimeout(@playTimer2) if @playTimer2?
     @playTimer1 = @playTimer2 = null
     return
-
-
 
 # @timelineConteudoSuperior =
 #   promessa:  null
