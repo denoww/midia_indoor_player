@@ -62,7 +62,7 @@ mod = (a, b) -> ((a % b) + b) % b
 # === config flag ===
 # === flag
 # === config flag ===
-FORCE_BLOB_PLAYBACK = true
+USAR_VIDEO_COM_BLOB_CACHE = true
 
 # caches
 blobCache     = new Map()   # key -> { url, type, size }
@@ -76,7 +76,7 @@ preAquecerVideo = (url) ->
   return if preAquecerSet.has(key) or blobCache.has(key)
   preAquecerSet.add(key)
 
-  if FORCE_BLOB_PLAYBACK
+  if USAR_VIDEO_COM_BLOB_CACHE
     p = fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
       .then (r) ->
         throw new Error("HTTP #{r.status}") unless r.ok
@@ -100,7 +100,7 @@ preAquecerVideo = (url) ->
 
 
 # getPlayUrl = (item) ->
-#   return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
+#   return item?.arquivoUrl unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
 #   key = keyForUrl(item.arquivoUrl)
 #   cached = blobCache.get(key)
 #   cached?.url or item.arquivoUrl
@@ -292,7 +292,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   nextIndex: 0
   feedIndex: {}
   playlistIndex: {}
-  ultimoVideo: null
+  elUltimoVideo: null
   playTimer1: null
   playTimer2: null
 
@@ -422,7 +422,8 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   # playVideo injeta a <source> dinâmica
   # =============== Vídeo ===============
   playVideo: (itemAtual) ->
-    @ultimoVideo = "video-player-#{itemAtual.id}"
+    videoId = itemAtual.id
+    @elUltimoVideo = "video-player-#{itemAtual.id}"
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
@@ -431,18 +432,23 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
     chooseAndPlay = (v) =>
       entry = blobCache.get(key)
-      finalUrl = if FORCE_BLOB_PLAYBACK and entry?.url then entry.url else itemAtual.arquivoUrl
+      finalUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.url then entry.url else itemAtual.arquivoUrl
+
+      console.log "Play video id #{videoId}"
+      console.log "finalUrl: #{itemAtual.finalUrl}"
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
+
       ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
       injectSource(v, finalUrl, ctype)
       v.currentTime = 0
       v.play().catch (e) -> console.warn('play falhou', e)
 
     @playTimer1 = setTimeout =>
-      v = document.getElementById(@ultimoVideo)
+      v = document.getElementById(@elUltimoVideo)
       return unless v?
 
       # Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
-      if FORCE_BLOB_PLAYBACK and pend? and not blobCache.get(key)?
+      if USAR_VIDEO_COM_BLOB_CACHE and pend? and not blobCache.get(key)?
         Promise.race([
           pend.then -> 'ok'
           new Promise (res) -> setTimeout (-> res('timeout')), 10000
@@ -453,7 +459,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     , 0
 
     @playTimer2 = setTimeout =>
-      v = document.getElementById(@ultimoVideo)
+      v = document.getElementById(@elUltimoVideo)
       v?.paused and v.play().catch (e) -> console.warn('replay falhou', e)
     , 1000
 
@@ -463,8 +469,8 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   # revoga blob ao parar, eliminando vazamento e caches velhos
   # NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
   stopUltimoVideo: ->
-    return unless @ultimoVideo
-    v = document.getElementById(@ultimoVideo)
+    return unless @elUltimoVideo
+    v = document.getElementById(@elUltimoVideo)
     if v?
       try v.pause() catch e then null
       try
@@ -472,7 +478,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
         while v.firstChild? then v.removeChild(v.firstChild)  # remove <source>
         v.load()  # desaloca o decoder sem mexer no blobCache
       catch e then null
-    @ultimoVideo = null
+    @elUltimoVideo = null
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
     @playTimer1 = @playTimer2 = null
@@ -514,12 +520,12 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 #     @playVideo(itemAtual) if itemAtual.is_video
 #     return
 #   playVideo: (itemAtual)->
-#     @ultimoVideo = "video-player-#{itemAtual.id}"
+#     @elUltimoVideo = "video-player-#{itemAtual.id}"
 
 #     clearTimeout(@playTimer1) if @playTimer1?
 #     clearTimeout(@playTimer2) if @playTimer2?
 
-#     getUltimoVideo = -> document.getElementById(@ultimoVideo)
+#     getUltimoVideo = -> document.getElementById(@elUltimoVideo)
 
 #     @playTimer1 = setTimeout =>
 #       v = getUltimoVideo()
@@ -536,21 +542,21 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 #     return
 
 #   # playVideo: (itemAtual)->
-#   #   @ultimoVideo = "video-player-#{itemAtual.id}"
+#   #   @elUltimoVideo = "video-player-#{itemAtual.id}"
 
 #   #   setTimeout =>
-#   #     video = document.getElementById(@ultimoVideo)
+#   #     video = document.getElementById(@elUltimoVideo)
 #   #     if video
 #   #       video.currentTime = 0
 #   #       video.play()
 
 #   #   setTimeout =>
-#   #     video = document.getElementById(@ultimoVideo)
+#   #     video = document.getElementById(@elUltimoVideo)
 #   #     video.play() if video?.paused
 #   #   , 1000
 #   #   return
 #   stopUltimoVideo: ->
-#     videoId = @ultimoVideo
+#     videoId = @elUltimoVideo
 #     return unless videoId
 
 #     v = document.getElementById(videoId)
@@ -563,7 +569,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 #           v.removeChild(v.firstChild) # remove <source>
 #         v.load()  # força desalocar
 #       catch e then null
-#     @ultimoVideo = null
+#     @elUltimoVideo = null
 
 #     # limpa timers de play (ver D)
 #     clearTimeout(@playTimer1) if @playTimer1?
@@ -572,12 +578,12 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 #     return
 
 #   # stopUltimoVideo: ->
-#   #   videoId = @ultimoVideo
+#   #   videoId = @elUltimoVideo
 #   #   return unless videoId
 
 #   #   video = document.getElementById(videoId)
 #   #   video.pause() if video
-#   #   @ultimoVideo = null
+#   #   @elUltimoVideo = null
 #   #   return
 #   getNextItemConteudoSuperior: ->
 #     lista = vm.grade.data.conteudo_superior || []

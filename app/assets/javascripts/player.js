@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   timezoneGlobal = null;
 
@@ -71,7 +71,7 @@
   // === config flag ===
   // === flag
   // === config flag ===
-  FORCE_BLOB_PLAYBACK = true;
+  USAR_VIDEO_COM_BLOB_CACHE = true;
 
   // caches
   blobCache = new Map(); // key -> { url, type, size }
@@ -92,7 +92,7 @@
       return;
     }
     preAquecerSet.add(key);
-    if (FORCE_BLOB_PLAYBACK) {
+    if (USAR_VIDEO_COM_BLOB_CACHE) {
       p = fetch(url, {
         mode: 'cors',
         credentials: 'omit',
@@ -134,7 +134,7 @@
   };
 
   // getPlayUrl = (item) ->
-  //   return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
+  //   return item?.arquivoUrl unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
   //   key = keyForUrl(item.arquivoUrl)
   //   cached = blobCache.get(key)
   //   cached?.url or item.arquivoUrl
@@ -381,7 +381,7 @@
     nextIndex: 0,
     feedIndex: {},
     playlistIndex: {},
-    ultimoVideo: null,
+    elUltimoVideo: null,
     playTimer1: null,
     playTimer2: null,
     init: function() {
@@ -546,8 +546,9 @@
     // playVideo injeta a <source> dinâmica
     // =============== Vídeo ===============
     playVideo: function(itemAtual) {
-      var chooseAndPlay, key, pend;
-      this.ultimoVideo = `video-player-${itemAtual.id}`;
+      var chooseAndPlay, key, pend, videoId;
+      videoId = itemAtual.id;
+      this.elUltimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
       }
@@ -559,7 +560,10 @@
       chooseAndPlay = (v) => {
         var ctype, entry, finalUrl;
         entry = blobCache.get(key);
-        finalUrl = FORCE_BLOB_PLAYBACK && (entry != null ? entry.url : void 0) ? entry.url : itemAtual.arquivoUrl;
+        finalUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.url : void 0) ? entry.url : itemAtual.arquivoUrl;
+        console.log(`Play video id ${videoId}`);
+        console.log(`finalUrl: ${itemAtual.finalUrl}`);
+        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
         ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
         injectSource(v, finalUrl, ctype);
         v.currentTime = 0;
@@ -569,12 +573,12 @@
       };
       this.playTimer1 = setTimeout(() => {
         var v;
-        v = document.getElementById(this.ultimoVideo);
+        v = document.getElementById(this.elUltimoVideo);
         if (v == null) {
           return;
         }
         // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
-        if (FORCE_BLOB_PLAYBACK && (pend != null) && (blobCache.get(key) == null)) {
+        if (USAR_VIDEO_COM_BLOB_CACHE && (pend != null) && (blobCache.get(key) == null)) {
           return Promise.race([
             pend.then(function() {
               return 'ok';
@@ -594,7 +598,7 @@
       }, 0);
       this.playTimer2 = setTimeout(() => {
         var v;
-        v = document.getElementById(this.ultimoVideo);
+        v = document.getElementById(this.elUltimoVideo);
         return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
           return console.warn('replay falhou', e);
         });
@@ -604,10 +608,10 @@
     // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
     stopUltimoVideo: function() {
       var e, v;
-      if (!this.ultimoVideo) {
+      if (!this.elUltimoVideo) {
         return;
       }
-      v = document.getElementById(this.ultimoVideo);
+      v = document.getElementById(this.elUltimoVideo);
       if (v != null) {
         try {
           v.pause();
@@ -626,7 +630,7 @@
           null;
         }
       }
-      this.ultimoVideo = null;
+      this.elUltimoVideo = null;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
       }
@@ -671,12 +675,12 @@
   //     @playVideo(itemAtual) if itemAtual.is_video
   //     return
   //   playVideo: (itemAtual)->
-  //     @ultimoVideo = "video-player-#{itemAtual.id}"
+  //     @elUltimoVideo = "video-player-#{itemAtual.id}"
 
   //     clearTimeout(@playTimer1) if @playTimer1?
   //     clearTimeout(@playTimer2) if @playTimer2?
 
-  //     getUltimoVideo = -> document.getElementById(@ultimoVideo)
+  //     getUltimoVideo = -> document.getElementById(@elUltimoVideo)
 
   //     @playTimer1 = setTimeout =>
   //       v = getUltimoVideo()
@@ -693,21 +697,21 @@
   //     return
 
   //   # playVideo: (itemAtual)->
-  //   #   @ultimoVideo = "video-player-#{itemAtual.id}"
+  //   #   @elUltimoVideo = "video-player-#{itemAtual.id}"
 
   //   #   setTimeout =>
-  //   #     video = document.getElementById(@ultimoVideo)
+  //   #     video = document.getElementById(@elUltimoVideo)
   //   #     if video
   //   #       video.currentTime = 0
   //   #       video.play()
 
   //   #   setTimeout =>
-  //   #     video = document.getElementById(@ultimoVideo)
+  //   #     video = document.getElementById(@elUltimoVideo)
   //   #     video.play() if video?.paused
   //   #   , 1000
   //   #   return
   //   stopUltimoVideo: ->
-  //     videoId = @ultimoVideo
+  //     videoId = @elUltimoVideo
   //     return unless videoId
 
   //     v = document.getElementById(videoId)
@@ -720,7 +724,7 @@
   //           v.removeChild(v.firstChild) # remove <source>
   //         v.load()  # força desalocar
   //       catch e then null
-  //     @ultimoVideo = null
+  //     @elUltimoVideo = null
 
   //     # limpa timers de play (ver D)
   //     clearTimeout(@playTimer1) if @playTimer1?
@@ -729,12 +733,12 @@
   //     return
 
   //   # stopUltimoVideo: ->
-  //   #   videoId = @ultimoVideo
+  //   #   videoId = @elUltimoVideo
   //   #   return unless videoId
 
   //   #   video = document.getElementById(videoId)
   //   #   video.pause() if video
-  //   #   @ultimoVideo = null
+  //   #   @elUltimoVideo = null
   //   #   return
   //   getNextItemConteudoSuperior: ->
   //     lista = vm.grade.data.conteudo_superior || []
