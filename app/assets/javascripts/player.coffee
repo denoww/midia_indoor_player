@@ -517,6 +517,12 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     chooseAndPlay = (v) =>
       # resolve do OPFS se disponível; senão, usa URL atual e baixa em bg
       resolveMediaURL(itemAtual).then (finalVideoUrl) =>
+
+        console.log "==================================="
+        console.log "Iniciando play de video id: #{videoId}"
+        console.log "finalVideoUrl: #{finalVideoUrl}"
+        console.log "arquivoUrl: #{itemAtual?.arquivoUrl}"
+
         ctype = itemAtual.content_type or 'video/mp4'
         injectSource(v, finalVideoUrl, ctype)
         v.currentTime = 0

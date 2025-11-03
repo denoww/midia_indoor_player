@@ -697,6 +697,10 @@
         // resolve do OPFS se disponível; senão, usa URL atual e baixa em bg
         return resolveMediaURL(itemAtual).then((finalVideoUrl) => {
           var ctype;
+          console.log("===================================");
+          console.log(`Iniciando play de video id: ${videoId}`);
+          console.log(`finalVideoUrl: ${finalVideoUrl}`);
+          console.log(`arquivoUrl: ${itemAtual != null ? itemAtual.arquivoUrl : void 0}`);
           ctype = itemAtual.content_type || 'video/mp4';
           injectSource(v, finalVideoUrl, ctype);
           v.currentTime = 0;
