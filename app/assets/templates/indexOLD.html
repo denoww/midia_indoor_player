@@ -130,16 +130,15 @@
                         :style="{'background-image': 'url(' + item.arquivoUrl + ')'}">
                       </div>
 
-                      <video
-                        class="midia-video"
+                      <video class="midia-video"
                         v-if="item.is_video"
                         :id="'video-player-' + item.id"
                         preload="none"
-                        autoplay
-                        playsinline
-                        muted>
+                        autoplay playsinline muted
+                      >
+                          <source :src="item.arquivoUrl" :type="item.content_type">
+                          <!-- <source :src="item.arquivoUrl" :type="item.content_type"> -->
                       </video>
-
                     </div>
                     <!-- midia -->
 

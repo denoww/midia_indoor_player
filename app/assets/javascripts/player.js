@@ -46,7 +46,8 @@
     var params, tvId, uri;
     uri = window.location.search.substring(1);
     params = new URLSearchParams(uri);
-    return tvId = params.get("tvId");
+    tvId = params.get("tvId");
+    return tvId;
   };
 
   this.checkTv = function() {
@@ -68,55 +69,56 @@
   };
 
   // === config flag ===
-  FORCE_BLOB_PLAYBACK = true; // force mode (muda pra false se quiser voltar ao cache HTTP)
+  // === flag
+  FORCE_BLOB_PLAYBACK = true;
 
-  blobCache = new Map(); // url_original -> { url: blobUrl, type: 'video/mp4', size: n }
+  blobCache = new Map(); // url_original -> { url, type, size }
 
-  preAquecerCache = new Set();
+  preAquecerCache = new Set(); // só pra evitar repetição
 
   preAquecerVideo = function(url) {
     if (url == null) {
       return;
     }
-    if (preAquecerCache.has(url)) {
+    if (preAquecerCache.has(url) || blobCache.has(url)) {
       return;
     }
     preAquecerCache.add(url);
-    if (FORCE_BLOB_PLAYBACK) {
-      // baixa tudo e guarda em blob (reprodução 100% offline)
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).then(function(r) {
-        if (!r.ok) {
-          return Promise.reject(new Error(`HTTP ${r.status}`));
-        }
-        return r.arrayBuffer().then(function(buf) {
-          var blob, blobUrl, ref, type;
-          type = ((ref = r.headers) != null ? ref.get('Content-Type') : void 0) || 'video/mp4';
-          blob = new Blob([buf], {type});
-          blobUrl = URL.createObjectURL(blob);
-          return blobCache.set(url, {
-            url: blobUrl,
-            type,
-            size: buf.byteLength
-          });
+    return fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'force-cache'
+    }).then(function(r) {
+      var ct, ref;
+      if (!r.ok) {
+        return Promise.reject(new Error(`HTTP ${r.status}`));
+      }
+      ct = ((ref = r.headers) != null ? ref.get('Content-Type') : void 0) || 'video/mp4';
+      return r.arrayBuffer().then(function(buf) {
+        var blob, blobUrl;
+        blob = new Blob([buf], {
+          type: ct
         });
-      }).catch(function(e) {
-        console.warn('preAquecerVideo(blob) falhou', e);
-        return preAquecerCache.delete(url);
+        blobUrl = URL.createObjectURL(blob);
+        return blobCache.set(url, {
+          url: blobUrl,
+          type: ct,
+          size: buf.byteLength
+        });
       });
-    } else {
-      // modo leve: só popula o HTTP cache
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).catch(function(e) {
-        return preAquecerCache.delete(url);
-      });
+    }).catch(function(e) {
+      console.warn('preAquecerVideo(blob) falhou', e);
+      return preAquecerCache.delete(url);
+    });
+  };
+
+  // escolhe a URL efetiva (blob se houver)
+  getPlayUrl = function(item) {
+    var ref;
+    if (!(FORCE_BLOB_PLAYBACK && (item != null ? item.is_video : void 0))) {
+      return item.arquivoUrl;
     }
+    return ((ref = blobCache.get(item.arquivoUrl)) != null ? ref.url : void 0) || item.arquivoUrl;
   };
 
   preAquecerImagem = function(url) {
@@ -156,20 +158,6 @@
       return preAquecerVideo(item.arquivoUrl);
     } else if (item.is_image && item.arquivoUrl) {
       return preAquecerImagem(item.arquivoUrl);
-    }
-  };
-
-  // helper pra resolver a URL final de reprodução
-  getPlayUrl = function(item) {
-    var cached;
-    if (!(FORCE_BLOB_PLAYBACK && (item != null ? item.is_video : void 0))) {
-      return item.arquivoUrl;
-    }
-    cached = blobCache.get(item.arquivoUrl);
-    if (cached != null ? cached.url : void 0) {
-      return cached.url;
-    } else {
-      return item.arquivoUrl;
     }
   };
 
@@ -506,8 +494,10 @@
       }
     },
     // =============== Vídeo ===============
+
+    // playVideo injeta a <source> dinâmica
     playVideo: function(itemAtual) {
-      var finalUrl, getUltimoVideo, ref;
+      var getUltimoVideo;
       this.ultimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
@@ -515,25 +505,23 @@
       if (this.playTimer2 != null) {
         clearTimeout(this.playTimer2);
       }
-      // escolhe URL final (blob se já pré-carregado)
-      finalUrl = FORCE_BLOB_PLAYBACK ? ((ref = blobCache.get(itemAtual.arquivoUrl)) != null ? ref.url : void 0) || itemAtual.arquivoUrl : itemAtual.arquivoUrl;
       getUltimoVideo = () => {
         return document.getElementById(this.ultimoVideo);
       };
       this.playTimer1 = setTimeout(() => {
-        var e, ref1, s, v;
+        var e, finalUrl, ref, s, v;
         v = getUltimoVideo();
         if (v == null) {
           return;
         }
+        finalUrl = getPlayUrl(itemAtual);
         try {
-          // zera e injeta <source> com a URL final ANTES de tocar
           while (v.firstChild != null) {
             v.removeChild(v.firstChild);
           }
           s = document.createElement('source');
           s.src = finalUrl;
-          s.type = itemAtual.content_type || ((ref1 = blobCache.get(itemAtual.arquivoUrl)) != null ? ref1.type : void 0) || 'video/mp4';
+          s.type = itemAtual.content_type || ((ref = blobCache.get(itemAtual.arquivoUrl)) != null ? ref.type : void 0) || 'video/mp4';
           v.appendChild(s);
           v.load();
         } catch (error1) {
@@ -555,13 +543,13 @@
         }
       }, 1000);
     },
+    // revoga blob ao parar, eliminando vazamento e caches velhos
     stopUltimoVideo: function() {
-      var e, obj, orig, playUrl, ref, srcEl, v, videoId, x;
-      videoId = this.ultimoVideo;
-      if (!videoId) {
+      var e, obj, orig, playUrl, ref, srcEl, v, x;
+      if (!this.ultimoVideo) {
         return;
       }
-      v = document.getElementById(videoId);
+      v = document.getElementById(this.ultimoVideo);
       if (v != null) {
         try {
           v.pause();
@@ -570,7 +558,6 @@
           null;
         }
         try {
-          // se a source atual for blob, revoga e remove do blobCache
           srcEl = v.querySelector('source');
           playUrl = srcEl != null ? srcEl.getAttribute('src') : void 0;
           if (playUrl != null ? playUrl.startsWith('blob:') : void 0) {
@@ -581,7 +568,6 @@
               null;
             }
             ref = blobCache.entries();
-            // remove a entrada correspondente do blobCache
             for (x of ref) {
               [orig, obj] = x;
               if ((obj != null ? obj.url : void 0) === playUrl) {
@@ -592,7 +578,7 @@
           }
           v.removeAttribute('src');
           while (v.firstChild != null) {
-            v.removeChild(v.firstChild); // remove <source>
+            v.removeChild(v.firstChild);
           }
           v.load();
         } catch (error1) {
