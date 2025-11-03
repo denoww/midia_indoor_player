@@ -435,7 +435,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
       finalVideoUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.cachedUrl then entry.cachedUrl else itemAtual.arquivoUrl
 
       console.log "Play video id #{videoId}"
-      console.log "finalVideoUrl: #{itemAtual.finalVideoUrl}"
+      console.log "finalVideoUrl: #{finalVideoUrl}"
       console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
 
       ctype   = entry?.type or itemAtual.content_type or 'video/mp4'

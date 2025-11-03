@@ -562,7 +562,7 @@
         entry = blobCache.get(key);
         finalVideoUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.cachedUrl : void 0) ? entry.cachedUrl : itemAtual.arquivoUrl;
         console.log(`Play video id ${videoId}`);
-        console.log(`finalVideoUrl: ${itemAtual.finalVideoUrl}`);
+        console.log(`finalVideoUrl: ${finalVideoUrl}`);
         console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
         ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
         injectSource(v, finalVideoUrl, ctype);
