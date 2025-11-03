@@ -1,36 +1,57 @@
 # web.coffee
+
 express = require 'express'
 path    = require 'path'
-bodyParser = require('body-parser')
-
+bodyParser = require 'body-parser'
+fs = require 'fs'
 
 module.exports = (opt={}) ->
   app = express()
-  # global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
   server = app.listen(ENV.HTTP_PORT)
-  scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
+  scPrint.success("http://localhost:#{ENV.HTTP_PORT} ligado")
 
-  setTimeout ->
-    # require("#{process.cwd()}/start_player");
-  , 7000
+  # ====== Cache "forte" (1 ano) para arquivos fingerprintados (mp4/png/jpg/etc.)
+  # troque os caminhos locais abaixo para a sua pasta real de vídeos/imagens
+  longCache =
+    etag: true
+    lastModified: true
+    immutable: true
+    maxAge: '365d'
+    setHeaders: (res, p) ->
+      # Só aplique immutable se o nome for "versão" (ex.: 1220.mp4, 1219.mp4 … ok se você não reaproveita nome)
+      res.setHeader 'Cache-Control', 'public, max-age=31536000, immutable'
+      # CORS opcional (se necessário para players em hosts diferentes)
+      res.setHeader 'Access-Control-Allow-Origin', '*'
 
+  # Revalidação para coisas que mudam com o mesmo nome
+  revalidateCache =
+    etag: true
+    lastModified: true
+    setHeaders: (res, p) ->
+      res.setHeader 'Cache-Control', 'public, max-age=0, must-revalidate'
+      res.setHeader 'Access-Control-Allow-Origin', '*'
 
-  # versao = global.versionsControl?.currentVersion || global.versao_player || '--'
-  # global.server_started = true
+  # Exponha as pastas estáticas ANTES do app.all '*'
+  # Vídeos por TV: /:tvId/videos/<arquivo>.mp4 -> /var/lib/midia_indoor_player/videos/<arquivo>.mp4
+  app.use '/:tvId/videos', express.static('/var/lib/midia_indoor_player/videos', longCache)
 
-  app.use express.static(path.join( __dirname, '../assets/'))
-  app.use express.static(path.join( __dirname, '../../public/'))
+  # Imagens (se tiver): /images/* -> cache longo
+  app.use '/images', express.static('/var/lib/midia_indoor_player/images', longCache)
 
+  # Seus assets públicos (mantive como estava; ajuste para longCache se forem fingerprintados)
+  app.use express.static(path.join(__dirname, '../assets/'), revalidateCache)
+  app.use express.static(path.join(__dirname, '../../public/'), revalidateCache)
 
-  # Resolve o erro do CROSS de Access-Control-Allow-Origin
-  app.all '*', (req, res, next)->
-    res.header 'Content-Type', 'application/json'
-    res.header 'Access-Control-Allow-Origin', '*'
-    res.header 'Access-Control-Allow-Methods', 'OPTIONS,GET,POST,PUT,DELETE'
-    res.header 'Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With'
+  # ====== Middleware genérico (não force JSON em tudo)
+  app.all '*', (req, res, next) ->
+    # só define JSON se AINDA não tem Content-Type
+    res.setHeader('Access-Control-Allow-Origin', '*')
+    res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,GET,POST,PUT,DELETE')
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    res.setHeader('Vary', 'Origin')  # boa prática de CORS
 
     req.getParams = ->
-      resp = Object.assign( @body || {}, @query || {}, @params || {} )
+      resp = Object.assign(@body || {}, @query || {}, @params || {})
       format = resp?.format?.replace('.', '')
       delete resp['0']
       resp.format = format if format
@@ -41,9 +62,55 @@ module.exports = (opt={}) ->
 
   app.get '/', (req, res) ->
     params = req.getParams()
-    console.log  "Request GET / params: #{JSON.stringify(params)}"
-    res.type "text/html"
-    res.sendFile path.join( __dirname, '../assets/templates/index.html')
+    console.log "GET / params: #{JSON.stringify(params)}"
+    res.type 'text/html'
+    res.sendFile path.join(__dirname, '../assets/templates/index.html')
+
+# express = require 'express'
+# path    = require 'path'
+# bodyParser = require('body-parser')
+
+
+# module.exports = (opt={}) ->
+#   app = express()
+#   # global.logs.info "Iniciando servidor HTTP! Versão #{versao}"
+#   server = app.listen(ENV.HTTP_PORT)
+#   scPrint.success("#{"http://localhost:#{ENV.HTTP_PORT}"} ligado")
+
+#   setTimeout ->
+#     # require("#{process.cwd()}/start_player");
+#   , 7000
+
+
+#   # versao = global.versionsControl?.currentVersion || global.versao_player || '--'
+#   # global.server_started = true
+
+#   app.use express.static(path.join( __dirname, '../assets/'))
+#   app.use express.static(path.join( __dirname, '../../public/'))
+
+
+#   # Resolve o erro do CROSS de Access-Control-Allow-Origin
+#   app.all '*', (req, res, next)->
+#     res.header 'Content-Type', 'application/json'
+#     res.header 'Access-Control-Allow-Origin', '*'
+#     res.header 'Access-Control-Allow-Methods', 'OPTIONS,GET,POST,PUT,DELETE'
+#     res.header 'Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With'
+
+#     req.getParams = ->
+#       resp = Object.assign( @body || {}, @query || {}, @params || {} )
+#       format = resp?.format?.replace('.', '')
+#       delete resp['0']
+#       resp.format = format if format
+#       resp
+
+#     return res.sendStatus(200) if req.method == 'OPTIONS'
+#     next()
+
+#   app.get '/', (req, res) ->
+#     params = req.getParams()
+#     console.log  "Request GET / params: #{JSON.stringify(params)}"
+#     res.type "text/html"
+#     res.sendFile path.join( __dirname, '../assets/templates/index.html')
   
   app.get '/health', (req, res) ->
     resp = {}
