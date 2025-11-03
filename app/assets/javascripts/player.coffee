@@ -225,29 +225,84 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
 
 
+# helpers
+tvIdStr = -> String(getTvId() or 'unknown')
+gradeUrl = -> "/grade?tvId=#{encodeURIComponent(tvIdStr())}"
+lsKey    = -> "SC::grade::tvId:#{tvIdStr()}"
+
+# opcional: wrapper p/ Request consistente (evita misturar caches de ?tvId)
+gradeRequest = -> new Request(gradeUrl(), { method: 'GET', cache: 'no-store' })
+
 @gradeObj =
   tentar: 10
   tentativas: 0
   restart_player_em: null
+  loading: false
+  loaded: false
 
-  get: (onSuccess, onError)->
+  # Lê do Cache Storage (o mesmo que o SW preenche) p/ esta TV
+  readFromCaches: ->
+    return Promise.resolve(null) unless 'caches' of window
+    req = gradeRequest()
+    caches.match(req, { ignoreVary: true, ignoreSearch: false })
+      .then (resp) ->
+        return null unless resp? and resp.ok
+        resp.clone().json().catch(-> null)
+      .catch(-> null)
+
+  # Fallback ultra-rápido se o Cache Storage não tiver ainda
+  readFromLocal: ->
+    try
+      raw = localStorage.getItem(lsKey())
+      return JSON.parse(raw) if raw?
+    catch e then null
+
+  saveToLocal: (data) ->
+    try localStorage.setItem(lsKey(), JSON.stringify(data)) catch e then null
+
+  # Aplica dados e marca flags
+  applyData: (data, {fromCache = false} = {}) ->
+    return unless data?
+    @restart_player_em = data.restart_player_em
+    vm.grade.data = @data = data
+    @mountWeatherData()
+    @loaded = true
+    onLoaded()
+    @saveToLocal(data) unless fromCache
+
+  # Bootstrap rápido: tenta CacheStorage, depois localStorage
+  bootstrapFromCache: ->
+    return Promise.resolve(false) if @loaded
+    @readFromCaches().then (json) =>
+      if json?
+        @applyData(json, fromCache: true)
+        return true
+      # tenta localStorage
+      cached = @readFromLocal()
+      if cached?
+        @applyData(cached, fromCache: true)
+        return true
+      false
+
+  get: (onSuccess, onError) ->
     return if @loading
-    @loading = true
 
-    success = (resp)=>
-      if @tentativas > 0
-        restartBrowserAposXSegundos(30)
+    # 1) tenta mostrar algo de imediato
+    @bootstrapFromCache()
+
+    @loading = true
+    success = (resp) =>
+      if @tentativas > 0 then restartBrowserAposXSegundos(30)
 
       @loading    = false
       @tentativas = 0
 
       @handle resp.data
       onSuccess?()
-      @mountWeatherData()
       @loaded = true
       onLoaded()
 
-    error = (resp)=>
+    error = (resp) =>
       @loading = false
       onLoaded()
       console.error 'Grade:', resp
@@ -259,37 +314,35 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
       @tentarNovamenteEm = 1000 * @tentativas
       console.warn "Grade: Tentando em #{@tentarNovamenteEm / 1000} segundos"
-      setTimeout ->
-        gradeObj.get()
-      , @tentarNovamenteEm
+      setTimeout (=> @get()), @tentarNovamenteEm
       onError?()
 
-    Vue.http.get('/grade?tvId='+getTvId()).then success, error
+    # 2) sempre atualiza pela rede (SWR)
+    Vue.http.get(gradeUrl()).then success, error
     return
+
   downloadNewContent: ->
-    success = (resp)=>
-      @get ->
-        console.log "Novo Conteúdo baixado"
+    success = (resp) =>
+      @get -> console.log "Novo Conteúdo baixado"
     error = (resp) => console.log resp
 
-    Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
-  handle: (data)->
-    @restart_player_em = data.restart_player_em
-    vm.grade.data = @data = data
+    Vue.http.get('/download_new_content?tvId=' + tvIdStr()).then success, error
 
+  handle: (data) ->
+    # persiste e aplica (salva por tvId)
+    @applyData(data)
     # ===== predownload para offline =====
     if USAR_APP_OFFLINE
       ensurePersistence()
       # vídeos
       for item in (@data.conteudo_superior or []) when item?.is_video and (item?.arquivoUrl or item?.url)
         do (item) ->
-          name = opfsKeyFor(item)
+          name = opfsKeyFor(item) # ideal incluir tvId aqui também se quiser isolar no OPFS
           src  = item?.arquivoUrl or item?.url
           downloadToOPFS(name, src).catch(-> null)
       # logo/imagens (opcional)
       if @data?.logo?.arquivoUrl
         downloadToOPFS(opfsKeyFor(@data.logo), @data.logo.arquivoUrl).catch(-> null)
-
     return
 
   mountWeatherData: ->
@@ -309,6 +362,91 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
     vm.grade.data.weather.proximos_dias = vm.grade.data.weather.proximos_dias.slice(0,4)
     return
+
+# @gradeObj =
+#   tentar: 10
+#   tentativas: 0
+#   restart_player_em: null
+
+#   get: (onSuccess, onError)->
+#     return if @loading
+#     @loading = true
+
+#     success = (resp)=>
+#       if @tentativas > 0
+#         restartBrowserAposXSegundos(30)
+
+#       @loading    = false
+#       @tentativas = 0
+
+#       @handle resp.data
+#       onSuccess?()
+#       @mountWeatherData()
+#       @loaded = true
+#       onLoaded()
+
+#     error = (resp)=>
+#       @loading = false
+#       onLoaded()
+#       console.error 'Grade:', resp
+
+#       @tentativas++
+#       if @tentativas > @tentar
+#         console.error 'Grade: Não foi possível comunicar com o servidor!'
+#         return
+
+#       @tentarNovamenteEm = 1000 * @tentativas
+#       console.warn "Grade: Tentando em #{@tentarNovamenteEm / 1000} segundos"
+#       setTimeout ->
+#         gradeObj.get()
+#       , @tentarNovamenteEm
+#       onError?()
+
+#     Vue.http.get('/grade?tvId='+getTvId()).then success, error
+#     return
+#   downloadNewContent: ->
+#     success = (resp)=>
+#       @get ->
+#         console.log "Novo Conteúdo baixado"
+#     error = (resp) => console.log resp
+
+#     Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
+#   handle: (data)->
+#     @restart_player_em = data.restart_player_em
+#     vm.grade.data = @data = data
+
+#     # ===== predownload para offline =====
+#     if USAR_APP_OFFLINE
+#       ensurePersistence()
+#       # vídeos
+#       for item in (@data.conteudo_superior or []) when item?.is_video and (item?.arquivoUrl or item?.url)
+#         do (item) ->
+#           name = opfsKeyFor(item)
+#           src  = item?.arquivoUrl or item?.url
+#           downloadToOPFS(name, src).catch(-> null)
+#       # logo/imagens (opcional)
+#       if @data?.logo?.arquivoUrl
+#         downloadToOPFS(opfsKeyFor(@data.logo), @data.logo.arquivoUrl).catch(-> null)
+
+#     return
+
+#   mountWeatherData: ->
+#     vm.grade.data.weather ||= {}
+#     return unless (vm.grade.data.weather.proximos_dias || []).length
+
+#     dataHoje = new Date
+#     dia = "#{dataHoje.getDate()}".rjust(2, '0')
+#     mes = "#{dataHoje.getMonth() + 1}".rjust(2, '0')
+#     dataHoje = "#{dia}/#{mes}"
+
+#     dia = vm.grade.data.weather.proximos_dias[0]
+#     if dia.data == dataHoje
+#       dia = vm.grade.data.weather.proximos_dias.shift()
+#       vm.grade.data.weather.max = dia.max
+#       vm.grade.data.weather.min = dia.min
+
+#     vm.grade.data.weather.proximos_dias = vm.grade.data.weather.proximos_dias.slice(0,4)
+#     return
 
 @feedsObj =
   data: {}

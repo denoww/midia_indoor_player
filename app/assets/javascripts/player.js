@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var USAR_APP_OFFLINE, USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, downloadToOPFS, ensurePersistence, fileToBlobURL, getContentType, hasFileOPFS, injectSource, keyForUrl, mod, onLoaded, opfsKeyFor, opfsRoot, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, ref, reiniciando, relogio, resolveMediaURL, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus, writeResponseToOPFS;
+  var USAR_APP_OFFLINE, USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, downloadToOPFS, ensurePersistence, fileToBlobURL, getContentType, gradeRequest, gradeUrl, hasFileOPFS, injectSource, keyForUrl, lsKey, mod, onLoaded, opfsKeyFor, opfsRoot, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, ref, reiniciando, relogio, resolveMediaURL, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, tvIdStr, updateContent, updateOnlineStatus, writeResponseToOPFS;
 
   USAR_VIDEO_COM_BLOB_CACHE = true;
 
@@ -319,15 +319,121 @@
     return (resp != null ? (ref1 = resp.headers) != null ? ref1.get('Content-Type') : void 0 : void 0) || 'video/mp4';
   };
 
+  // helpers
+  tvIdStr = function() {
+    return String(getTvId() || 'unknown');
+  };
+
+  gradeUrl = function() {
+    return `/grade?tvId=${encodeURIComponent(tvIdStr())}`;
+  };
+
+  lsKey = function() {
+    return `SC::grade::tvId:${tvIdStr()}`;
+  };
+
+  // opcional: wrapper p/ Request consistente (evita misturar caches de ?tvId)
+  gradeRequest = function() {
+    return new Request(gradeUrl(), {
+      method: 'GET',
+      cache: 'no-store'
+    });
+  };
+
   this.gradeObj = {
     tentar: 10,
     tentativas: 0,
     restart_player_em: null,
+    loading: false,
+    loaded: false,
+    // Lê do Cache Storage (o mesmo que o SW preenche) p/ esta TV
+    readFromCaches: function() {
+      var req;
+      if (!('caches' in window)) {
+        return Promise.resolve(null);
+      }
+      req = gradeRequest();
+      return caches.match(req, {
+        ignoreVary: true,
+        ignoreSearch: false
+      }).then(function(resp) {
+        if (!((resp != null) && resp.ok)) {
+          return null;
+        }
+        return resp.clone().json().catch(function() {
+          return null;
+        });
+      }).catch(function() {
+        return null;
+      });
+    },
+    // Fallback ultra-rápido se o Cache Storage não tiver ainda
+    readFromLocal: function() {
+      var e, raw;
+      try {
+        raw = localStorage.getItem(lsKey());
+        if (raw != null) {
+          return JSON.parse(raw);
+        }
+      } catch (error1) {
+        e = error1;
+        return null;
+      }
+    },
+    saveToLocal: function(data) {
+      var e;
+      try {
+        return localStorage.setItem(lsKey(), JSON.stringify(data));
+      } catch (error1) {
+        e = error1;
+        return null;
+      }
+    },
+    // Aplica dados e marca flags
+    applyData: function(data, {fromCache = false} = {}) {
+      if (data == null) {
+        return;
+      }
+      this.restart_player_em = data.restart_player_em;
+      vm.grade.data = this.data = data;
+      this.mountWeatherData();
+      this.loaded = true;
+      onLoaded();
+      if (!fromCache) {
+        return this.saveToLocal(data);
+      }
+    },
+    // Bootstrap rápido: tenta CacheStorage, depois localStorage
+    bootstrapFromCache: function() {
+      if (this.loaded) {
+        return Promise.resolve(false);
+      }
+      return this.readFromCaches().then((json) => {
+        var cached;
+        if (json != null) {
+          this.applyData(json, {
+            fromCache: true
+          });
+          return true;
+        }
+        // tenta localStorage
+        cached = this.readFromLocal();
+        if (cached != null) {
+          this.applyData(cached, {
+            fromCache: true
+          });
+          return true;
+        }
+        return false;
+      });
+    },
     get: function(onSuccess, onError) {
       var error, success;
       if (this.loading) {
         return;
       }
+      // 1) tenta mostrar algo de imediato
+      this.bootstrapFromCache();
       this.loading = true;
       success = (resp) => {
         if (this.tentativas > 0) {
@@ -339,7 +445,6 @@
         if (typeof onSuccess === "function") {
           onSuccess();
         }
-        this.mountWeatherData();
         this.loaded = true;
         return onLoaded();
       };
@@ -354,12 +459,13 @@
         }
         this.tentarNovamenteEm = 1000 * this.tentativas;
         console.warn(`Grade: Tentando em ${this.tentarNovamenteEm / 1000} segundos`);
-        setTimeout(function() {
-          return gradeObj.get();
-        }, this.tentarNovamenteEm);
+        setTimeout((() => {
+          return this.get();
+        }), this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
+      // 2) sempre atualiza pela rede (SWR)
+      Vue.http.get(gradeUrl()).then(success, error);
     },
     downloadNewContent: function() {
       var error, success;
@@ -371,12 +477,12 @@
       error = (resp) => {
         return console.log(resp);
       };
-      return Vue.http.get('/download_new_content?tvId=' + getTvId()).then(success, error);
+      return Vue.http.get('/download_new_content?tvId=' + tvIdStr()).then(success, error);
     },
     handle: function(data) {
       var i, item, len, ref1, ref2, ref3;
-      this.restart_player_em = data.restart_player_em;
-      vm.grade.data = this.data = data;
+      // persiste e aplica (salva por tvId)
+      this.applyData(data);
       // ===== predownload para offline =====
       if (USAR_APP_OFFLINE) {
         ensurePersistence();
@@ -387,7 +493,7 @@
           if ((item != null ? item.is_video : void 0) && ((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0))) {
             (function(item) {
               var name, src;
-              name = opfsKeyFor(item);
+              name = opfsKeyFor(item); // ideal incluir tvId aqui também se quiser isolar no OPFS
               src = (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0);
               return downloadToOPFS(name, src).catch(function() {
                 return null;
@@ -423,6 +529,90 @@
     }
   };
 
+  // @gradeObj =
+  //   tentar: 10
+  //   tentativas: 0
+  //   restart_player_em: null
+
+  //   get: (onSuccess, onError)->
+  //     return if @loading
+  //     @loading = true
+
+  //     success = (resp)=>
+  //       if @tentativas > 0
+  //         restartBrowserAposXSegundos(30)
+
+  //       @loading    = false
+  //       @tentativas = 0
+
+  //       @handle resp.data
+  //       onSuccess?()
+  //       @mountWeatherData()
+  //       @loaded = true
+  //       onLoaded()
+
+  //     error = (resp)=>
+  //       @loading = false
+  //       onLoaded()
+  //       console.error 'Grade:', resp
+
+  //       @tentativas++
+  //       if @tentativas > @tentar
+  //         console.error 'Grade: Não foi possível comunicar com o servidor!'
+  //         return
+
+  //       @tentarNovamenteEm = 1000 * @tentativas
+  //       console.warn "Grade: Tentando em #{@tentarNovamenteEm / 1000} segundos"
+  //       setTimeout ->
+  //         gradeObj.get()
+  //       , @tentarNovamenteEm
+  //       onError?()
+
+  //     Vue.http.get('/grade?tvId='+getTvId()).then success, error
+  //     return
+  //   downloadNewContent: ->
+  //     success = (resp)=>
+  //       @get ->
+  //         console.log "Novo Conteúdo baixado"
+  //     error = (resp) => console.log resp
+
+  //     Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
+  //   handle: (data)->
+  //     @restart_player_em = data.restart_player_em
+  //     vm.grade.data = @data = data
+
+  //     # ===== predownload para offline =====
+  //     if USAR_APP_OFFLINE
+  //       ensurePersistence()
+  //       # vídeos
+  //       for item in (@data.conteudo_superior or []) when item?.is_video and (item?.arquivoUrl or item?.url)
+  //         do (item) ->
+  //           name = opfsKeyFor(item)
+  //           src  = item?.arquivoUrl or item?.url
+  //           downloadToOPFS(name, src).catch(-> null)
+  //       # logo/imagens (opcional)
+  //       if @data?.logo?.arquivoUrl
+  //         downloadToOPFS(opfsKeyFor(@data.logo), @data.logo.arquivoUrl).catch(-> null)
+
+  //     return
+
+  //   mountWeatherData: ->
+  //     vm.grade.data.weather ||= {}
+  //     return unless (vm.grade.data.weather.proximos_dias || []).length
+
+  //     dataHoje = new Date
+  //     dia = "#{dataHoje.getDate()}".rjust(2, '0')
+  //     mes = "#{dataHoje.getMonth() + 1}".rjust(2, '0')
+  //     dataHoje = "#{dia}/#{mes}"
+
+  //     dia = vm.grade.data.weather.proximos_dias[0]
+  //     if dia.data == dataHoje
+  //       dia = vm.grade.data.weather.proximos_dias.shift()
+  //       vm.grade.data.weather.max = dia.max
+  //       vm.grade.data.weather.min = dia.min
+
+  //     vm.grade.data.weather.proximos_dias = vm.grade.data.weather.proximos_dias.slice(0,4)
+  //     return
   this.feedsObj = {
     data: {},
     tentar: 10,
