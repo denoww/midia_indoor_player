@@ -1,8 +1,11 @@
 // offline-app-service-worker.js
-const VERSION = 'sc-player-v3';
+const VERSION = 'sc-player-v4'; // <- bump
 const SHELL_CACHE = `shell-${VERSION}`;
-const RUNTIME_CACHE = `rt-${VERSION}`;
-const API_CACHE = `api-${VERSION}`;
+const RUNTIME_CACHE_BASE = `rt-${VERSION}`;
+const API_CACHE_BASE = `api-${VERSION}`;
+
+// Mapa clientId -> tvId
+const clientTv = new Map();
 
 const APP_SHELL = [
   '/', '/index.html',
@@ -11,7 +14,6 @@ const APP_SHELL = [
   '/stylesheets/sc-icons.css',
   '/images/favicon.png',
   '/images/logo-white.png',
-  // REMOVIDOS icons 192/512 se não existir no servidor
   '/javascripts/lib/array.js',
   '/javascripts/lib/date.js',
   '/javascripts/lib/object.js',
@@ -28,22 +30,28 @@ const APP_SHELL = [
   '/images/weather/rain.png',
 ];
 
-function isHttp(s) {
-  return s === 'http:' || s === 'https:';
-}
+function isHttp(s) { return s === 'http:' || s === 'https:'; }
 function isApiRequest(url) {
   return url.pathname.startsWith('/grade') ||
          url.pathname.startsWith('/feeds') ||
          url.pathname.startsWith('/check_tv');
 }
 function isStaticAsset(req) {
-  return (
-    req.destination === 'style' ||
-    req.destination === 'script' ||
-    req.destination === 'font' ||
-    req.destination === 'image' ||
-    req.destination === 'document'
-  );
+  return ['style','script','font','image','document'].includes(req.destination);
+}
+
+// Recebe tvId da página
+self.addEventListener('message', (event) => {
+  const { data, source } = event;
+  if (data && data.type === 'SET_TV_ID' && source && source.id) {
+    clientTv.set(source.id, String(data.tvId || 'unknown'));
+  }
+});
+
+// Helpers de nome de cache por client/tv
+function cacheNameFor(base, clientId) {
+  const tv = clientId ? clientTv.get(clientId) : null;
+  return tv ? `${base}-tv${tv}` : `${base}-default`;
 }
 
 self.addEventListener('install', (event) => {
@@ -52,12 +60,8 @@ self.addEventListener('install', (event) => {
     const results = await Promise.allSettled(
       APP_SHELL.map(u => cache.add(new Request(u, { cache: 'reload' })))
     );
-    const fails = results
-      .map((r,i)=>[r,APP_SHELL[i]])
-      .filter(([r])=>r.status==='rejected');
-    if (fails.length) {
-      console.warn('[SW] pulando itens ausentes no APP_SHELL:', fails.map(([,u])=>u));
-    }
+    const fails = results.map((r,i)=>[r,APP_SHELL[i]]).filter(([r])=>r.status==='rejected');
+    if (fails.length) console.warn('[SW] pulando itens ausentes no APP_SHELL:', fails.map(([,u])=>u));
   })());
   self.skipWaiting();
 });
@@ -66,7 +70,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(
-      keys.filter(k => ![SHELL_CACHE, RUNTIME_CACHE, API_CACHE].includes(k))
+      keys.filter(k => !k.startsWith('shell-') && !k.startsWith('rt-') && !k.startsWith('api-'))
           .map(k => caches.delete(k))
     );
   })());
@@ -79,28 +83,33 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // 0) Ignorar esquemas não-HTTP (chrome-extension, blob, data, file, about)
+  // Guarda tvId quando vier num navigation (/?tvId=...)
+  if (event.clientId && url.searchParams.has('tvId')) {
+    clientTv.set(event.clientId, url.searchParams.get('tvId'));
+  }
+
   if (!isHttp(url.protocol)) return;
 
-  // 0.1) Range requests (vídeo): não cachear, só proxy
+  // Range (vídeo): não cacheia
   if (req.headers.has('range')) {
     event.respondWith(fetch(req));
     return;
   }
 
-  // 1) API -> network-first
+  const API_CACHE  = cacheNameFor(API_CACHE_BASE, event.clientId);
+  const RUNTIME_CACHE = cacheNameFor(RUNTIME_CACHE_BASE, event.clientId);
+
   if (isApiRequest(url)) {
     event.respondWith(networkFirst(req, API_CACHE));
     return;
   }
 
-  // 2) assets estáticos -> cache-first
   if (isStaticAsset(req)) {
+    // Shell pode ser compartilhado entre TVs
     event.respondWith(cacheFirst(req, SHELL_CACHE));
     return;
   }
 
-  // 3) demais -> SWR
   event.respondWith(staleWhileRevalidate(req, RUNTIME_CACHE));
 });
 
@@ -142,13 +151,10 @@ async function staleWhileRevalidate(req, cacheName) {
   return cached || fetchPromise || Response.error();
 }
 
-// Só cacheia respostas completas (200) e não-parciais
 function canCacheResponse(resp) {
   if (!resp || !resp.ok) return false;
-  if (resp.status !== 200) return false;                   // evita 206
-  const cr = resp.headers.get('Content-Range');
-  if (cr) return false;                                    // evita parciais
-  // Se quiser, ignore também respostas opaques de cross-origin:
-  // if (resp.type === 'opaque') return false;
+  if (resp.status !== 200) return false; // evita 206
+  if (resp.headers.get('Content-Range')) return false; // evita parciais
+  // if (resp.type === 'opaque') return false; // opcional
   return true;
 }

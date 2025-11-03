@@ -249,13 +249,22 @@
 
   <!-- Registra o Service Worker -->
   <script>
-    (function () {
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/offline-app-service-worker.js', { scope: '/' })
-            .catch(function (e) { console.warn('SW register fail', e); });
-        });
-      }
-    })();
+    function currentTvId() {
+      const p = new URLSearchParams(location.search);
+      return p.get('tvId') || 'unknown';
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(() => {
+        // pode não haver controller no 1º load; reenvia quando assumir
+        function send() {
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'SET_TV_ID', tvId: currentTvId() });
+          }
+        }
+        send();
+        navigator.serviceWorker.addEventListener('controllerchange', send);
+      });
+    }
   </script>
+
 </html>
