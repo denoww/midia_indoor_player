@@ -81,18 +81,27 @@ downloadToOPFS = (name, url) ->
 
 # tenta resolver URL final: se tiver no disco, usa blob: do OPFS; senão retorna a URL online e dispara download em bg
 resolveMediaURL = (item) ->
-  return Promise.resolve(item?.arquivoUrl) unless USAR_APP_OFFLINE
-  name = opfsKeyFor(item)
-  hasFileOPFS(name).then (exists) ->
-    if exists
-      fileToBlobURL(name)
-    else
-      # preferir tua URL local (arquivoUrl) se já está servido pelo teu servidor local;
-      # se quiser forçar S3/HTTP, use item.url.
-      src = item?.arquivoUrl or item?.url
-      # baixa em bg, sem bloquear o play
-      downloadToOPFS(name, src).catch(-> null)
-      src
+  # 0) Tenta blobCache primeiro (se for vídeo)
+  if USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
+    cached = getBlobCachedUrl(item)
+    return Promise.resolve(cached) if cached?
+
+  # 1) Se app offline estiver ativo, tenta OPFS
+  if USAR_APP_OFFLINE
+    name = opfsKeyFor(item)
+    return hasFileOPFS(name).then (exists) ->
+      if exists
+        fileToBlobURL(name)
+      else
+        src = item?.arquivoUrl or item?.url
+        # dispara download em background
+        downloadToOPFS(name, src).catch(-> null)
+        # ainda assim retorna a URL online pra tocar agora
+        src
+  else
+    # 2) Modo online normal: mantém URL original
+    # (pré-aquecimento pode já estar ocorrendo; se completar, próximos plays usarão o blob)
+    Promise.resolve(item?.arquivoUrl or item?.url)
 
 
 onLoaded = ->
@@ -134,6 +143,29 @@ pendingBlobs  = new Map()   # key -> Promise que resolve quando blob estiver pro
 preAquecerSet = new Set()
 preAquecerCache = new Set()
 
+
+# ======= Blob cache helpers =======
+getBlobCachedUrl = (item) ->
+  return null unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
+  key = keyForUrl(item?.arquivoUrl or item?.url)
+  entry = blobCache.get(key)
+  entry?.cachedUrl or null
+
+# Limite (opcional) para evitar crescer infinito em RAM
+BLOB_CACHE_MAX_BYTES = 300 * 1024 * 1024  # ~300MB
+blobCacheBytes = 0
+
+evictBlobCacheIfNeeded = ->
+  return unless blobCacheBytes > BLOB_CACHE_MAX_BYTES
+  # estratégia simples: FIFO (pode trocar para LRU se quiser)
+  for [k, v] from blobCache
+    try URL.revokeObjectURL(v?.cachedUrl) if v?.cachedUrl
+    catch e then null
+    blobCache.delete(k)
+    blobCacheBytes -= (v?.size or 0)
+    break unless blobCacheBytes > BLOB_CACHE_MAX_BYTES
+
+
 preAquecerVideo = (url) ->
   return unless url?
   key = keyForUrl(url)
@@ -149,6 +181,8 @@ preAquecerVideo = (url) ->
         blob = new Blob([buf], {type})
         blobUrl = URL.createObjectURL(blob)
         blobCache.set(key, {cachedUrl: blobUrl, type, size: buf.byteLength})
+        blobCacheBytes += buf.byteLength             # <<< novo
+        evictBlobCacheIfNeeded()                     # <<< novo
         console.log "blob pronto", key, blobUrl
         blobUrl
       .catch (e) ->
@@ -161,6 +195,7 @@ preAquecerVideo = (url) ->
   else
     fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
       .catch (e) -> preAquecerSet.delete(key)
+
 
 
 # getPlayUrl = (item) ->
@@ -653,9 +688,16 @@ gradeRequest = -> new Request(gradeUrl(), { method: 'GET', cache: 'no-store' })
     pend      = pendingBlobs.get(key)
 
     chooseAndPlay = (v) =>
-      # resolve do OPFS se disponível; senão, usa URL atual e baixa em bg
-      resolveMediaURL(itemAtual).then (finalVideoUrl) =>
+      # >>> re-check rápido do blob antes de decidir a URL final <<<
+      cachedUrl = getBlobCachedUrl(itemAtual)
+      if cachedUrl?
+        ctype = itemAtual.content_type or 'video/mp4'
+        injectSource(v, cachedUrl, ctype)
+        v.currentTime = 0
+        return v.play().catch (e) -> console.warn('play falhou', e)
 
+      # resolve do OPFS ou volta para URL original
+      resolveMediaURL(itemAtual).then (finalVideoUrl) =>
         console.log "==================================="
         console.log "Iniciando play de video id: #{videoId}"
         console.log "finalVideoUrl: #{finalVideoUrl}"
@@ -665,6 +707,7 @@ gradeRequest = -> new Request(gradeUrl(), { method: 'GET', cache: 'no-store' })
         injectSource(v, finalVideoUrl, ctype)
         v.currentTime = 0
         v.play().catch (e) -> console.warn('play falhou', e)
+
 
 
     @playTimer1 = setTimeout =>

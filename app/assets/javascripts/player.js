@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var USAR_APP_OFFLINE, USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, downloadToOPFS, ensurePersistence, fileToBlobURL, getContentType, gradeRequest, gradeUrl, hasFileOPFS, injectSource, keyForUrl, lsKey, mod, onLoaded, opfsKeyFor, opfsRoot, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, ref, reiniciando, relogio, resolveMediaURL, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, tvIdStr, updateContent, updateOnlineStatus, writeResponseToOPFS;
+  var BLOB_CACHE_MAX_BYTES, USAR_APP_OFFLINE, USAR_VIDEO_COM_BLOB_CACHE, blobCache, blobCacheBytes, data, descobrirTimezone, downloadToOPFS, ensurePersistence, evictBlobCacheIfNeeded, fileToBlobURL, getBlobCachedUrl, getContentType, gradeRequest, gradeUrl, hasFileOPFS, injectSource, keyForUrl, lsKey, mod, onLoaded, opfsKeyFor, opfsRoot, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, ref, reiniciando, relogio, resolveMediaURL, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, tvIdStr, updateContent, updateOnlineStatus, writeResponseToOPFS;
 
   USAR_VIDEO_COM_BLOB_CACHE = true;
 
@@ -116,26 +116,36 @@
 
   // tenta resolver URL final: se tiver no disco, usa blob: do OPFS; senão retorna a URL online e dispara download em bg
   resolveMediaURL = function(item) {
-    var name;
-    if (!USAR_APP_OFFLINE) {
-      return Promise.resolve(item != null ? item.arquivoUrl : void 0);
-    }
-    name = opfsKeyFor(item);
-    return hasFileOPFS(name).then(function(exists) {
-      var src;
-      if (exists) {
-        return fileToBlobURL(name);
-      } else {
-        // preferir tua URL local (arquivoUrl) se já está servido pelo teu servidor local;
-        // se quiser forçar S3/HTTP, use item.url.
-        src = (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0);
-        // baixa em bg, sem bloquear o play
-        downloadToOPFS(name, src).catch(function() {
-          return null;
-        });
-        return src;
+    var cached, name;
+    // 0) Tenta blobCache primeiro (se for vídeo)
+    if (USAR_VIDEO_COM_BLOB_CACHE && (item != null ? item.is_video : void 0)) {
+      cached = getBlobCachedUrl(item);
+      if (cached != null) {
+        return Promise.resolve(cached);
       }
-    });
+    }
+    // 1) Se app offline estiver ativo, tenta OPFS
+    if (USAR_APP_OFFLINE) {
+      name = opfsKeyFor(item);
+      return hasFileOPFS(name).then(function(exists) {
+        var src;
+        if (exists) {
+          return fileToBlobURL(name);
+        } else {
+          src = (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0);
+          // dispara download em background
+          downloadToOPFS(name, src).catch(function() {
+            return null;
+          });
+          // ainda assim retorna a URL online pra tocar agora
+          return src;
+        }
+      });
+    } else {
+      // 2) Modo online normal: mantém URL original
+      // (pré-aquecimento pode já estar ocorrendo; se completar, próximos plays usarão o blob)
+      return Promise.resolve((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0));
+    }
   };
 
   onLoaded = function() {
@@ -186,6 +196,50 @@
 
   preAquecerCache = new Set();
 
+  // ======= Blob cache helpers =======
+  getBlobCachedUrl = function(item) {
+    var entry, key;
+    if (!(USAR_VIDEO_COM_BLOB_CACHE && (item != null ? item.is_video : void 0))) {
+      return null;
+    }
+    key = keyForUrl((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0));
+    entry = blobCache.get(key);
+    return (entry != null ? entry.cachedUrl : void 0) || null;
+  };
+
+  // Limite (opcional) para evitar crescer infinito em RAM
+  BLOB_CACHE_MAX_BYTES = 300 * 1024 * 1024; // ~300MB
+
+  blobCacheBytes = 0;
+
+  evictBlobCacheIfNeeded = function() {
+    var e, k, results, v, x;
+    if (!(blobCacheBytes > BLOB_CACHE_MAX_BYTES)) {
+      return;
+    }
+// estratégia simples: FIFO (pode trocar para LRU se quiser)
+    results = [];
+    for (x of blobCache) {
+      [k, v] = x;
+      try {
+        if (v != null ? v.cachedUrl : void 0) {
+          URL.revokeObjectURL(v != null ? v.cachedUrl : void 0);
+        }
+      } catch (error1) {
+        e = error1;
+        null;
+      }
+      blobCache.delete(k);
+      blobCacheBytes -= (v != null ? v.size : void 0) || 0;
+      if (!(blobCacheBytes > BLOB_CACHE_MAX_BYTES)) {
+        break;
+      } else {
+        results.push(void 0);
+      }
+    }
+    return results;
+  };
+
   preAquecerVideo = function(url) {
     var key, p;
     if (url == null) {
@@ -215,6 +269,8 @@
           type,
           size: buf.byteLength
         });
+        blobCacheBytes += buf.byteLength; // <<< novo
+        evictBlobCacheIfNeeded(); // <<< novo
         console.log("blob pronto", key, blobUrl);
         return blobUrl;
       }).catch(function(e) {
@@ -884,9 +940,19 @@
       key = keyForUrl(itemAtual.arquivoUrl);
       pend = pendingBlobs.get(key);
       chooseAndPlay = (v) => {
-        // resolve do OPFS se disponível; senão, usa URL atual e baixa em bg
+        var cachedUrl, ctype;
+        // >>> re-check rápido do blob antes de decidir a URL final <<<
+        cachedUrl = getBlobCachedUrl(itemAtual);
+        if (cachedUrl != null) {
+          ctype = itemAtual.content_type || 'video/mp4';
+          injectSource(v, cachedUrl, ctype);
+          v.currentTime = 0;
+          return v.play().catch(function(e) {
+            return console.warn('play falhou', e);
+          });
+        }
+        // resolve do OPFS ou volta para URL original
         return resolveMediaURL(itemAtual).then((finalVideoUrl) => {
-          var ctype;
           console.log("===================================");
           console.log(`Iniciando play de video id: ${videoId}`);
           console.log(`finalVideoUrl: ${finalVideoUrl}`);
