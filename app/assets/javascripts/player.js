@@ -77,6 +77,7 @@
   preAquecerCache = new Set(); // só pra evitar repetição
 
   preAquecerVideo = function(url) {
+    console.log(`preaquecer ${url}`);
     if (url == null) {
       return;
     }
