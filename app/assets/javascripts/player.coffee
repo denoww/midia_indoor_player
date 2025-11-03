@@ -64,23 +64,16 @@ preAquecerVideo = (url) ->
   return if preAquecerCache.has(url)
   preAquecerCache.add(url)
 
-  try
-    link = document.createElement('link')
-    link.rel  = 'preload'      # melhor que prefetch para mídia
-    link.as   = 'video'
-    link.href = url
-    link.crossOrigin = 'anonymous'
-    document.head.appendChild(link)
-  catch e then null
-
-  # GET normal (sem Range) para permitir cache do corpo
+  # Remova qualquer criação de <link rel="preload" as="video"> para evitar range implícito
+  # Faça apenas um GET normal para popular o HTTP cache com 200 OK
   fetch(url,
     method: 'GET'
     mode: 'cors'
     credentials: 'omit'
-    cache: 'force-cache'       # tenta usar/cachear
+    cache: 'force-cache'   # usa e popula cache se os headers permitirem
   ).catch (e) ->
-    preAquecerCache.delete(url) # permite re-tentar depois
+    preAquecerCache.delete(url)
+
 
 # preAquecerVideo = (url) ->
 #   return unless url?
@@ -110,16 +103,6 @@ preAquecerImagem = (url) ->
   return if preAquecerCache.has(url)
   preAquecerCache.add(url)
 
-  # 1) Sinaliza intenção ao navegador
-  try
-    link = document.createElement('link')
-    link.rel  = 'preload'   # pode ser 'prefetch'; 'preload' tende a priorizar melhor
-    link.as   = 'image'
-    link.href = url
-    document.head.appendChild(link)
-  catch e then null
-
-  # 2) Baixa e deixa no HTTP cache
   fetch(url,
     method: 'GET'
     mode: 'cors'
@@ -128,14 +111,13 @@ preAquecerImagem = (url) ->
   ).catch (e) ->
     preAquecerCache.delete(url)
 
-  # 3) Fallback leve (usa o cache do próprio Image)
+  # Fallback (também usa cache do navegador)
   try
     img = new Image()
     img.decoding = 'async'
     img.referrerPolicy = 'no-referrer'
     img.src = url
   catch e then null
-
 
 # preAquecerImagem = (url) ->
 #   return unless url?
