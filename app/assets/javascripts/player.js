@@ -70,7 +70,6 @@
   preAquecerCache = new Set();
 
   preAquecerVideo = function(url) {
-    var e, link;
     if (url == null) {
       return;
     }
@@ -78,31 +77,42 @@
       return;
     }
     preAquecerCache.add(url);
-    try {
-      link = document.createElement('link');
-      link.rel = 'prefetch'; // pode usar 'preload' também
-      link.as = 'video';
-      link.href = url;
-      link.crossOrigin = 'anonymous';
-      document.head.appendChild(link);
-    } catch (error1) {
-      e = error1;
-      null;
-    }
+    // Remova qualquer criação de <link rel="preload" as="video"> para evitar range implícito
+    // Faça apenas um GET normal para popular o HTTP cache com 200 OK
     return fetch(url, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit',
-      headers: {
-        'Range': 'bytes=0-2097151' // ~2MB
-      }
+      cache: 'force-cache' // usa e popula cache se os headers permitirem
     }).catch(function(e) {
-      return preAquecerCache.delete(url); // deixa re-tentar no próximo ciclo
+      return preAquecerCache.delete(url);
     });
   };
 
+  // preAquecerVideo = (url) ->
+  //   return unless url?
+  //   return if preAquecerCache.has(url)
+  //   preAquecerCache.add(url)
+
+  //   try
+  //     link = document.createElement('link')
+  //     link.rel = 'prefetch'     # pode usar 'preload' também
+  //     link.as  = 'video'
+  //     link.href = url
+  //     link.crossOrigin = 'anonymous'
+  //     document.head.appendChild(link)
+  //   catch e then null
+
+  //   fetch(url,
+  //     method: 'GET'
+  //     mode: 'cors'
+  //     credentials: 'omit'
+  //     headers:
+  //       'Range': 'bytes=0-2097151'   # ~2MB
+  //   ).catch (e) ->
+  //     preAquecerCache.delete(url) # deixa re-tentar no próximo ciclo
   preAquecerImagem = function(url) {
-    var e, img, link;
+    var e, img;
     if (url == null) {
       return;
     }
@@ -110,21 +120,19 @@
       return;
     }
     preAquecerCache.add(url);
+    fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'force-cache'
+    }).catch(function(e) {
+      return preAquecerCache.delete(url);
+    });
     try {
-      link = document.createElement('link');
-      link.rel = 'prefetch'; // pode usar 'preload' também
-      link.as = 'image';
-      link.href = url;
-      document.head.appendChild(link);
-    } catch (error1) {
-      e = error1;
-      null;
-    }
-    try {
-      // fallback simples: aquece cache sem precisar de CORS
+      // Fallback (também usa cache do navegador)
       img = new Image();
-      img.referrerPolicy = 'no-referrer';
       img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
       return img.src = url;
     } catch (error1) {
       e = error1;
@@ -132,6 +140,25 @@
     }
   };
 
+  // preAquecerImagem = (url) ->
+  //   return unless url?
+  //   return if preAquecerCache.has(url)
+  //   preAquecerCache.add(url)
+  //   try
+  //     link = document.createElement('link')
+  //     link.rel = 'prefetch'   # pode usar 'preload' também
+  //     link.as  = 'image'
+  //     link.href = url
+  //     document.head.appendChild(link)
+  //   catch e then null
+
+  //   # fallback simples: aquece cache sem precisar de CORS
+  //   try
+  //     img = new Image()
+  //     img.referrerPolicy = 'no-referrer'
+  //     img.decoding = 'async'
+  //     img.src = url
+  //   catch e then null
   preAquecerMidia = function(item) {
     if (item == null) {
       return;
