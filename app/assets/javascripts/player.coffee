@@ -67,6 +67,7 @@ blobCache = new Map()       # url_original -> { url, type, size }
 preAquecerCache = new Set() # só pra evitar repetição
 
 preAquecerVideo = (url) ->
+  console.log "preaquecer #{url}"
   return unless url?
   return if preAquecerCache.has(url) or blobCache.has(url)
   preAquecerCache.add(url)
