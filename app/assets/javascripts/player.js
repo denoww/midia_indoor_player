@@ -10,7 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getPlayUrl, mod, onLoaded, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var FORCE_BLOB_PLAYBACK, blobCache, data, descobrirTimezone, getContentType, getPlayUrl, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   timezoneGlobal = null;
 
@@ -76,50 +76,85 @@
 
   preAquecerCache = new Set(); // só pra evitar repetição
 
+  FORCE_BLOB_PLAYBACK = true;
+
+  blobCache = new Map(); // key -> { url, type, size }
+
+  pendingBlobs = new Map(); // key -> Promise que resolve quando blob estiver pronto
+
+  preAquecerSet = new Set();
+
   preAquecerVideo = function(url) {
-    console.log(`preaquecer ${url}`);
+    var key, p;
     if (url == null) {
       return;
     }
-    if (preAquecerCache.has(url) || blobCache.has(url)) {
+    key = keyForUrl(url);
+    if (preAquecerSet.has(key) || blobCache.has(key)) {
       return;
     }
-    preAquecerCache.add(url);
-    return fetch(url, {
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'force-cache'
-    }).then(function(r) {
-      var ct, ref;
-      if (!r.ok) {
-        return Promise.reject(new Error(`HTTP ${r.status}`));
-      }
-      ct = ((ref = r.headers) != null ? ref.get('Content-Type') : void 0) || 'video/mp4';
-      return r.arrayBuffer().then(function(buf) {
+    preAquecerSet.add(key);
+    if (FORCE_BLOB_PLAYBACK) {
+      p = fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'force-cache'
+      }).then(function(r) {
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+        return Promise.all([r.arrayBuffer(), getContentType(r)]);
+      }).then(function([buf, type]) {
         var blob, blobUrl;
-        blob = new Blob([buf], {
-          type: ct
-        });
+        blob = new Blob([buf], {type});
         blobUrl = URL.createObjectURL(blob);
-        return blobCache.set(url, {
+        blobCache.set(key, {
           url: blobUrl,
-          type: ct,
+          type,
           size: buf.byteLength
         });
+        console.log("blob pronto", key, blobUrl);
+        return blobUrl;
+      }).catch(function(e) {
+        console.warn('preAquecerVideo(blob) falhou', url, e);
+        preAquecerSet.delete(key);
+        return null;
       });
-    }).catch(function(e) {
-      console.warn('preAquecerVideo(blob) falhou', e);
-      return preAquecerCache.delete(url);
-    });
+      pendingBlobs.set(key, p);
+      return p.finally(function() {
+        return pendingBlobs.delete(key);
+      });
+    } else {
+      return fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'force-cache'
+      }).catch(function(e) {
+        return preAquecerSet.delete(key);
+      });
+    }
   };
 
-  // escolhe a URL efetiva (blob se houver)
   getPlayUrl = function(item) {
-    var ref;
+    var cached, key;
     if (!(FORCE_BLOB_PLAYBACK && (item != null ? item.is_video : void 0))) {
-      return item.arquivoUrl;
+      return item != null ? item.arquivoUrl : void 0;
     }
-    return ((ref = blobCache.get(item.arquivoUrl)) != null ? ref.url : void 0) || item.arquivoUrl;
+    key = keyForUrl(item.arquivoUrl);
+    cached = blobCache.get(key);
+    return (cached != null ? cached.url : void 0) || item.arquivoUrl;
+  };
+
+  injectSource = function(v, url, type) {
+    var s;
+    while (v.firstChild != null) {
+      v.removeChild(v.firstChild);
+    }
+    s = document.createElement('source');
+    s.src = url;
+    s.type = type || 'video/mp4';
+    v.appendChild(s);
+    return v.load();
   };
 
   preAquecerImagem = function(url) {
@@ -160,6 +195,25 @@
     } else if (item.is_image && item.arquivoUrl) {
       return preAquecerImagem(item.arquivoUrl);
     }
+  };
+
+  // === helpers de URL/cache ===
+  keyForUrl = function(u) {
+    var e, url;
+    try {
+      url = new URL(u, window.location.href);
+      // mesma origem, mesmo path; ignora search e hash
+      return `${url.origin}${url.pathname}`;
+    } catch (error1) {
+      e = error1;
+      // fallback bruto
+      return (u.split('?')[0] || u).split('#')[0];
+    }
+  };
+
+  getContentType = function(resp) {
+    var ref;
+    return (resp != null ? (ref = resp.headers) != null ? ref.get('Content-Type') : void 0 : void 0) || 'video/mp4';
   };
 
   this.gradeObj = {
@@ -498,7 +552,7 @@
 
     // playVideo injeta a <source> dinâmica
     playVideo: function(itemAtual) {
-      var getUltimoVideo;
+      var blobEntry, chooseAndPlay, key, pend;
       this.ultimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
         clearTimeout(this.playTimer1);
@@ -506,42 +560,50 @@
       if (this.playTimer2 != null) {
         clearTimeout(this.playTimer2);
       }
-      getUltimoVideo = () => {
-        return document.getElementById(this.ultimoVideo);
-      };
-      this.playTimer1 = setTimeout(() => {
-        var e, finalUrl, ref, s, v;
-        v = getUltimoVideo();
-        if (v == null) {
-          return;
-        }
-        finalUrl = getPlayUrl(itemAtual);
-        try {
-          while (v.firstChild != null) {
-            v.removeChild(v.firstChild);
-          }
-          s = document.createElement('source');
-          s.src = finalUrl;
-          s.type = itemAtual.content_type || ((ref = blobCache.get(itemAtual.arquivoUrl)) != null ? ref.type : void 0) || 'video/mp4';
-          v.appendChild(s);
-          v.load();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
+      key = keyForUrl(itemAtual.arquivoUrl);
+      blobEntry = blobCache.get(key);
+      pend = pendingBlobs.get(key);
+      chooseAndPlay = (v) => {
+        var ctype, finalUrl, ref, ref1;
+        finalUrl = FORCE_BLOB_PLAYBACK && ((ref = blobCache.get(key)) != null ? ref.url : void 0) ? blobCache.get(key).url : itemAtual.arquivoUrl;
+        ctype = ((ref1 = blobCache.get(key)) != null ? ref1.type : void 0) || itemAtual.content_type || 'video/mp4';
+        injectSource(v, finalUrl, ctype);
         v.currentTime = 0;
         return v.play().catch(function(e) {
           return console.warn('play falhou', e);
         });
+      };
+      this.playTimer1 = setTimeout(() => {
+        var v;
+        v = document.getElementById(this.ultimoVideo);
+        if (v == null) {
+          return;
+        }
+        if (FORCE_BLOB_PLAYBACK && (pend != null) && (blobEntry == null)) {
+          // espera até 5s o blob ficar pronto
+          return Promise.race([
+            pend.then(function() {
+              return 'ok';
+            }),
+            new Promise(function(res) {
+              return setTimeout((function() {
+                return res('timeout');
+              }),
+            5000);
+            })
+          ]).finally(() => {
+            return chooseAndPlay(v);
+          });
+        } else {
+          return chooseAndPlay(v);
+        }
       }, 0);
       this.playTimer2 = setTimeout(() => {
         var v;
-        v = getUltimoVideo();
-        if (v != null ? v.paused : void 0) {
-          return v.play().catch(function(e) {
-            return console.warn('replay falhou', e);
-          });
-        }
+        v = document.getElementById(this.ultimoVideo);
+        return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
+          return console.warn('replay falhou', e);
+        });
       }, 1000);
     },
     // revoga blob ao parar, eliminando vazamento e caches velhos

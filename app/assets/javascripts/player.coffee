@@ -66,29 +66,55 @@ FORCE_BLOB_PLAYBACK = true
 blobCache = new Map()       # url_original -> { url, type, size }
 preAquecerCache = new Set() # só pra evitar repetição
 
+FORCE_BLOB_PLAYBACK = true
+
+blobCache     = new Map()   # key -> { url, type, size }
+pendingBlobs  = new Map()   # key -> Promise que resolve quando blob estiver pronto
+preAquecerSet = new Set()
+
 preAquecerVideo = (url) ->
-  console.log "preaquecer #{url}"
   return unless url?
-  return if preAquecerCache.has(url) or blobCache.has(url)
-  preAquecerCache.add(url)
+  key = keyForUrl(url)
+  return if preAquecerSet.has(key) or blobCache.has(key)
+  preAquecerSet.add(key)
 
-  fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
-    .then (r) ->
-      return Promise.reject(new Error("HTTP #{r.status}")) unless r.ok
-      ct = r.headers?.get('Content-Type') or 'video/mp4'
-      r.arrayBuffer().then (buf) ->
-        blob = new Blob([buf], {type: ct})
+  if FORCE_BLOB_PLAYBACK
+    p = fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
+      .then (r) ->
+        throw new Error("HTTP #{r.status}") unless r.ok
+        Promise.all([r.arrayBuffer(), getContentType(r)])
+      .then ([buf, type]) ->
+        blob = new Blob([buf], {type})
         blobUrl = URL.createObjectURL(blob)
-        blobCache.set(url, {url: blobUrl, type: ct, size: buf.byteLength})
-    .catch (e) ->
-      console.warn 'preAquecerVideo(blob) falhou', e
-      preAquecerCache.delete(url)
+        blobCache.set(key, {url: blobUrl, type, size: buf.byteLength})
+        console.log "blob pronto", key, blobUrl
 
-# escolhe a URL efetiva (blob se houver)
+        blobUrl
+      .catch (e) ->
+        console.warn 'preAquecerVideo(blob) falhou', url, e
+        preAquecerSet.delete(key)
+        null
+
+    pendingBlobs.set(key, p)
+    p.finally -> pendingBlobs.delete(key)
+  else
+    fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
+      .catch (e) ->
+        preAquecerSet.delete(key)
+
 getPlayUrl = (item) ->
-  return item.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
-  blobCache.get(item.arquivoUrl)?.url or item.arquivoUrl
+  return item?.arquivoUrl unless FORCE_BLOB_PLAYBACK and item?.is_video
+  key = keyForUrl(item.arquivoUrl)
+  cached = blobCache.get(key)
+  cached?.url or item.arquivoUrl
 
+injectSource = (v, url, type) ->
+  while v.firstChild? then v.removeChild(v.firstChild)
+  s = document.createElement('source')
+  s.src  = url
+  s.type = type or 'video/mp4'
+  v.appendChild(s)
+  v.load()
 
 preAquecerImagem = (url) ->
   return unless url?
@@ -116,6 +142,20 @@ preAquecerMidia = (item) ->
   return unless item?
   if item.is_video and item.arquivoUrl then preAquecerVideo(item.arquivoUrl)
   else if item.is_image and item.arquivoUrl then preAquecerImagem(item.arquivoUrl)
+
+
+# === helpers de URL/cache ===
+keyForUrl = (u) ->
+  try
+    url = new URL(u, window.location.href)
+    # mesma origem, mesmo path; ignora search e hash
+    return "#{url.origin}#{url.pathname}"
+  catch e
+    # fallback bruto
+    return (u.split('?')[0] or u).split('#')[0]
+
+getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
+
 
 
 @gradeObj =
@@ -388,30 +428,35 @@ preAquecerMidia = (item) ->
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
-    getUltimoVideo = => document.getElementById(@ultimoVideo)
+    key = keyForUrl(itemAtual.arquivoUrl)
+    blobEntry = blobCache.get(key)
+    pend = pendingBlobs.get(key)
 
-    @playTimer1 = setTimeout =>
-      v = getUltimoVideo()
-      return unless v?
-
-      finalUrl = getPlayUrl(itemAtual)
-
-      try
-        while v.firstChild? then v.removeChild(v.firstChild)
-        s = document.createElement('source')
-        s.src  = finalUrl
-        s.type = itemAtual.content_type or blobCache.get(itemAtual.arquivoUrl)?.type or 'video/mp4'
-        v.appendChild(s)
-        v.load()
-      catch e then null
-
+    chooseAndPlay = (v) =>
+      finalUrl = if FORCE_BLOB_PLAYBACK and blobCache.get(key)?.url then blobCache.get(key).url else itemAtual.arquivoUrl
+      ctype    = blobCache.get(key)?.type or itemAtual.content_type or 'video/mp4'
+      injectSource(v, finalUrl, ctype)
       v.currentTime = 0
       v.play().catch (e) -> console.warn('play falhou', e)
+
+    @playTimer1 = setTimeout =>
+      v = document.getElementById(@ultimoVideo)
+      return unless v?
+
+      if FORCE_BLOB_PLAYBACK and pend? and not blobEntry?
+        # espera até 5s o blob ficar pronto
+        Promise.race([
+          pend.then -> 'ok'
+          new Promise (res) -> setTimeout (-> res('timeout')), 5000
+        ]).finally =>
+          chooseAndPlay(v)
+      else
+        chooseAndPlay(v)
     , 0
 
     @playTimer2 = setTimeout =>
-      v = getUltimoVideo()
-      if v?.paused then v.play().catch (e) -> console.warn('replay falhou', e)
+      v = document.getElementById(@ultimoVideo)
+      v?.paused and v.play().catch (e) -> console.warn('replay falhou', e)
     , 1000
     return
 
