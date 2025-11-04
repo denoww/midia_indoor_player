@@ -8,6 +8,7 @@
 #   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
 # alert('2')
+timezoneGlobal = null
 
 data =
   body:    undefined
@@ -40,6 +41,7 @@ onLoaded = ->
   uri = window.location.search.substring(1)
   params = new URLSearchParams(uri)
   tvId = params.get("tvId")
+  return tvId
 
 @checkTv = ->
   success = (resp)=>
@@ -52,6 +54,106 @@ onLoaded = ->
 
 
   Vue.http.get('/check_tv?tvId='+getTvId()).then success, error
+
+# resto “sempre positivo”
+mod = (a, b) -> ((a % b) + b) % b
+
+
+# === config flag ===
+# === flag
+# === config flag ===
+USAR_VIDEO_COM_BLOB_CACHE = true
+
+# caches
+blobCache     = new Map()   # key -> { url, type, size }
+pendingBlobs  = new Map()   # key -> Promise que resolve quando blob estiver pronto
+preAquecerSet = new Set()
+preAquecerCache = new Set()
+
+preAquecerVideo = (url) ->
+  return unless url?
+  key = keyForUrl(url)
+  return if preAquecerSet.has(key) or blobCache.has(key)
+  preAquecerSet.add(key)
+
+  if USAR_VIDEO_COM_BLOB_CACHE
+    p = fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
+      .then (r) ->
+        throw new Error("HTTP #{r.status}") unless r.ok
+        Promise.all([r.arrayBuffer(), getContentType(r)])
+      .then ([buf, type]) ->
+        blob = new Blob([buf], {type})
+        blobUrl = URL.createObjectURL(blob)
+        blobCache.set(key, {cachedUrl: blobUrl, type, size: buf.byteLength})
+        console.log "blob pronto", key, blobUrl
+        blobUrl
+      .catch (e) ->
+        console.warn 'preAquecerVideo(blob) falhou', url, e
+        preAquecerSet.delete(key)
+        null
+
+    pendingBlobs.set(key, p)
+    p.finally -> pendingBlobs.delete(key)
+  else
+    fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
+      .catch (e) -> preAquecerSet.delete(key)
+
+
+# getPlayUrl = (item) ->
+#   return item?.arquivoUrl unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
+#   key = keyForUrl(item.arquivoUrl)
+#   cached = blobCache.get(key)
+#   cached?.url or item.arquivoUrl
+
+injectSource = (v, url, type) ->
+  while v.firstChild? then v.removeChild(v.firstChild)
+  s = document.createElement('source')
+  s.src  = url
+  s.type = type or 'video/mp4'
+  v.appendChild(s)
+  v.load()
+
+preAquecerImagem = (url) ->
+  return unless url?
+  return if preAquecerCache.has(url)
+  preAquecerCache.add(url)
+
+  fetch(url,
+    method: 'GET'
+    mode: 'cors'
+    credentials: 'omit'
+    cache: 'force-cache'
+  ).catch (e) ->
+    preAquecerCache.delete(url)
+
+  # Fallback (também usa cache do navegador)
+  try
+    img = new Image()
+    img.decoding = 'async'
+    img.referrerPolicy = 'no-referrer'
+    img.src = url
+  catch e then null
+
+
+preAquecerMidia = (item) ->
+  return unless item?
+  if item.is_video and item.arquivoUrl then preAquecerVideo(item.arquivoUrl)
+  else if item.is_image and item.arquivoUrl then preAquecerImagem(item.arquivoUrl)
+
+
+# === helpers de URL/cache ===
+keyForUrl = (u) ->
+  try
+    url = new URL(u, window.location.href)
+    # mesma origem, mesmo path; ignora search e hash
+    return "#{url.origin}#{url.pathname}"
+  catch e
+    # fallback bruto
+    return (u.split('?')[0] or u).split('#')[0]
+
+getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
+
+
 
 @gradeObj =
   tentar: 10
@@ -190,123 +292,371 @@ onLoaded = ->
   nextIndex: 0
   feedIndex: {}
   playlistIndex: {}
+  elUltimoVideo: null
+  playTimer1: null
+  playTimer2: null
+
   init: ->
     return unless vm.loaded
     @executar() unless @promessa?
+
+  # =============== Núcleo unificado ===============
+
+  # Resolve o item da faixa superior no índice atual.
+  # opts:
+  #   consuming: true/false  -> avança índices?
+  #   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
+  resolveNextItem: (opts = { consuming: true, offset: 0 }) ->
+    lista = vm.grade.data.conteudo_superior || []
+    return null unless lista.length
+
+    varOffset = opts.offset ? 0
+    idxLista = mod(@nextIndex + varOffset, lista.length)
+    raw = lista[idxLista]
+
+    item = @resolveItem(raw, opts)
+    return null unless item
+
+    if opts.consuming and varOffset is 0
+      # só consome quando offset é 0 (o "agora")
+      @nextIndex = mod(@nextIndex + 1, lista.length)
+
+    item
+
+  # Resolve um item: simples, feed ou playlist
+  resolveItem: (rawItem, opts) ->
+    return null unless rawItem?
+    switch rawItem?.tipo_midia
+      when 'feed'     then @resolveFeedItem(rawItem, opts)
+      when 'playlist' then @resolvePlaylistItem(rawItem, opts)
+      else rawItem  # midia/informativo/mensagem etc.
+
+  # Feed com índice por (fonte,categoria), id estável
+  resolveFeedItem: (rawItem, opts = {}) ->
+    fonte = rawItem.fonte
+    categ = rawItem.categoria
+    feeds = feedsObj.data[fonte]?[categ] || []
+    return null unless feeds.length
+
+    @feedIndex[fonte] ?= {}
+    idx = @feedIndex[fonte][categ]
+    idx = 0 unless Number.isInteger(idx)
+
+    feed = feeds[Math.min(idx, feeds.length - 1)]
+    return null unless feed
+
+    item = Object.assign({}, rawItem)
+    item.id           = "feed-#{fonte}-#{categ}"  # **id estável**
+    item.data         = feed.data
+    item.qrcode       = feed.qrcode
+    item.titulo       = feed.titulo
+    item.titulo_feed  = feed.titulo_feed
+    item.categoria_feed = feed.categoria_feed
+    item.nome_arquivo = feed.nome_arquivo
+    item.arquivoUrl   = feed.arquivoUrl ? feed.filePath
+
+    if opts.consuming
+      @feedIndex[fonte][categ] = mod(idx + 1, feeds.length)
+
+    item
+
+  # Playlist mantém um índice por playlist.id
+  resolvePlaylistItem: (playlist, opts = {}) ->
+    contentSup = playlist.conteudo_superior || []
+    return null unless contentSup.length
+
+    @playlistIndex[playlist.id] ?= 0
+    idx = @playlistIndex[playlist.id]
+    idx = 0 unless Number.isInteger(idx)
+
+    cand = contentSup[Math.min(idx, contentSup.length - 1)]
+
+    if opts.consuming
+      @playlistIndex[playlist.id] = mod(idx + 1, contentSup.length)
+
+    return cand if cand?.tipo_midia != 'feed'
+    # se o item da playlist for feed, resolve via feed (sem consumir duas vezes)
+    # Passa consuming do call original (para avançar feedIndex somente se consumir)
+    @resolveFeedItem(cand, opts)
+
+  # Apenas olha o próximo sem avançar índices
+  peekNextItem: ->
+    @resolveNextItem({ consuming: false, offset: 1 })
+
+
+  # =============== Loop ===============
+
   executar: ->
     clearTimeout @promessa if @promessa
 
-    itemAtual = @getNextItemConteudoSuperior()
-    return console.error "@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual unless itemAtual
+    itemAtual = @resolveNextItem({ consuming: true })
+    return console.error "resolveNextItem() retornou null" unless itemAtual
 
-    vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
-    if !vm.indexConteudoSuperior?
-      vm.listaConteudoSuperior.push itemAtual
-      vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
+    # Mantém SOMENTE o atual no v-for
+    vm.listaConteudoSuperior = [itemAtual]
+    vm.indexConteudoSuperior = 0
 
     @stopUltimoVideo()
 
+    # agenda próximo ciclo
     segundos = (itemAtual.segundos * 1000) || 5000
-    @promessa = setTimeout ->
-      timelineConteudoSuperior.executar()
-    , segundos
+    @promessa = setTimeout (-> timelineConteudoSuperior.executar()), segundos
 
+    # Pré-aquecer N itens à frente (vídeo ou imagem)
+    # preaquecerQtdMidiasAFrente = 2
+    preaquecerQtdMidiasAFrente = 1
+
+    console.log "preaquecer proximos video/imagem qtd: #{preaquecerQtdMidiasAFrente}"
+    for k in [1..preaquecerQtdMidiasAFrente]
+      cand = @resolveNextItem({ consuming: false, offset: k })
+      # console.log cand
+      if cand?.arquivoUrl and (cand.is_video or cand.is_image)
+        preAquecerMidia(cand)
+
+    # Toca o atual (se for vídeo)
     @playVideo(itemAtual) if itemAtual.is_video
     return
-  playVideo: (itemAtual)->
-    @ultimoVideo = "video-player-#{itemAtual.id}"
 
-    setTimeout =>
-      video = document.getElementById(@ultimoVideo)
-      if video
-        video.currentTime = 0
-        video.play()
+  # =============== Vídeo ===============
 
-    setTimeout =>
-      video = document.getElementById(@ultimoVideo)
-      video.play() if video?.paused
+  # playVideo injeta a <source> dinâmica
+  # =============== Vídeo ===============
+  playVideo: (itemAtual) ->
+    videoId = itemAtual.id
+    @elUltimoVideo = "video-player-#{itemAtual.id}"
+    clearTimeout(@playTimer1) if @playTimer1?
+    clearTimeout(@playTimer2) if @playTimer2?
+
+    key       = keyForUrl(itemAtual.arquivoUrl)
+    pend      = pendingBlobs.get(key)
+
+    chooseAndPlay = (v) =>
+      entry = blobCache.get(key)
+      finalVideoUrl = if USAR_VIDEO_COM_BLOB_CACHE and entry?.cachedUrl then entry.cachedUrl else itemAtual.arquivoUrl
+
+      console.log "Play video id #{videoId}"
+      console.log "finalVideoUrl: #{finalVideoUrl}"
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
+
+      ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
+      injectSource(v, finalVideoUrl, ctype)
+      v.currentTime = 0
+      v.play().catch (e) -> console.warn('play falhou', e)
+
+    @playTimer1 = setTimeout =>
+      v = document.getElementById(@elUltimoVideo)
+      return unless v?
+
+      # Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
+      if USAR_VIDEO_COM_BLOB_CACHE and pend? and not blobCache.get(key)?
+        Promise.race([
+          pend.then -> 'ok'
+          new Promise (res) -> setTimeout (-> res('timeout')), 10000
+        ]).finally =>
+          chooseAndPlay(v)   # se blob não existir ainda, cairá na URL original
+      else
+        chooseAndPlay(v)
+    , 0
+
+    @playTimer2 = setTimeout =>
+      v = document.getElementById(@elUltimoVideo)
+      v?.paused and v.play().catch (e) -> console.warn('replay falhou', e)
     , 1000
+
     return
+
+
+  # revoga blob ao parar, eliminando vazamento e caches velhos
+  # NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
   stopUltimoVideo: ->
-    videoId = @ultimoVideo
-    return unless videoId
-
-    video = document.getElementById(videoId)
-    video.pause() if video
-    @ultimoVideo = null
+    return unless @elUltimoVideo
+    v = document.getElementById(@elUltimoVideo)
+    if v?
+      try v.pause() catch e then null
+      try
+        v.removeAttribute('src')
+        while v.firstChild? then v.removeChild(v.firstChild)  # remove <source>
+        v.load()  # desaloca o decoder sem mexer no blobCache
+      catch e then null
+    @elUltimoVideo = null
+    clearTimeout(@playTimer1) if @playTimer1?
+    clearTimeout(@playTimer2) if @playTimer2?
+    @playTimer1 = @playTimer2 = null
     return
-  getNextItemConteudoSuperior: ->
-    lista = vm.grade.data.conteudo_superior || []
-    listaQtd = lista.length
-    return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless listaQtd
-
-    index = @nextIndex
-    index = 0 if index >= listaQtd
-
-    @nextIndex++
-    @nextIndex = 0 if @nextIndex >= listaQtd
-
-
-    currentItem = lista[index]
-    switch currentItem?.tipo_midia
-      when 'feed'
-        currentItem = @getItemFeed(currentItem)
-      when 'playlist'
-        currentItem = @getItemPlaylist(currentItem)
-        if !currentItem && listaQtd > 1
-          currentItem = @getNextItemConteudoSuperior()
 
 
 
-    currentItem
-  getItemFeed: (currentItem)->
-    feedItems = feedsObj.data[currentItem.fonte]?[currentItem.categoria] || []
-    if feedItems.empty()
-      console.warn "Feeds de #{currentItem.fonte} #{currentItem.categoria} está vazio"
-      timelineConteudoSuperior.promessa = setTimeout ->
-        timelineConteudoSuperior.executar()
-      , 2000
-      return
+# @timelineConteudoSuperior =
+#   promessa:  null
+#   nextIndex: 0
+#   feedIndex: {}
+#   playlistIndex: {}
+#   init: ->
+#     return unless vm.loaded
+#     @executar() unless @promessa?
+#   executar: ->
+#     clearTimeout @promessa if @promessa
 
-    fonte = currentItem.fonte
-    categ = currentItem.categoria
-    @feedIndex[fonte] ||= {}
+#     itemAtual = @getNextItemConteudoSuperior()
+#     return console.error "@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual unless itemAtual
 
-    if !@feedIndex[fonte][categ]?
-      @feedIndex[fonte][categ] = 0
-    else
-      @feedIndex[fonte][categ]++
+#     vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
+#     if !vm.indexConteudoSuperior?
 
-    if @feedIndex[fonte][categ] >= feedItems.length
-      @feedIndex[fonte][categ] = 0
+#       # console.log itemAtual
+#       vm.listaConteudoSuperior = [itemAtual] # mantém a lista com *apenas* o item atual
+#       vm.indexConteudoSuperior = 0
 
-    index = @feedIndex[fonte][categ]
-    feed = feedItems[index] || feedItems[0]
+#       # vm.listaConteudoSuperior.push itemAtual
+#       # vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
 
-    return unless feed
-    currentItem.id     = "#{currentItem.id}#{feed.nome_arquivo}"
-    currentItem.data   = feed.data
-    currentItem.qrcode = feed.qrcode
-    currentItem.titulo = feed.titulo
-    currentItem.titulo_feed = feed.titulo_feed
-    currentItem.categoria_feed = feed.categoria_feed
-    currentItem.nome_arquivo = feed.nome_arquivo
-    currentItem.filePath = feed.filePath
-    currentItem
-  getItemPlaylist: (playlist)->
-    contentSup = playlist.conteudo_superior || []
-    if !@playlistIndex[playlist.id]?
-      @playlistIndex[playlist.id] = 0
-    else
-      @playlistIndex[playlist.id]++
+#     @stopUltimoVideo()
 
-    if @playlistIndex[playlist.id] >= contentSup.length
-      @playlistIndex[playlist.id] = 0
+#     segundos = (itemAtual.segundos * 1000) || 5000
+#     @promessa = setTimeout ->
+#       timelineConteudoSuperior.executar()
+#     , segundos
 
-    currentItem = contentSup[@playlistIndex[playlist.id]]
+#     @playVideo(itemAtual) if itemAtual.is_video
+#     return
+#   playVideo: (itemAtual)->
+#     @elUltimoVideo = "video-player-#{itemAtual.id}"
 
-    return currentItem if currentItem?.tipo_midia != 'feed'
-    @getItemFeed(currentItem)
+#     clearTimeout(@playTimer1) if @playTimer1?
+#     clearTimeout(@playTimer2) if @playTimer2?
+
+#     getUltimoVideo = -> document.getElementById(@elUltimoVideo)
+
+#     @playTimer1 = setTimeout =>
+#       v = getUltimoVideo()
+#       if v?
+#         v.currentTime = 0
+#         v.play().catch((e)-> console.warn('play falhou', e))
+#     , 0
+
+#     @playTimer2 = setTimeout =>
+#       v = getUltimoVideo()
+#       if v?.paused
+#         v.play().catch((e)-> console.warn('replay falhou', e))
+#     , 1000
+#     return
+
+#   # playVideo: (itemAtual)->
+#   #   @elUltimoVideo = "video-player-#{itemAtual.id}"
+
+#   #   setTimeout =>
+#   #     video = document.getElementById(@elUltimoVideo)
+#   #     if video
+#   #       video.currentTime = 0
+#   #       video.play()
+
+#   #   setTimeout =>
+#   #     video = document.getElementById(@elUltimoVideo)
+#   #     video.play() if video?.paused
+#   #   , 1000
+#   #   return
+#   stopUltimoVideo: ->
+#     videoId = @elUltimoVideo
+#     return unless videoId
+
+#     v = document.getElementById(videoId)
+#     if v?
+#       try v.pause() catch e then null
+#       try
+#         # remove src/source para liberar decoder/buffer
+#         v.removeAttribute('src')
+#         while v.firstChild?
+#           v.removeChild(v.firstChild) # remove <source>
+#         v.load()  # força desalocar
+#       catch e then null
+#     @elUltimoVideo = null
+
+#     # limpa timers de play (ver D)
+#     clearTimeout(@playTimer1) if @playTimer1?
+#     clearTimeout(@playTimer2) if @playTimer2?
+#     @playTimer1 = @playTimer2 = null
+#     return
+
+#   # stopUltimoVideo: ->
+#   #   videoId = @elUltimoVideo
+#   #   return unless videoId
+
+#   #   video = document.getElementById(videoId)
+#   #   video.pause() if video
+#   #   @elUltimoVideo = null
+#   #   return
+#   getNextItemConteudoSuperior: ->
+#     lista = vm.grade.data.conteudo_superior || []
+#     listaQtd = lista.length
+#     return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless listaQtd
+
+#     index = @nextIndex
+#     index = 0 if index >= listaQtd
+
+#     @nextIndex++
+#     @nextIndex = 0 if @nextIndex >= listaQtd
+
+
+#     currentItem = lista[index]
+#     switch currentItem?.tipo_midia
+#       when 'feed'
+#         currentItem = @getItemFeed(currentItem)
+#       when 'playlist'
+#         currentItem = @getItemPlaylist(currentItem)
+#         if !currentItem && listaQtd > 1
+#           currentItem = @getNextItemConteudoSuperior()
+
+
+
+#     currentItem
+#   getItemFeed: (currentItem)->
+#     feedItems = feedsObj.data[currentItem.fonte]?[currentItem.categoria] || []
+#     if feedItems.empty()
+#       console.warn "Feeds de #{currentItem.fonte} #{currentItem.categoria} está vazio"
+#       timelineConteudoSuperior.promessa = setTimeout ->
+#         timelineConteudoSuperior.executar()
+#       , 2000
+#       return
+
+#     fonte = currentItem.fonte
+#     categ = currentItem.categoria
+#     @feedIndex[fonte] ||= {}
+
+#     if !@feedIndex[fonte][categ]?
+#       @feedIndex[fonte][categ] = 0
+#     else
+#       @feedIndex[fonte][categ]++
+
+#     if @feedIndex[fonte][categ] >= feedItems.length
+#       @feedIndex[fonte][categ] = 0
+
+#     index = @feedIndex[fonte][categ]
+#     feed = feedItems[index] || feedItems[0]
+
+#     return unless feed
+#     currentItem.id     = "#{currentItem.id}#{feed.nome_arquivo}"
+#     currentItem.data   = feed.data
+#     currentItem.qrcode = feed.qrcode
+#     currentItem.titulo = feed.titulo
+#     currentItem.titulo_feed = feed.titulo_feed
+#     currentItem.categoria_feed = feed.categoria_feed
+#     currentItem.nome_arquivo = feed.nome_arquivo
+#     currentItem.filePath = feed.filePath
+#     currentItem
+#   getItemPlaylist: (playlist)->
+#     contentSup = playlist.conteudo_superior || []
+#     if !@playlistIndex[playlist.id]?
+#       @playlistIndex[playlist.id] = 0
+#     else
+#       @playlistIndex[playlist.id]++
+
+#     if @playlistIndex[playlist.id] >= contentSup.length
+#       @playlistIndex[playlist.id] = 0
+
+#     currentItem = contentSup[@playlistIndex[playlist.id]]
+
+#     return currentItem if currentItem?.tipo_midia != 'feed'
+#     @getItemFeed(currentItem)
 
 @timelineConteudoMensagem =
   promessa:  null
@@ -364,22 +714,53 @@ onLoaded = ->
     currentItem.filePath = feed.filePath
     currentItem
 
+
 descobrirTimezone = (callback) ->
-  console.log "Descobrindo timezone..."
+  # fallback em caso de erro
+  done = (tz) ->
+    timezoneGlobal = tz or "America/Sao_Paulo"
+    callback?(timezoneGlobal)
 
-  timezone = 'America/Sao_Paulo'
-  error = ->
-    console.log 'erro em descobrirTimezone'
-    callback(timezone)
-  success = (resp)=>
-    success = resp.status == 200
-    if success
-      data = resp.data
-      timezone = data.timezone
-    callback(timezone)
+  try
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if tz
+      return done(tz)
+  catch e
+    console.warn "Intl timezone falhou:", e
 
-  url = 'http://ip-api.com/json'
-  Vue.http.get(url).then success, error
+  fetch('http://ip-api.com/json')
+    .then((r) -> r.json())
+    .then((j) ->
+      if j?.timezone
+        done(j.timezone)
+      else
+        throw new Error("timezone não encontrado")
+    )
+    .catch ->
+      fetch('https://worldtimeapi.org/api/ip')
+        .then((r) -> r.json())
+        .then((j) -> done(j?.timezone))
+        .catch((e) ->
+          console.warn "Falha ao detectar timezone:", e
+          done("America/Sao_Paulo")
+        )
+
+# descobrirTimezone = (callback) ->
+#   console.log "Descobrindo timezone..."
+
+#   timezone = 'America/Sao_Paulo'
+#   error = ->
+#     console.log 'erro em descobrirTimezone'
+#     callback(timezone)
+#   success = (resp)=>
+#     success = resp.status == 200
+#     if success
+#       data = resp.data
+#       timezone = data.timezone
+#     callback(timezone)
+
+#   url = 'http://ip-api.com/json'
+#   Vue.http.get(url).then success, error
 
 
 relogio =

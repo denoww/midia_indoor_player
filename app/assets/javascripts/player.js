@@ -10,7 +10,9 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+
+  timezoneGlobal = null;
 
   data = {
     body: void 0,
@@ -44,7 +46,8 @@
     var params, tvId, uri;
     uri = window.location.search.substring(1);
     params = new URLSearchParams(uri);
-    return tvId = params.get("tvId");
+    tvId = params.get("tvId");
+    return tvId;
   };
 
   this.checkTv = function() {
@@ -58,6 +61,152 @@
       return console.log(resp);
     };
     return Vue.http.get('/check_tv?tvId=' + getTvId()).then(success, error);
+  };
+
+  // resto “sempre positivo”
+  mod = function(a, b) {
+    return ((a % b) + b) % b;
+  };
+
+  // === config flag ===
+  // === flag
+  // === config flag ===
+  USAR_VIDEO_COM_BLOB_CACHE = true;
+
+  // caches
+  blobCache = new Map(); // key -> { url, type, size }
+
+  pendingBlobs = new Map(); // key -> Promise que resolve quando blob estiver pronto
+
+  preAquecerSet = new Set();
+
+  preAquecerCache = new Set();
+
+  preAquecerVideo = function(url) {
+    var key, p;
+    if (url == null) {
+      return;
+    }
+    key = keyForUrl(url);
+    if (preAquecerSet.has(key) || blobCache.has(key)) {
+      return;
+    }
+    preAquecerSet.add(key);
+    if (USAR_VIDEO_COM_BLOB_CACHE) {
+      p = fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'force-cache'
+      }).then(function(r) {
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
+        }
+        return Promise.all([r.arrayBuffer(), getContentType(r)]);
+      }).then(function([buf, type]) {
+        var blob, blobUrl;
+        blob = new Blob([buf], {type});
+        blobUrl = URL.createObjectURL(blob);
+        blobCache.set(key, {
+          cachedUrl: blobUrl,
+          type,
+          size: buf.byteLength
+        });
+        console.log("blob pronto", key, blobUrl);
+        return blobUrl;
+      }).catch(function(e) {
+        console.warn('preAquecerVideo(blob) falhou', url, e);
+        preAquecerSet.delete(key);
+        return null;
+      });
+      pendingBlobs.set(key, p);
+      return p.finally(function() {
+        return pendingBlobs.delete(key);
+      });
+    } else {
+      return fetch(url, {
+        mode: 'cors',
+        credentials: 'omit',
+        cache: 'force-cache'
+      }).catch(function(e) {
+        return preAquecerSet.delete(key);
+      });
+    }
+  };
+
+  // getPlayUrl = (item) ->
+  //   return item?.arquivoUrl unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
+  //   key = keyForUrl(item.arquivoUrl)
+  //   cached = blobCache.get(key)
+  //   cached?.url or item.arquivoUrl
+  injectSource = function(v, url, type) {
+    var s;
+    while (v.firstChild != null) {
+      v.removeChild(v.firstChild);
+    }
+    s = document.createElement('source');
+    s.src = url;
+    s.type = type || 'video/mp4';
+    v.appendChild(s);
+    return v.load();
+  };
+
+  preAquecerImagem = function(url) {
+    var e, img;
+    if (url == null) {
+      return;
+    }
+    if (preAquecerCache.has(url)) {
+      return;
+    }
+    preAquecerCache.add(url);
+    fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'force-cache'
+    }).catch(function(e) {
+      return preAquecerCache.delete(url);
+    });
+    try {
+      // Fallback (também usa cache do navegador)
+      img = new Image();
+      img.decoding = 'async';
+      img.referrerPolicy = 'no-referrer';
+      return img.src = url;
+    } catch (error1) {
+      e = error1;
+      return null;
+    }
+  };
+
+  preAquecerMidia = function(item) {
+    if (item == null) {
+      return;
+    }
+    if (item.is_video && item.arquivoUrl) {
+      return preAquecerVideo(item.arquivoUrl);
+    } else if (item.is_image && item.arquivoUrl) {
+      return preAquecerImagem(item.arquivoUrl);
+    }
+  };
+
+  // === helpers de URL/cache ===
+  keyForUrl = function(u) {
+    var e, url;
+    try {
+      url = new URL(u, window.location.href);
+      // mesma origem, mesmo path; ignora search e hash
+      return `${url.origin}${url.pathname}`;
+    } catch (error1) {
+      e = error1;
+      // fallback bruto
+      return (u.split('?')[0] || u).split('#')[0];
+    }
+  };
+
+  getContentType = function(resp) {
+    var ref;
+    return (resp != null ? (ref = resp.headers) != null ? ref.get('Content-Type') : void 0 : void 0) || 'video/mp4';
   };
 
   this.gradeObj = {
@@ -179,7 +328,7 @@
       Vue.http.get('/feeds?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
-      var base, base1, base2, base3, feed, feeds, i, j, len, len1, name, name1, posicao, ref;
+      var base, base1, base2, base3, feed, feeds, i, l, len, len1, name, name1, posicao, ref;
       this.data = data;
       ref = this.posicoes;
       // pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
@@ -189,15 +338,15 @@
         feeds = (typeof (base1 = vm.grade.data[posicao]).select === "function" ? base1.select(function(e) {
           return e.tipo_midia === 'feed';
         }) : void 0) || [];
-        for (j = 0, len1 = feeds.length; j < len1; j++) {
-          feed = feeds[j];
+        for (l = 0, len1 = feeds.length; l < len1; l++) {
+          feed = feeds[l];
           (base2 = this.data)[name = feed.fonte] || (base2[name] = {});
           (base3 = this.data[feed.fonte])[name1 = feed.categoria] || (base3[name1] = []);
         }
       }
     },
     verificarNoticias: function() {
-      var base, base1, categoria, categorias, fonte, i, item, items, j, len, len1, noticias, posicao, ref, ref1, ref2;
+      var base, base1, categoria, categorias, fonte, i, item, items, l, len, len1, noticias, posicao, ref, ref1, ref2;
       ref = this.data;
       // serve para remover feeds que nao tem noticias
       for (fonte in ref) {
@@ -216,8 +365,8 @@
                 return e.fonte === fonte && e.categoria === categoria;
               }) : void 0;
               ref2 = items || [];
-              for (j = 0, len1 = ref2.length; j < len1; j++) {
-                item = ref2[j];
+              for (l = 0, len1 = ref2.length; l < len1; l++) {
+                item = ref2[l];
                 vm.grade.data[posicao].removeById(item.id);
               }
             }
@@ -232,6 +381,9 @@
     nextIndex: 0,
     feedIndex: {},
     playlistIndex: {},
+    elUltimoVideo: null,
+    playTimer1: null,
+    playTimer2: null,
     init: function() {
       if (!vm.loaded) {
         return;
@@ -240,142 +392,423 @@
         return this.executar();
       }
     },
+    // =============== Núcleo unificado ===============
+
+    // Resolve o item da faixa superior no índice atual.
+    // opts:
+    //   consuming: true/false  -> avança índices?
+    //   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
+    resolveNextItem: function(opts = {
+        consuming: true,
+        offset: 0
+      }) {
+      var idxLista, item, lista, raw, ref, varOffset;
+      lista = vm.grade.data.conteudo_superior || [];
+      if (!lista.length) {
+        return null;
+      }
+      varOffset = (ref = opts.offset) != null ? ref : 0;
+      idxLista = mod(this.nextIndex + varOffset, lista.length);
+      raw = lista[idxLista];
+      item = this.resolveItem(raw, opts);
+      if (!item) {
+        return null;
+      }
+      if (opts.consuming && varOffset === 0) {
+        // só consome quando offset é 0 (o "agora")
+        this.nextIndex = mod(this.nextIndex + 1, lista.length);
+      }
+      return item;
+    },
+    // Resolve um item: simples, feed ou playlist
+    resolveItem: function(rawItem, opts) {
+      if (rawItem == null) {
+        return null;
+      }
+      switch (rawItem != null ? rawItem.tipo_midia : void 0) {
+        case 'feed':
+          return this.resolveFeedItem(rawItem, opts);
+        case 'playlist':
+          return this.resolvePlaylistItem(rawItem, opts);
+        default:
+          return rawItem; // midia/informativo/mensagem etc.
+      }
+    },
+    
+    // Feed com índice por (fonte,categoria), id estável
+    resolveFeedItem: function(rawItem, opts = {}) {
+      var base, categ, feed, feeds, fonte, idx, item, ref, ref1;
+      fonte = rawItem.fonte;
+      categ = rawItem.categoria;
+      feeds = ((ref = feedsObj.data[fonte]) != null ? ref[categ] : void 0) || [];
+      if (!feeds.length) {
+        return null;
+      }
+      if ((base = this.feedIndex)[fonte] == null) {
+        base[fonte] = {};
+      }
+      idx = this.feedIndex[fonte][categ];
+      if (!Number.isInteger(idx)) {
+        idx = 0;
+      }
+      feed = feeds[Math.min(idx, feeds.length - 1)];
+      if (!feed) {
+        return null;
+      }
+      item = Object.assign({}, rawItem);
+      item.id = `feed-${fonte}-${categ}`;
+      item.data = feed.data;
+      item.qrcode = feed.qrcode;
+      item.titulo = feed.titulo;
+      item.titulo_feed = feed.titulo_feed;
+      item.categoria_feed = feed.categoria_feed;
+      item.nome_arquivo = feed.nome_arquivo;
+      item.arquivoUrl = (ref1 = feed.arquivoUrl) != null ? ref1 : feed.filePath;
+      if (opts.consuming) {
+        this.feedIndex[fonte][categ] = mod(idx + 1, feeds.length);
+      }
+      return item;
+    },
+    // Playlist mantém um índice por playlist.id
+    resolvePlaylistItem: function(playlist, opts = {}) {
+      var base, cand, contentSup, idx, name;
+      contentSup = playlist.conteudo_superior || [];
+      if (!contentSup.length) {
+        return null;
+      }
+      if ((base = this.playlistIndex)[name = playlist.id] == null) {
+        base[name] = 0;
+      }
+      idx = this.playlistIndex[playlist.id];
+      if (!Number.isInteger(idx)) {
+        idx = 0;
+      }
+      cand = contentSup[Math.min(idx, contentSup.length - 1)];
+      if (opts.consuming) {
+        this.playlistIndex[playlist.id] = mod(idx + 1, contentSup.length);
+      }
+      if ((cand != null ? cand.tipo_midia : void 0) !== 'feed') {
+        return cand;
+      }
+      // se o item da playlist for feed, resolve via feed (sem consumir duas vezes)
+      // Passa consuming do call original (para avançar feedIndex somente se consumir)
+      return this.resolveFeedItem(cand, opts);
+    },
+    // Apenas olha o próximo sem avançar índices
+    peekNextItem: function() {
+      return this.resolveNextItem({
+        consuming: false,
+        offset: 1
+      });
+    },
+    // =============== Loop ===============
     executar: function() {
-      var itemAtual, segundos;
+      var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos;
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
-      itemAtual = this.getNextItemConteudoSuperior();
+      itemAtual = this.resolveNextItem({
+        consuming: true
+      });
       if (!itemAtual) {
-        return console.error("@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual);
+        return console.error("resolveNextItem() retornou null");
       }
-      vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField('id', itemAtual.id);
-      if (vm.indexConteudoSuperior == null) {
-        vm.listaConteudoSuperior.push(itemAtual);
-        vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1;
-      }
+      // Mantém SOMENTE o atual no v-for
+      vm.listaConteudoSuperior = [itemAtual];
+      vm.indexConteudoSuperior = 0;
       this.stopUltimoVideo();
+      // agenda próximo ciclo
       segundos = (itemAtual.segundos * 1000) || 5000;
-      this.promessa = setTimeout(function() {
+      this.promessa = setTimeout((function() {
         return timelineConteudoSuperior.executar();
-      }, segundos);
+      }), segundos);
+      // Pré-aquecer N itens à frente (vídeo ou imagem)
+      // preaquecerQtdMidiasAFrente = 2
+      preaquecerQtdMidiasAFrente = 1;
+      console.log(`preaquecer proximos video/imagem qtd: ${preaquecerQtdMidiasAFrente}`);
+      for (k = i = 1, ref = preaquecerQtdMidiasAFrente; (1 <= ref ? i <= ref : i >= ref); k = 1 <= ref ? ++i : --i) {
+        cand = this.resolveNextItem({
+          consuming: false,
+          offset: k
+        });
+        // console.log cand
+        if ((cand != null ? cand.arquivoUrl : void 0) && (cand.is_video || cand.is_image)) {
+          preAquecerMidia(cand);
+        }
+      }
       if (itemAtual.is_video) {
+        // Toca o atual (se for vídeo)
         this.playVideo(itemAtual);
       }
     },
+    // =============== Vídeo ===============
+
+    // playVideo injeta a <source> dinâmica
+    // =============== Vídeo ===============
     playVideo: function(itemAtual) {
-      this.ultimoVideo = `video-player-${itemAtual.id}`;
-      setTimeout(() => {
-        var video;
-        video = document.getElementById(this.ultimoVideo);
-        if (video) {
-          video.currentTime = 0;
-          return video.play();
+      var chooseAndPlay, key, pend, videoId;
+      videoId = itemAtual.id;
+      this.elUltimoVideo = `video-player-${itemAtual.id}`;
+      if (this.playTimer1 != null) {
+        clearTimeout(this.playTimer1);
+      }
+      if (this.playTimer2 != null) {
+        clearTimeout(this.playTimer2);
+      }
+      key = keyForUrl(itemAtual.arquivoUrl);
+      pend = pendingBlobs.get(key);
+      chooseAndPlay = (v) => {
+        var ctype, entry, finalVideoUrl;
+        entry = blobCache.get(key);
+        finalVideoUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.cachedUrl : void 0) ? entry.cachedUrl : itemAtual.arquivoUrl;
+        console.log(`Play video id ${videoId}`);
+        console.log(`finalVideoUrl: ${finalVideoUrl}`);
+        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
+        ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
+        injectSource(v, finalVideoUrl, ctype);
+        v.currentTime = 0;
+        return v.play().catch(function(e) {
+          return console.warn('play falhou', e);
+        });
+      };
+      this.playTimer1 = setTimeout(() => {
+        var v;
+        v = document.getElementById(this.elUltimoVideo);
+        if (v == null) {
+          return;
         }
-      });
-      setTimeout(() => {
-        var video;
-        video = document.getElementById(this.ultimoVideo);
-        if (video != null ? video.paused : void 0) {
-          return video.play();
+        // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
+        if (USAR_VIDEO_COM_BLOB_CACHE && (pend != null) && (blobCache.get(key) == null)) {
+          return Promise.race([
+            pend.then(function() {
+              return 'ok';
+            }),
+            new Promise(function(res) {
+              return setTimeout((function() {
+                return res('timeout');
+              }),
+            10000);
+            })
+          ]).finally(() => {
+            return chooseAndPlay(v); // se blob não existir ainda, cairá na URL original
+          });
+        } else {
+          return chooseAndPlay(v);
         }
+      }, 0);
+      this.playTimer2 = setTimeout(() => {
+        var v;
+        v = document.getElementById(this.elUltimoVideo);
+        return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
+          return console.warn('replay falhou', e);
+        });
       }, 1000);
     },
+    // revoga blob ao parar, eliminando vazamento e caches velhos
+    // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
     stopUltimoVideo: function() {
-      var video, videoId;
-      videoId = this.ultimoVideo;
-      if (!videoId) {
+      var e, v;
+      if (!this.elUltimoVideo) {
         return;
       }
-      video = document.getElementById(videoId);
-      if (video) {
-        video.pause();
-      }
-      this.ultimoVideo = null;
-    },
-    getNextItemConteudoSuperior: function() {
-      var currentItem, index, lista, listaQtd;
-      lista = vm.grade.data.conteudo_superior || [];
-      listaQtd = lista.length;
-      if (!listaQtd) {
-        return console.error("vm.grade.data.conteudo_superior está vazio!", lista);
-      }
-      index = this.nextIndex;
-      if (index >= listaQtd) {
-        index = 0;
-      }
-      this.nextIndex++;
-      if (this.nextIndex >= listaQtd) {
-        this.nextIndex = 0;
-      }
-      currentItem = lista[index];
-      switch (currentItem != null ? currentItem.tipo_midia : void 0) {
-        case 'feed':
-          currentItem = this.getItemFeed(currentItem);
-          break;
-        case 'playlist':
-          currentItem = this.getItemPlaylist(currentItem);
-          if (!currentItem && listaQtd > 1) {
-            currentItem = this.getNextItemConteudoSuperior();
+      v = document.getElementById(this.elUltimoVideo);
+      if (v != null) {
+        try {
+          v.pause();
+        } catch (error1) {
+          e = error1;
+          null;
+        }
+        try {
+          v.removeAttribute('src');
+          while (v.firstChild != null) {
+            v.removeChild(v.firstChild); // remove <source>
           }
+          v.load(); // desaloca o decoder sem mexer no blobCache
+        } catch (error1) {
+          e = error1;
+          null;
+        }
       }
-      return currentItem;
-    },
-    getItemFeed: function(currentItem) {
-      var base, categ, feed, feedItems, fonte, index, ref;
-      feedItems = ((ref = feedsObj.data[currentItem.fonte]) != null ? ref[currentItem.categoria] : void 0) || [];
-      if (feedItems.empty()) {
-        console.warn(`Feeds de ${currentItem.fonte} ${currentItem.categoria} está vazio`);
-        timelineConteudoSuperior.promessa = setTimeout(function() {
-          return timelineConteudoSuperior.executar();
-        }, 2000);
-        return;
+      this.elUltimoVideo = null;
+      if (this.playTimer1 != null) {
+        clearTimeout(this.playTimer1);
       }
-      fonte = currentItem.fonte;
-      categ = currentItem.categoria;
-      (base = this.feedIndex)[fonte] || (base[fonte] = {});
-      if (this.feedIndex[fonte][categ] == null) {
-        this.feedIndex[fonte][categ] = 0;
-      } else {
-        this.feedIndex[fonte][categ]++;
+      if (this.playTimer2 != null) {
+        clearTimeout(this.playTimer2);
       }
-      if (this.feedIndex[fonte][categ] >= feedItems.length) {
-        this.feedIndex[fonte][categ] = 0;
-      }
-      index = this.feedIndex[fonte][categ];
-      feed = feedItems[index] || feedItems[0];
-      if (!feed) {
-        return;
-      }
-      currentItem.id = `${currentItem.id}${feed.nome_arquivo}`;
-      currentItem.data = feed.data;
-      currentItem.qrcode = feed.qrcode;
-      currentItem.titulo = feed.titulo;
-      currentItem.titulo_feed = feed.titulo_feed;
-      currentItem.categoria_feed = feed.categoria_feed;
-      currentItem.nome_arquivo = feed.nome_arquivo;
-      currentItem.filePath = feed.filePath;
-      return currentItem;
-    },
-    getItemPlaylist: function(playlist) {
-      var contentSup, currentItem;
-      contentSup = playlist.conteudo_superior || [];
-      if (this.playlistIndex[playlist.id] == null) {
-        this.playlistIndex[playlist.id] = 0;
-      } else {
-        this.playlistIndex[playlist.id]++;
-      }
-      if (this.playlistIndex[playlist.id] >= contentSup.length) {
-        this.playlistIndex[playlist.id] = 0;
-      }
-      currentItem = contentSup[this.playlistIndex[playlist.id]];
-      if ((currentItem != null ? currentItem.tipo_midia : void 0) !== 'feed') {
-        return currentItem;
-      }
-      return this.getItemFeed(currentItem);
+      this.playTimer1 = this.playTimer2 = null;
     }
   };
 
+  // @timelineConteudoSuperior =
+  //   promessa:  null
+  //   nextIndex: 0
+  //   feedIndex: {}
+  //   playlistIndex: {}
+  //   init: ->
+  //     return unless vm.loaded
+  //     @executar() unless @promessa?
+  //   executar: ->
+  //     clearTimeout @promessa if @promessa
+
+  //     itemAtual = @getNextItemConteudoSuperior()
+  //     return console.error "@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual unless itemAtual
+
+  //     vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
+  //     if !vm.indexConteudoSuperior?
+
+  //       # console.log itemAtual
+  //       vm.listaConteudoSuperior = [itemAtual] # mantém a lista com *apenas* o item atual
+  //       vm.indexConteudoSuperior = 0
+
+  //       # vm.listaConteudoSuperior.push itemAtual
+  //       # vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
+
+  //     @stopUltimoVideo()
+
+  //     segundos = (itemAtual.segundos * 1000) || 5000
+  //     @promessa = setTimeout ->
+  //       timelineConteudoSuperior.executar()
+  //     , segundos
+
+  //     @playVideo(itemAtual) if itemAtual.is_video
+  //     return
+  //   playVideo: (itemAtual)->
+  //     @elUltimoVideo = "video-player-#{itemAtual.id}"
+
+  //     clearTimeout(@playTimer1) if @playTimer1?
+  //     clearTimeout(@playTimer2) if @playTimer2?
+
+  //     getUltimoVideo = -> document.getElementById(@elUltimoVideo)
+
+  //     @playTimer1 = setTimeout =>
+  //       v = getUltimoVideo()
+  //       if v?
+  //         v.currentTime = 0
+  //         v.play().catch((e)-> console.warn('play falhou', e))
+  //     , 0
+
+  //     @playTimer2 = setTimeout =>
+  //       v = getUltimoVideo()
+  //       if v?.paused
+  //         v.play().catch((e)-> console.warn('replay falhou', e))
+  //     , 1000
+  //     return
+
+  //   # playVideo: (itemAtual)->
+  //   #   @elUltimoVideo = "video-player-#{itemAtual.id}"
+
+  //   #   setTimeout =>
+  //   #     video = document.getElementById(@elUltimoVideo)
+  //   #     if video
+  //   #       video.currentTime = 0
+  //   #       video.play()
+
+  //   #   setTimeout =>
+  //   #     video = document.getElementById(@elUltimoVideo)
+  //   #     video.play() if video?.paused
+  //   #   , 1000
+  //   #   return
+  //   stopUltimoVideo: ->
+  //     videoId = @elUltimoVideo
+  //     return unless videoId
+
+  //     v = document.getElementById(videoId)
+  //     if v?
+  //       try v.pause() catch e then null
+  //       try
+  //         # remove src/source para liberar decoder/buffer
+  //         v.removeAttribute('src')
+  //         while v.firstChild?
+  //           v.removeChild(v.firstChild) # remove <source>
+  //         v.load()  # força desalocar
+  //       catch e then null
+  //     @elUltimoVideo = null
+
+  //     # limpa timers de play (ver D)
+  //     clearTimeout(@playTimer1) if @playTimer1?
+  //     clearTimeout(@playTimer2) if @playTimer2?
+  //     @playTimer1 = @playTimer2 = null
+  //     return
+
+  //   # stopUltimoVideo: ->
+  //   #   videoId = @elUltimoVideo
+  //   #   return unless videoId
+
+  //   #   video = document.getElementById(videoId)
+  //   #   video.pause() if video
+  //   #   @elUltimoVideo = null
+  //   #   return
+  //   getNextItemConteudoSuperior: ->
+  //     lista = vm.grade.data.conteudo_superior || []
+  //     listaQtd = lista.length
+  //     return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless listaQtd
+
+  //     index = @nextIndex
+  //     index = 0 if index >= listaQtd
+
+  //     @nextIndex++
+  //     @nextIndex = 0 if @nextIndex >= listaQtd
+
+  //     currentItem = lista[index]
+  //     switch currentItem?.tipo_midia
+  //       when 'feed'
+  //         currentItem = @getItemFeed(currentItem)
+  //       when 'playlist'
+  //         currentItem = @getItemPlaylist(currentItem)
+  //         if !currentItem && listaQtd > 1
+  //           currentItem = @getNextItemConteudoSuperior()
+
+  //     currentItem
+  //   getItemFeed: (currentItem)->
+  //     feedItems = feedsObj.data[currentItem.fonte]?[currentItem.categoria] || []
+  //     if feedItems.empty()
+  //       console.warn "Feeds de #{currentItem.fonte} #{currentItem.categoria} está vazio"
+  //       timelineConteudoSuperior.promessa = setTimeout ->
+  //         timelineConteudoSuperior.executar()
+  //       , 2000
+  //       return
+
+  //     fonte = currentItem.fonte
+  //     categ = currentItem.categoria
+  //     @feedIndex[fonte] ||= {}
+
+  //     if !@feedIndex[fonte][categ]?
+  //       @feedIndex[fonte][categ] = 0
+  //     else
+  //       @feedIndex[fonte][categ]++
+
+  //     if @feedIndex[fonte][categ] >= feedItems.length
+  //       @feedIndex[fonte][categ] = 0
+
+  //     index = @feedIndex[fonte][categ]
+  //     feed = feedItems[index] || feedItems[0]
+
+  //     return unless feed
+  //     currentItem.id     = "#{currentItem.id}#{feed.nome_arquivo}"
+  //     currentItem.data   = feed.data
+  //     currentItem.qrcode = feed.qrcode
+  //     currentItem.titulo = feed.titulo
+  //     currentItem.titulo_feed = feed.titulo_feed
+  //     currentItem.categoria_feed = feed.categoria_feed
+  //     currentItem.nome_arquivo = feed.nome_arquivo
+  //     currentItem.filePath = feed.filePath
+  //     currentItem
+  //   getItemPlaylist: (playlist)->
+  //     contentSup = playlist.conteudo_superior || []
+  //     if !@playlistIndex[playlist.id]?
+  //       @playlistIndex[playlist.id] = 0
+  //     else
+  //       @playlistIndex[playlist.id]++
+
+  //     if @playlistIndex[playlist.id] >= contentSup.length
+  //       @playlistIndex[playlist.id] = 0
+
+  //     currentItem = contentSup[@playlistIndex[playlist.id]]
+
+  //     return currentItem if currentItem?.tipo_midia != 'feed'
+  //     @getItemFeed(currentItem)
   this.timelineConteudoMensagem = {
     promessa: null,
     nextIndex: 0,
@@ -453,25 +886,57 @@
   };
 
   descobrirTimezone = function(callback) {
-    var error, success, timezone, url;
-    console.log("Descobrindo timezone...");
-    timezone = 'America/Sao_Paulo';
-    error = function() {
-      console.log('erro em descobrirTimezone');
-      return callback(timezone);
+    var done, e, tz;
+    // fallback em caso de erro
+    done = function(tz) {
+      timezoneGlobal = tz || "America/Sao_Paulo";
+      return typeof callback === "function" ? callback(timezoneGlobal) : void 0;
     };
-    success = (resp) => {
-      success = resp.status === 200;
-      if (success) {
-        data = resp.data;
-        timezone = data.timezone;
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz) {
+        return done(tz);
       }
-      return callback(timezone);
-    };
-    url = 'http://ip-api.com/json';
-    return Vue.http.get(url).then(success, error);
+    } catch (error1) {
+      e = error1;
+      console.warn("Intl timezone falhou:", e);
+    }
+    return fetch('http://ip-api.com/json').then(function(r) {
+      return r.json();
+    }).then(function(j) {
+      if (j != null ? j.timezone : void 0) {
+        return done(j.timezone);
+      } else {
+        throw new Error("timezone não encontrado");
+      }
+    }).catch(function() {
+      return fetch('https://worldtimeapi.org/api/ip').then(function(r) {
+        return r.json();
+      }).then(function(j) {
+        return done(j != null ? j.timezone : void 0);
+      }).catch(function(e) {
+        console.warn("Falha ao detectar timezone:", e);
+        return done("America/Sao_Paulo");
+      });
+    });
   };
 
+  // descobrirTimezone = (callback) ->
+  //   console.log "Descobrindo timezone..."
+
+  //   timezone = 'America/Sao_Paulo'
+  //   error = ->
+  //     console.log 'erro em descobrirTimezone'
+  //     callback(timezone)
+  //   success = (resp)=>
+  //     success = resp.status == 200
+  //     if success
+  //       data = resp.data
+  //       timezone = data.timezone
+  //     callback(timezone)
+
+  //   url = 'http://ip-api.com/json'
+  //   Vue.http.get(url).then success, error
   relogio = {
     exec: function() {
       return descobrirTimezone(function(timezone) {
