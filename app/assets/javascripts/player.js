@@ -10,13 +10,7 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
-  var BLOB_CACHE_MAX_BYTES, USAR_APP_OFFLINE, USAR_VIDEO_COM_BLOB_CACHE, blobCache, blobCacheBytes, data, descobrirTimezone, downloadToOPFS, ensurePersistence, evictBlobCacheIfNeeded, fileToBlobURL, getBlobCachedUrl, getContentType, gradeRequest, gradeUrl, hasFileOPFS, injectSource, keyForUrl, lsKey, mod, onLoaded, opfsKeyFor, opfsRoot, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, ref, reiniciando, relogio, resolveMediaURL, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, tvIdStr, updateContent, updateOnlineStatus, writeResponseToOPFS;
-
-  USAR_VIDEO_COM_BLOB_CACHE = true;
-
-  USAR_APP_OFFLINE = !!(typeof navigator !== "undefined" && navigator !== null ? (ref = navigator.storage) != null ? ref.getDirectory : void 0 : void 0);
-
-  timezoneGlobal = null;
+  var data, descobrirTimezone, onLoaded, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, updateContent, updateOnlineStatus;
 
   data = {
     body: void 0,
@@ -37,117 +31,6 @@
     }
   };
 
-  // ================= OPFS (Origin Private File System) =================
-  ensurePersistence = function() {
-    var ref1;
-    if (!(typeof navigator !== "undefined" && navigator !== null ? (ref1 = navigator.storage) != null ? ref1.persist : void 0 : void 0)) {
-      return Promise.resolve();
-    }
-    return navigator.storage.persist();
-  };
-
-  opfsRoot = function() {
-    return navigator.storage.getDirectory();
-  };
-
-  // normaliza um nome único por TV + caminho
-  opfsKeyFor = function(item) {
-    var clean, raw;
-    // tenta usar filePath/arquivoUrl pra preservar estrutura
-    raw = (item != null ? item.filePath : void 0) || (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0) || `${item != null ? item.id : void 0}.bin`;
-    // remove query/hash e espaços
-    clean = (raw.split('#')[0] || '').split('?')[0].replace(/\s+/g, '_');
-    // isola por TV (evita conflito entre TVs)
-    return `tv${getTvId()}__${clean}`;
-  };
-
-  hasFileOPFS = function(name) {
-    return opfsRoot().then(function(root) {
-      return root.getFileHandle(name).then(function() {
-        return true;
-      }).catch(function() {
-        return false;
-      });
-    });
-  };
-
-  // grava Response no disco **streaming**, sem carregar tudo na RAM
-  writeResponseToOPFS = function(name, response) {
-    return opfsRoot().then(function(root) {
-      return root.getFileHandle(name, {
-        create: true
-      }).then(function(fh) {
-        return fh.createWritable().then(function(w) {
-          return response.body.pipeTo(w);
-        });
-      });
-    });
-  };
-
-  fileToBlobURL = function(name) {
-    return opfsRoot().then(function(root) {
-      return root.getFileHandle(name).then(function(fh) {
-        return fh.getFile().then(function(file) {
-          return URL.createObjectURL(file);
-        });
-      });
-    });
-  };
-
-  // baixa para OPFS se ainda não existir
-  downloadToOPFS = function(name, url) {
-    return hasFileOPFS(name).then(function(exists) {
-      if (exists) {
-        return null;
-      }
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit'
-      }).then(function(r) {
-        if (!r.ok) {
-          throw new Error(`HTTP ${r.status}`);
-        }
-        return writeResponseToOPFS(name, r).then(function() {
-          return true;
-        });
-      });
-    });
-  };
-
-  // tenta resolver URL final: se tiver no disco, usa blob: do OPFS; senão retorna a URL online e dispara download em bg
-  resolveMediaURL = function(item) {
-    var cached, name;
-    // 0) Tenta blobCache primeiro (se for vídeo)
-    if (USAR_VIDEO_COM_BLOB_CACHE && (item != null ? item.is_video : void 0)) {
-      cached = getBlobCachedUrl(item);
-      if (cached != null) {
-        return Promise.resolve(cached);
-      }
-    }
-    // 1) Se app offline estiver ativo, tenta OPFS
-    if (USAR_APP_OFFLINE) {
-      name = opfsKeyFor(item);
-      return hasFileOPFS(name).then(function(exists) {
-        var src;
-        if (exists) {
-          return fileToBlobURL(name);
-        } else {
-          src = (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0);
-          // dispara download em background
-          downloadToOPFS(name, src).catch(function() {
-            return null;
-          });
-          // ainda assim retorna a URL online pra tocar agora
-          return src;
-        }
-      });
-    } else {
-      // 2) Modo online normal: mantém URL original
-      // (pré-aquecimento pode já estar ocorrendo; se completar, próximos plays usarão o blob)
-      return Promise.resolve((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0));
-    }
-  };
-
   onLoaded = function() {
     vm.loaded || (vm.loaded = gradeObj.loaded && feedsObj.loaded);
     if (vm.loaded) {
@@ -161,8 +44,7 @@
     var params, tvId, uri;
     uri = window.location.search.substring(1);
     params = new URLSearchParams(uri);
-    tvId = params.get("tvId");
-    return tvId;
+    return tvId = params.get("tvId");
   };
 
   this.checkTv = function() {
@@ -178,318 +60,15 @@
     return Vue.http.get('/check_tv?tvId=' + getTvId()).then(success, error);
   };
 
-  // resto “sempre positivo”
-  mod = function(a, b) {
-    return ((a % b) + b) % b;
-  };
-
-  // === config flag ===
-  // === flag
-  // === config flag ===
-
-  // caches
-  blobCache = new Map(); // key -> { url, type, size }
-
-  pendingBlobs = new Map(); // key -> Promise que resolve quando blob estiver pronto
-
-  preAquecerSet = new Set();
-
-  preAquecerCache = new Set();
-
-  // ======= Blob cache helpers =======
-  getBlobCachedUrl = function(item) {
-    var entry, key;
-    if (!(USAR_VIDEO_COM_BLOB_CACHE && (item != null ? item.is_video : void 0))) {
-      return null;
-    }
-    key = keyForUrl((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0));
-    entry = blobCache.get(key);
-    return (entry != null ? entry.cachedUrl : void 0) || null;
-  };
-
-  // Limite (opcional) para evitar crescer infinito em RAM
-  BLOB_CACHE_MAX_BYTES = 300 * 1024 * 1024; // ~300MB
-
-  blobCacheBytes = 0;
-
-  evictBlobCacheIfNeeded = function() {
-    var e, k, results, v, x;
-    if (!(blobCacheBytes > BLOB_CACHE_MAX_BYTES)) {
-      return;
-    }
-// estratégia simples: FIFO (pode trocar para LRU se quiser)
-    results = [];
-    for (x of blobCache) {
-      [k, v] = x;
-      try {
-        if (v != null ? v.cachedUrl : void 0) {
-          URL.revokeObjectURL(v != null ? v.cachedUrl : void 0);
-        }
-      } catch (error1) {
-        e = error1;
-        null;
-      }
-      blobCache.delete(k);
-      blobCacheBytes -= (v != null ? v.size : void 0) || 0;
-      if (!(blobCacheBytes > BLOB_CACHE_MAX_BYTES)) {
-        break;
-      } else {
-        results.push(void 0);
-      }
-    }
-    return results;
-  };
-
-  preAquecerVideo = function(url) {
-    var key, p;
-    if (url == null) {
-      return;
-    }
-    key = keyForUrl(url);
-    if (preAquecerSet.has(key) || blobCache.has(key)) {
-      return;
-    }
-    preAquecerSet.add(key);
-    if (USAR_VIDEO_COM_BLOB_CACHE) {
-      p = fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).then(function(r) {
-        if (!r.ok) {
-          throw new Error(`HTTP ${r.status}`);
-        }
-        return Promise.all([r.arrayBuffer(), getContentType(r)]);
-      }).then(function([buf, type]) {
-        var blob, blobUrl;
-        blob = new Blob([buf], {type});
-        blobUrl = URL.createObjectURL(blob);
-        blobCache.set(key, {
-          cachedUrl: blobUrl,
-          type,
-          size: buf.byteLength
-        });
-        blobCacheBytes += buf.byteLength; // <<< novo
-        evictBlobCacheIfNeeded(); // <<< novo
-        console.log("blob pronto", key, blobUrl);
-        return blobUrl;
-      }).catch(function(e) {
-        console.warn('preAquecerVideo(blob) falhou', url, e);
-        preAquecerSet.delete(key);
-        return null;
-      });
-      pendingBlobs.set(key, p);
-      return p.finally(function() {
-        return pendingBlobs.delete(key);
-      });
-    } else {
-      return fetch(url, {
-        mode: 'cors',
-        credentials: 'omit',
-        cache: 'force-cache'
-      }).catch(function(e) {
-        return preAquecerSet.delete(key);
-      });
-    }
-  };
-
-  // getPlayUrl = (item) ->
-  //   return item?.arquivoUrl unless USAR_VIDEO_COM_BLOB_CACHE and item?.is_video
-  //   key = keyForUrl(item.arquivoUrl)
-  //   cached = blobCache.get(key)
-  //   cached?.url or item.arquivoUrl
-  injectSource = function(v, url, type) {
-    var s;
-    while (v.firstChild != null) {
-      v.removeChild(v.firstChild);
-    }
-    s = document.createElement('source');
-    s.src = url;
-    s.type = type || 'video/mp4';
-    v.appendChild(s);
-    return v.load();
-  };
-
-  preAquecerImagem = function(url) {
-    var e, img;
-    if (url == null) {
-      return;
-    }
-    if (preAquecerCache.has(url)) {
-      return;
-    }
-    preAquecerCache.add(url);
-    fetch(url, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'force-cache'
-    }).catch(function(e) {
-      return preAquecerCache.delete(url);
-    });
-    try {
-      // Fallback (também usa cache do navegador)
-      img = new Image();
-      img.decoding = 'async';
-      img.referrerPolicy = 'no-referrer';
-      return img.src = url;
-    } catch (error1) {
-      e = error1;
-      return null;
-    }
-  };
-
-  preAquecerMidia = function(item) {
-    if (item == null) {
-      return;
-    }
-    if (item.is_video && (item.arquivoUrl || item.url)) {
-      if (USAR_APP_OFFLINE) {
-        return downloadToOPFS(opfsKeyFor(item), item.arquivoUrl || item.url).catch(function() {
-          return null;
-        });
-      } else {
-        return preAquecerVideo(item.arquivoUrl || item.url); // teu pré-aquecimento antigo em RAM
-      }
-    } else if (item.is_image && item.arquivoUrl) {
-      return preAquecerImagem(item.arquivoUrl);
-    }
-  };
-
-  // === helpers de URL/cache ===
-  keyForUrl = function(u) {
-    var e, url;
-    try {
-      url = new URL(u, window.location.href);
-      // mesma origem, mesmo path; ignora search e hash
-      return `${url.origin}${url.pathname}`;
-    } catch (error1) {
-      e = error1;
-      // fallback bruto
-      return (u.split('?')[0] || u).split('#')[0];
-    }
-  };
-
-  getContentType = function(resp) {
-    var ref1;
-    return (resp != null ? (ref1 = resp.headers) != null ? ref1.get('Content-Type') : void 0 : void 0) || 'video/mp4';
-  };
-
-  // helpers
-  tvIdStr = function() {
-    return String(getTvId() || 'unknown');
-  };
-
-  gradeUrl = function() {
-    return `/grade?tvId=${encodeURIComponent(tvIdStr())}`;
-  };
-
-  lsKey = function() {
-    return `SC::grade::tvId:${tvIdStr()}`;
-  };
-
-  // opcional: wrapper p/ Request consistente (evita misturar caches de ?tvId)
-  gradeRequest = function() {
-    return new Request(gradeUrl(), {
-      method: 'GET',
-      cache: 'no-store'
-    });
-  };
-
   this.gradeObj = {
     tentar: 10,
     tentativas: 0,
     restart_player_em: null,
-    loading: false,
-    loaded: false,
-    // Lê do Cache Storage (o mesmo que o SW preenche) p/ esta TV
-    readFromCaches: function() {
-      var req;
-      if (!('caches' in window)) {
-        return Promise.resolve(null);
-      }
-      req = gradeRequest();
-      return caches.match(req, {
-        ignoreVary: true,
-        ignoreSearch: false
-      }).then(function(resp) {
-        if (!((resp != null) && resp.ok)) {
-          return null;
-        }
-        return resp.clone().json().catch(function() {
-          return null;
-        });
-      }).catch(function() {
-        return null;
-      });
-    },
-    // Fallback ultra-rápido se o Cache Storage não tiver ainda
-    readFromLocal: function() {
-      var e, raw;
-      try {
-        raw = localStorage.getItem(lsKey());
-        if (raw != null) {
-          return JSON.parse(raw);
-        }
-      } catch (error1) {
-        e = error1;
-        return null;
-      }
-    },
-    saveToLocal: function(data) {
-      var e;
-      try {
-        return localStorage.setItem(lsKey(), JSON.stringify(data));
-      } catch (error1) {
-        e = error1;
-        return null;
-      }
-    },
-    // Aplica dados e marca flags
-    applyData: function(data, {fromCache = false} = {}) {
-      if (data == null) {
-        return;
-      }
-      this.restart_player_em = data.restart_player_em;
-      vm.grade.data = this.data = data;
-      this.mountWeatherData();
-      this.loaded = true;
-      onLoaded();
-      if (!fromCache) {
-        return this.saveToLocal(data);
-      }
-    },
-    // Bootstrap rápido: tenta CacheStorage, depois localStorage
-    bootstrapFromCache: function() {
-      if (this.loaded) {
-        return Promise.resolve(false);
-      }
-      return this.readFromCaches().then((json) => {
-        var cached;
-        if (json != null) {
-          this.applyData(json, {
-            fromCache: true
-          });
-          return true;
-        }
-        // tenta localStorage
-        cached = this.readFromLocal();
-        if (cached != null) {
-          this.applyData(cached, {
-            fromCache: true
-          });
-          return true;
-        }
-        return false;
-      });
-    },
     get: function(onSuccess, onError) {
       var error, success;
       if (this.loading) {
         return;
       }
-      // 1) tenta mostrar algo de imediato
-      this.bootstrapFromCache();
       this.loading = true;
       success = (resp) => {
         if (this.tentativas > 0) {
@@ -501,6 +80,7 @@
         if (typeof onSuccess === "function") {
           onSuccess();
         }
+        this.mountWeatherData();
         this.loaded = true;
         return onLoaded();
       };
@@ -515,13 +95,12 @@
         }
         this.tentarNovamenteEm = 1000 * this.tentativas;
         console.warn(`Grade: Tentando em ${this.tentarNovamenteEm / 1000} segundos`);
-        setTimeout((() => {
-          return this.get();
-        }), this.tentarNovamenteEm);
+        setTimeout(function() {
+          return gradeObj.get();
+        }, this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      // 2) sempre atualiza pela rede (SWR)
-      Vue.http.get(gradeUrl()).then(success, error);
+      Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
     },
     downloadNewContent: function() {
       var error, success;
@@ -533,37 +112,11 @@
       error = (resp) => {
         return console.log(resp);
       };
-      return Vue.http.get('/download_new_content?tvId=' + tvIdStr()).then(success, error);
+      return Vue.http.get('/download_new_content?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
-      var i, item, len, ref1, ref2, ref3;
-      // persiste e aplica (salva por tvId)
-      this.applyData(data);
-      // ===== predownload para offline =====
-      if (USAR_APP_OFFLINE) {
-        ensurePersistence();
-        ref1 = this.data.conteudo_superior || [];
-        // vídeos
-        for (i = 0, len = ref1.length; i < len; i++) {
-          item = ref1[i];
-          if ((item != null ? item.is_video : void 0) && ((item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0))) {
-            (function(item) {
-              var name, src;
-              name = opfsKeyFor(item); // ideal incluir tvId aqui também se quiser isolar no OPFS
-              src = (item != null ? item.arquivoUrl : void 0) || (item != null ? item.url : void 0);
-              return downloadToOPFS(name, src).catch(function() {
-                return null;
-              });
-            })(item);
-          }
-        }
-        // logo/imagens (opcional)
-        if ((ref2 = this.data) != null ? (ref3 = ref2.logo) != null ? ref3.arquivoUrl : void 0 : void 0) {
-          downloadToOPFS(opfsKeyFor(this.data.logo), this.data.logo.arquivoUrl).catch(function() {
-            return null;
-          });
-        }
-      }
+      this.restart_player_em = data.restart_player_em;
+      vm.grade.data = this.data = data;
     },
     mountWeatherData: function() {
       var base, dataHoje, dia, mes;
@@ -585,90 +138,6 @@
     }
   };
 
-  // @gradeObj =
-  //   tentar: 10
-  //   tentativas: 0
-  //   restart_player_em: null
-
-  //   get: (onSuccess, onError)->
-  //     return if @loading
-  //     @loading = true
-
-  //     success = (resp)=>
-  //       if @tentativas > 0
-  //         restartBrowserAposXSegundos(30)
-
-  //       @loading    = false
-  //       @tentativas = 0
-
-  //       @handle resp.data
-  //       onSuccess?()
-  //       @mountWeatherData()
-  //       @loaded = true
-  //       onLoaded()
-
-  //     error = (resp)=>
-  //       @loading = false
-  //       onLoaded()
-  //       console.error 'Grade:', resp
-
-  //       @tentativas++
-  //       if @tentativas > @tentar
-  //         console.error 'Grade: Não foi possível comunicar com o servidor!'
-  //         return
-
-  //       @tentarNovamenteEm = 1000 * @tentativas
-  //       console.warn "Grade: Tentando em #{@tentarNovamenteEm / 1000} segundos"
-  //       setTimeout ->
-  //         gradeObj.get()
-  //       , @tentarNovamenteEm
-  //       onError?()
-
-  //     Vue.http.get('/grade?tvId='+getTvId()).then success, error
-  //     return
-  //   downloadNewContent: ->
-  //     success = (resp)=>
-  //       @get ->
-  //         console.log "Novo Conteúdo baixado"
-  //     error = (resp) => console.log resp
-
-  //     Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
-  //   handle: (data)->
-  //     @restart_player_em = data.restart_player_em
-  //     vm.grade.data = @data = data
-
-  //     # ===== predownload para offline =====
-  //     if USAR_APP_OFFLINE
-  //       ensurePersistence()
-  //       # vídeos
-  //       for item in (@data.conteudo_superior or []) when item?.is_video and (item?.arquivoUrl or item?.url)
-  //         do (item) ->
-  //           name = opfsKeyFor(item)
-  //           src  = item?.arquivoUrl or item?.url
-  //           downloadToOPFS(name, src).catch(-> null)
-  //       # logo/imagens (opcional)
-  //       if @data?.logo?.arquivoUrl
-  //         downloadToOPFS(opfsKeyFor(@data.logo), @data.logo.arquivoUrl).catch(-> null)
-
-  //     return
-
-  //   mountWeatherData: ->
-  //     vm.grade.data.weather ||= {}
-  //     return unless (vm.grade.data.weather.proximos_dias || []).length
-
-  //     dataHoje = new Date
-  //     dia = "#{dataHoje.getDate()}".rjust(2, '0')
-  //     mes = "#{dataHoje.getMonth() + 1}".rjust(2, '0')
-  //     dataHoje = "#{dia}/#{mes}"
-
-  //     dia = vm.grade.data.weather.proximos_dias[0]
-  //     if dia.data == dataHoje
-  //       dia = vm.grade.data.weather.proximos_dias.shift()
-  //       vm.grade.data.weather.max = dia.max
-  //       vm.grade.data.weather.min = dia.min
-
-  //     vm.grade.data.weather.proximos_dias = vm.grade.data.weather.proximos_dias.slice(0,4)
-  //     return
   this.feedsObj = {
     data: {},
     tentar: 10,
@@ -710,35 +179,35 @@
       Vue.http.get('/feeds?tvId=' + getTvId()).then(success, error);
     },
     handle: function(data) {
-      var base, base1, base2, base3, feed, feeds, i, l, len, len1, name1, name2, posicao, ref1;
+      var base, base1, base2, base3, feed, feeds, i, j, len, len1, name, name1, posicao, ref;
       this.data = data;
-      ref1 = this.posicoes;
+      ref = this.posicoes;
       // pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
-      for (i = 0, len = ref1.length; i < len; i++) {
-        posicao = ref1[i];
+      for (i = 0, len = ref.length; i < len; i++) {
+        posicao = ref[i];
         (base = vm.grade.data)[posicao] || (base[posicao] = []);
         feeds = (typeof (base1 = vm.grade.data[posicao]).select === "function" ? base1.select(function(e) {
           return e.tipo_midia === 'feed';
         }) : void 0) || [];
-        for (l = 0, len1 = feeds.length; l < len1; l++) {
-          feed = feeds[l];
-          (base2 = this.data)[name1 = feed.fonte] || (base2[name1] = {});
-          (base3 = this.data[feed.fonte])[name2 = feed.categoria] || (base3[name2] = []);
+        for (j = 0, len1 = feeds.length; j < len1; j++) {
+          feed = feeds[j];
+          (base2 = this.data)[name = feed.fonte] || (base2[name] = {});
+          (base3 = this.data[feed.fonte])[name1 = feed.categoria] || (base3[name1] = []);
         }
       }
     },
     verificarNoticias: function() {
-      var base, base1, categoria, categorias, fonte, i, item, items, l, len, len1, noticias, posicao, ref1, ref2, ref3;
-      ref1 = this.data;
+      var base, base1, categoria, categorias, fonte, i, item, items, j, len, len1, noticias, posicao, ref, ref1, ref2;
+      ref = this.data;
       // serve para remover feeds que nao tem noticias
-      for (fonte in ref1) {
-        categorias = ref1[fonte];
+      for (fonte in ref) {
+        categorias = ref[fonte];
         for (categoria in categorias) {
           noticias = categorias[categoria];
           if ((noticias || []).empty()) {
-            ref2 = this.posicoes;
-            for (i = 0, len = ref2.length; i < len; i++) {
-              posicao = ref2[i];
+            ref1 = this.posicoes;
+            for (i = 0, len = ref1.length; i < len; i++) {
+              posicao = ref1[i];
               if (!vm.grade.data[posicao]) {
                 continue;
               }
@@ -746,9 +215,9 @@
               items = typeof (base1 = vm.grade.data[posicao]).select === "function" ? base1.select(function(e) {
                 return e.fonte === fonte && e.categoria === categoria;
               }) : void 0;
-              ref3 = items || [];
-              for (l = 0, len1 = ref3.length; l < len1; l++) {
-                item = ref3[l];
+              ref2 = items || [];
+              for (j = 0, len1 = ref2.length; j < len1; j++) {
+                item = ref2[j];
                 vm.grade.data[posicao].removeById(item.id);
               }
             }
@@ -763,9 +232,6 @@
     nextIndex: 0,
     feedIndex: {},
     playlistIndex: {},
-    elUltimoVideo: null,
-    playTimer1: null,
-    playTimer2: null,
     init: function() {
       if (!vm.loaded) {
         return;
@@ -774,435 +240,142 @@
         return this.executar();
       }
     },
-    // =============== Núcleo unificado ===============
-
-    // Resolve o item da faixa superior no índice atual.
-    // opts:
-    //   consuming: true/false  -> avança índices?
-    //   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
-    resolveNextItem: function(opts = {
-        consuming: true,
-        offset: 0
-      }) {
-      var idxLista, item, lista, raw, ref1, varOffset;
-      lista = vm.grade.data.conteudo_superior || [];
-      if (!lista.length) {
-        return null;
-      }
-      varOffset = (ref1 = opts.offset) != null ? ref1 : 0;
-      idxLista = mod(this.nextIndex + varOffset, lista.length);
-      raw = lista[idxLista];
-      item = this.resolveItem(raw, opts);
-      if (!item) {
-        return null;
-      }
-      if (opts.consuming && varOffset === 0) {
-        // só consome quando offset é 0 (o "agora")
-        this.nextIndex = mod(this.nextIndex + 1, lista.length);
-      }
-      return item;
-    },
-    // Resolve um item: simples, feed ou playlist
-    resolveItem: function(rawItem, opts) {
-      if (rawItem == null) {
-        return null;
-      }
-      switch (rawItem != null ? rawItem.tipo_midia : void 0) {
-        case 'feed':
-          return this.resolveFeedItem(rawItem, opts);
-        case 'playlist':
-          return this.resolvePlaylistItem(rawItem, opts);
-        default:
-          return rawItem; // midia/informativo/mensagem etc.
-      }
-    },
-    
-    // Feed com índice por (fonte,categoria), id estável
-    resolveFeedItem: function(rawItem, opts = {}) {
-      var base, categ, feed, feeds, fonte, idx, item, ref1, ref2;
-      fonte = rawItem.fonte;
-      categ = rawItem.categoria;
-      feeds = ((ref1 = feedsObj.data[fonte]) != null ? ref1[categ] : void 0) || [];
-      if (!feeds.length) {
-        return null;
-      }
-      if ((base = this.feedIndex)[fonte] == null) {
-        base[fonte] = {};
-      }
-      idx = this.feedIndex[fonte][categ];
-      if (!Number.isInteger(idx)) {
-        idx = 0;
-      }
-      feed = feeds[Math.min(idx, feeds.length - 1)];
-      if (!feed) {
-        return null;
-      }
-      item = Object.assign({}, rawItem);
-      item.id = `feed-${fonte}-${categ}`;
-      item.data = feed.data;
-      item.qrcode = feed.qrcode;
-      item.titulo = feed.titulo;
-      item.titulo_feed = feed.titulo_feed;
-      item.categoria_feed = feed.categoria_feed;
-      item.nome_arquivo = feed.nome_arquivo;
-      item.arquivoUrl = (ref2 = feed.arquivoUrl) != null ? ref2 : feed.filePath;
-      if (opts.consuming) {
-        this.feedIndex[fonte][categ] = mod(idx + 1, feeds.length);
-      }
-      return item;
-    },
-    // Playlist mantém um índice por playlist.id
-    resolvePlaylistItem: function(playlist, opts = {}) {
-      var base, cand, contentSup, idx, name1;
-      contentSup = playlist.conteudo_superior || [];
-      if (!contentSup.length) {
-        return null;
-      }
-      if ((base = this.playlistIndex)[name1 = playlist.id] == null) {
-        base[name1] = 0;
-      }
-      idx = this.playlistIndex[playlist.id];
-      if (!Number.isInteger(idx)) {
-        idx = 0;
-      }
-      cand = contentSup[Math.min(idx, contentSup.length - 1)];
-      if (opts.consuming) {
-        this.playlistIndex[playlist.id] = mod(idx + 1, contentSup.length);
-      }
-      if ((cand != null ? cand.tipo_midia : void 0) !== 'feed') {
-        return cand;
-      }
-      // se o item da playlist for feed, resolve via feed (sem consumir duas vezes)
-      // Passa consuming do call original (para avançar feedIndex somente se consumir)
-      return this.resolveFeedItem(cand, opts);
-    },
-    // Apenas olha o próximo sem avançar índices
-    peekNextItem: function() {
-      return this.resolveNextItem({
-        consuming: false,
-        offset: 1
-      });
-    },
-    // =============== Loop ===============
     executar: function() {
-      var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref1, segundos;
+      var itemAtual, segundos;
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
-      itemAtual = this.resolveNextItem({
-        consuming: true
-      });
+      itemAtual = this.getNextItemConteudoSuperior();
       if (!itemAtual) {
-        return console.error("resolveNextItem() retornou null");
+        return console.error("@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual);
       }
-      // Mantém SOMENTE o atual no v-for
-      vm.listaConteudoSuperior = [itemAtual];
-      vm.indexConteudoSuperior = 0;
+      vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField('id', itemAtual.id);
+      if (vm.indexConteudoSuperior == null) {
+        vm.listaConteudoSuperior.push(itemAtual);
+        vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1;
+      }
       this.stopUltimoVideo();
-      // agenda próximo ciclo
       segundos = (itemAtual.segundos * 1000) || 5000;
-      this.promessa = setTimeout((function() {
+      this.promessa = setTimeout(function() {
         return timelineConteudoSuperior.executar();
-      }), segundos);
-      // Pré-aquecer N itens à frente (vídeo ou imagem)
-      // preaquecerQtdMidiasAFrente = 2
-      preaquecerQtdMidiasAFrente = 1;
-      console.log(`preaquecer proximos video/imagem qtd: ${preaquecerQtdMidiasAFrente}`);
-      for (k = i = 1, ref1 = preaquecerQtdMidiasAFrente; (1 <= ref1 ? i <= ref1 : i >= ref1); k = 1 <= ref1 ? ++i : --i) {
-        cand = this.resolveNextItem({
-          consuming: false,
-          offset: k
-        });
-        // console.log cand
-        if ((cand != null ? cand.arquivoUrl : void 0) && (cand.is_video || cand.is_image)) {
-          preAquecerMidia(cand);
-        }
-      }
+      }, segundos);
       if (itemAtual.is_video) {
-        // Toca o atual (se for vídeo)
         this.playVideo(itemAtual);
       }
     },
-    // =============== Vídeo ===============
-
-    // playVideo injeta a <source> dinâmica
-    // =============== Vídeo ===============
     playVideo: function(itemAtual) {
-      var chooseAndPlay, key, pend, videoId;
-      videoId = itemAtual.id;
-      this.elUltimoVideo = `video-player-${itemAtual.id}`;
-      if (this.playTimer1 != null) {
-        clearTimeout(this.playTimer1);
-      }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
-      }
-      key = keyForUrl(itemAtual.arquivoUrl);
-      pend = pendingBlobs.get(key);
-      chooseAndPlay = (v) => {
-        var cachedUrl, ctype;
-        // >>> re-check rápido do blob antes de decidir a URL final <<<
-        cachedUrl = getBlobCachedUrl(itemAtual);
-        if (cachedUrl != null) {
-          ctype = itemAtual.content_type || 'video/mp4';
-          injectSource(v, cachedUrl, ctype);
-          v.currentTime = 0;
-          return v.play().catch(function(e) {
-            return console.warn('play falhou', e);
-          });
+      this.ultimoVideo = `video-player-${itemAtual.id}`;
+      setTimeout(() => {
+        var video;
+        video = document.getElementById(this.ultimoVideo);
+        if (video) {
+          video.currentTime = 0;
+          return video.play();
         }
-        // resolve do OPFS ou volta para URL original
-        return resolveMediaURL(itemAtual).then((finalVideoUrl) => {
-          console.log("===================================");
-          console.log(`Iniciando play de video id: ${videoId}`);
-          console.log(`finalVideoUrl: ${finalVideoUrl}`);
-          console.log(`arquivoUrl: ${itemAtual != null ? itemAtual.arquivoUrl : void 0}`);
-          ctype = itemAtual.content_type || 'video/mp4';
-          injectSource(v, finalVideoUrl, ctype);
-          v.currentTime = 0;
-          return v.play().catch(function(e) {
-            return console.warn('play falhou', e);
-          });
-        });
-      };
-      this.playTimer1 = setTimeout(() => {
-        var v;
-        v = document.getElementById(this.elUltimoVideo);
-        if (v == null) {
-          return;
+      });
+      setTimeout(() => {
+        var video;
+        video = document.getElementById(this.ultimoVideo);
+        if (video != null ? video.paused : void 0) {
+          return video.play();
         }
-        // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
-        if (USAR_VIDEO_COM_BLOB_CACHE && (pend != null) && (blobCache.get(key) == null)) {
-          return Promise.race([
-            pend.then(function() {
-              return 'ok';
-            }),
-            new Promise(function(res) {
-              return setTimeout((function() {
-                return res('timeout');
-              }),
-            10000);
-            })
-          ]).finally(() => {
-            return chooseAndPlay(v); // se blob não existir ainda, cairá na URL original
-          });
-        } else {
-          return chooseAndPlay(v);
-        }
-      }, 0);
-      this.playTimer2 = setTimeout(() => {
-        var v;
-        v = document.getElementById(this.elUltimoVideo);
-        return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
-          return console.warn('replay falhou', e);
-        });
       }, 1000);
     },
-    // revoga blob ao parar, eliminando vazamento e caches velhos
-    // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
     stopUltimoVideo: function() {
-      var e, v;
-      if (!this.elUltimoVideo) {
+      var video, videoId;
+      videoId = this.ultimoVideo;
+      if (!videoId) {
         return;
       }
-      v = document.getElementById(this.elUltimoVideo);
-      if (v != null) {
-        try {
-          v.pause();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
-        try {
-          v.removeAttribute('src');
-          while (v.firstChild != null) {
-            v.removeChild(v.firstChild); // remove <source>
+      video = document.getElementById(videoId);
+      if (video) {
+        video.pause();
+      }
+      this.ultimoVideo = null;
+    },
+    getNextItemConteudoSuperior: function() {
+      var currentItem, index, lista, listaQtd;
+      lista = vm.grade.data.conteudo_superior || [];
+      listaQtd = lista.length;
+      if (!listaQtd) {
+        return console.error("vm.grade.data.conteudo_superior está vazio!", lista);
+      }
+      index = this.nextIndex;
+      if (index >= listaQtd) {
+        index = 0;
+      }
+      this.nextIndex++;
+      if (this.nextIndex >= listaQtd) {
+        this.nextIndex = 0;
+      }
+      currentItem = lista[index];
+      switch (currentItem != null ? currentItem.tipo_midia : void 0) {
+        case 'feed':
+          currentItem = this.getItemFeed(currentItem);
+          break;
+        case 'playlist':
+          currentItem = this.getItemPlaylist(currentItem);
+          if (!currentItem && listaQtd > 1) {
+            currentItem = this.getNextItemConteudoSuperior();
           }
-          v.load(); // desaloca o decoder sem mexer no blobCache
-        } catch (error1) {
-          e = error1;
-          null;
-        }
       }
-      this.elUltimoVideo = null;
-      if (this.playTimer1 != null) {
-        clearTimeout(this.playTimer1);
+      return currentItem;
+    },
+    getItemFeed: function(currentItem) {
+      var base, categ, feed, feedItems, fonte, index, ref;
+      feedItems = ((ref = feedsObj.data[currentItem.fonte]) != null ? ref[currentItem.categoria] : void 0) || [];
+      if (feedItems.empty()) {
+        console.warn(`Feeds de ${currentItem.fonte} ${currentItem.categoria} está vazio`);
+        timelineConteudoSuperior.promessa = setTimeout(function() {
+          return timelineConteudoSuperior.executar();
+        }, 2000);
+        return;
       }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
+      fonte = currentItem.fonte;
+      categ = currentItem.categoria;
+      (base = this.feedIndex)[fonte] || (base[fonte] = {});
+      if (this.feedIndex[fonte][categ] == null) {
+        this.feedIndex[fonte][categ] = 0;
+      } else {
+        this.feedIndex[fonte][categ]++;
       }
-      this.playTimer1 = this.playTimer2 = null;
+      if (this.feedIndex[fonte][categ] >= feedItems.length) {
+        this.feedIndex[fonte][categ] = 0;
+      }
+      index = this.feedIndex[fonte][categ];
+      feed = feedItems[index] || feedItems[0];
+      if (!feed) {
+        return;
+      }
+      currentItem.id = `${currentItem.id}${feed.nome_arquivo}`;
+      currentItem.data = feed.data;
+      currentItem.qrcode = feed.qrcode;
+      currentItem.titulo = feed.titulo;
+      currentItem.titulo_feed = feed.titulo_feed;
+      currentItem.categoria_feed = feed.categoria_feed;
+      currentItem.nome_arquivo = feed.nome_arquivo;
+      currentItem.filePath = feed.filePath;
+      return currentItem;
+    },
+    getItemPlaylist: function(playlist) {
+      var contentSup, currentItem;
+      contentSup = playlist.conteudo_superior || [];
+      if (this.playlistIndex[playlist.id] == null) {
+        this.playlistIndex[playlist.id] = 0;
+      } else {
+        this.playlistIndex[playlist.id]++;
+      }
+      if (this.playlistIndex[playlist.id] >= contentSup.length) {
+        this.playlistIndex[playlist.id] = 0;
+      }
+      currentItem = contentSup[this.playlistIndex[playlist.id]];
+      if ((currentItem != null ? currentItem.tipo_midia : void 0) !== 'feed') {
+        return currentItem;
+      }
+      return this.getItemFeed(currentItem);
     }
   };
 
-  // @timelineConteudoSuperior =
-  //   promessa:  null
-  //   nextIndex: 0
-  //   feedIndex: {}
-  //   playlistIndex: {}
-  //   init: ->
-  //     return unless vm.loaded
-  //     @executar() unless @promessa?
-  //   executar: ->
-  //     clearTimeout @promessa if @promessa
-
-  //     itemAtual = @getNextItemConteudoSuperior()
-  //     return console.error "@getNextItemConteudoSuperior() - itemAtual é indefinido!", itemAtual unless itemAtual
-
-  //     vm.indexConteudoSuperior = vm.listaConteudoSuperior.getIndexByField 'id', itemAtual.id
-  //     if !vm.indexConteudoSuperior?
-
-  //       # console.log itemAtual
-  //       vm.listaConteudoSuperior = [itemAtual] # mantém a lista com *apenas* o item atual
-  //       vm.indexConteudoSuperior = 0
-
-  //       # vm.listaConteudoSuperior.push itemAtual
-  //       # vm.indexConteudoSuperior = vm.listaConteudoSuperior.length - 1
-
-  //     @stopUltimoVideo()
-
-  //     segundos = (itemAtual.segundos * 1000) || 5000
-  //     @promessa = setTimeout ->
-  //       timelineConteudoSuperior.executar()
-  //     , segundos
-
-  //     @playVideo(itemAtual) if itemAtual.is_video
-  //     return
-  //   playVideo: (itemAtual)->
-  //     @elUltimoVideo = "video-player-#{itemAtual.id}"
-
-  //     clearTimeout(@playTimer1) if @playTimer1?
-  //     clearTimeout(@playTimer2) if @playTimer2?
-
-  //     getUltimoVideo = -> document.getElementById(@elUltimoVideo)
-
-  //     @playTimer1 = setTimeout =>
-  //       v = getUltimoVideo()
-  //       if v?
-  //         v.currentTime = 0
-  //         v.play().catch((e)-> console.warn('play falhou', e))
-  //     , 0
-
-  //     @playTimer2 = setTimeout =>
-  //       v = getUltimoVideo()
-  //       if v?.paused
-  //         v.play().catch((e)-> console.warn('replay falhou', e))
-  //     , 1000
-  //     return
-
-  //   # playVideo: (itemAtual)->
-  //   #   @elUltimoVideo = "video-player-#{itemAtual.id}"
-
-  //   #   setTimeout =>
-  //   #     video = document.getElementById(@elUltimoVideo)
-  //   #     if video
-  //   #       video.currentTime = 0
-  //   #       video.play()
-
-  //   #   setTimeout =>
-  //   #     video = document.getElementById(@elUltimoVideo)
-  //   #     video.play() if video?.paused
-  //   #   , 1000
-  //   #   return
-  //   stopUltimoVideo: ->
-  //     videoId = @elUltimoVideo
-  //     return unless videoId
-
-  //     v = document.getElementById(videoId)
-  //     if v?
-  //       try v.pause() catch e then null
-  //       try
-  //         # remove src/source para liberar decoder/buffer
-  //         v.removeAttribute('src')
-  //         while v.firstChild?
-  //           v.removeChild(v.firstChild) # remove <source>
-  //         v.load()  # força desalocar
-  //       catch e then null
-  //     @elUltimoVideo = null
-
-  //     # limpa timers de play (ver D)
-  //     clearTimeout(@playTimer1) if @playTimer1?
-  //     clearTimeout(@playTimer2) if @playTimer2?
-  //     @playTimer1 = @playTimer2 = null
-  //     return
-
-  //   # stopUltimoVideo: ->
-  //   #   videoId = @elUltimoVideo
-  //   #   return unless videoId
-
-  //   #   video = document.getElementById(videoId)
-  //   #   video.pause() if video
-  //   #   @elUltimoVideo = null
-  //   #   return
-  //   getNextItemConteudoSuperior: ->
-  //     lista = vm.grade.data.conteudo_superior || []
-  //     listaQtd = lista.length
-  //     return console.error "vm.grade.data.conteudo_superior está vazio!", lista unless listaQtd
-
-  //     index = @nextIndex
-  //     index = 0 if index >= listaQtd
-
-  //     @nextIndex++
-  //     @nextIndex = 0 if @nextIndex >= listaQtd
-
-  //     currentItem = lista[index]
-  //     switch currentItem?.tipo_midia
-  //       when 'feed'
-  //         currentItem = @getItemFeed(currentItem)
-  //       when 'playlist'
-  //         currentItem = @getItemPlaylist(currentItem)
-  //         if !currentItem && listaQtd > 1
-  //           currentItem = @getNextItemConteudoSuperior()
-
-  //     currentItem
-  //   getItemFeed: (currentItem)->
-  //     feedItems = feedsObj.data[currentItem.fonte]?[currentItem.categoria] || []
-  //     if feedItems.empty()
-  //       console.warn "Feeds de #{currentItem.fonte} #{currentItem.categoria} está vazio"
-  //       timelineConteudoSuperior.promessa = setTimeout ->
-  //         timelineConteudoSuperior.executar()
-  //       , 2000
-  //       return
-
-  //     fonte = currentItem.fonte
-  //     categ = currentItem.categoria
-  //     @feedIndex[fonte] ||= {}
-
-  //     if !@feedIndex[fonte][categ]?
-  //       @feedIndex[fonte][categ] = 0
-  //     else
-  //       @feedIndex[fonte][categ]++
-
-  //     if @feedIndex[fonte][categ] >= feedItems.length
-  //       @feedIndex[fonte][categ] = 0
-
-  //     index = @feedIndex[fonte][categ]
-  //     feed = feedItems[index] || feedItems[0]
-
-  //     return unless feed
-  //     currentItem.id     = "#{currentItem.id}#{feed.nome_arquivo}"
-  //     currentItem.data   = feed.data
-  //     currentItem.qrcode = feed.qrcode
-  //     currentItem.titulo = feed.titulo
-  //     currentItem.titulo_feed = feed.titulo_feed
-  //     currentItem.categoria_feed = feed.categoria_feed
-  //     currentItem.nome_arquivo = feed.nome_arquivo
-  //     currentItem.filePath = feed.filePath
-  //     currentItem
-  //   getItemPlaylist: (playlist)->
-  //     contentSup = playlist.conteudo_superior || []
-  //     if !@playlistIndex[playlist.id]?
-  //       @playlistIndex[playlist.id] = 0
-  //     else
-  //       @playlistIndex[playlist.id]++
-
-  //     if @playlistIndex[playlist.id] >= contentSup.length
-  //       @playlistIndex[playlist.id] = 0
-
-  //     currentItem = contentSup[@playlistIndex[playlist.id]]
-
-  //     return currentItem if currentItem?.tipo_midia != 'feed'
-  //     @getItemFeed(currentItem)
   this.timelineConteudoMensagem = {
     promessa: null,
     nextIndex: 0,
@@ -1258,8 +431,8 @@
       }
     },
     getItemFeed: function(currentItem) {
-      var feed, feedItems, index, ref1;
-      feedItems = ((ref1 = feedsObj.data[currentItem.fonte]) != null ? ref1[currentItem.categoria] : void 0) || [];
+      var feed, feedItems, index, ref;
+      feedItems = ((ref = feedsObj.data[currentItem.fonte]) != null ? ref[currentItem.categoria] : void 0) || [];
       if (feedItems.empty()) {
         return currentItem;
       }
@@ -1280,57 +453,25 @@
   };
 
   descobrirTimezone = function(callback) {
-    var done, e, tz;
-    // fallback em caso de erro
-    done = function(tz) {
-      timezoneGlobal = tz || "America/Sao_Paulo";
-      return typeof callback === "function" ? callback(timezoneGlobal) : void 0;
+    var error, success, timezone, url;
+    console.log("Descobrindo timezone...");
+    timezone = 'America/Sao_Paulo';
+    error = function() {
+      console.log('erro em descobrirTimezone');
+      return callback(timezone);
     };
-    try {
-      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      if (tz) {
-        return done(tz);
+    success = (resp) => {
+      success = resp.status === 200;
+      if (success) {
+        data = resp.data;
+        timezone = data.timezone;
       }
-    } catch (error1) {
-      e = error1;
-      console.warn("Intl timezone falhou:", e);
-    }
-    return fetch('http://ip-api.com/json').then(function(r) {
-      return r.json();
-    }).then(function(j) {
-      if (j != null ? j.timezone : void 0) {
-        return done(j.timezone);
-      } else {
-        throw new Error("timezone não encontrado");
-      }
-    }).catch(function() {
-      return fetch('https://worldtimeapi.org/api/ip').then(function(r) {
-        return r.json();
-      }).then(function(j) {
-        return done(j != null ? j.timezone : void 0);
-      }).catch(function(e) {
-        console.warn("Falha ao detectar timezone:", e);
-        return done("America/Sao_Paulo");
-      });
-    });
+      return callback(timezone);
+    };
+    url = 'http://ip-api.com/json';
+    return Vue.http.get(url).then(success, error);
   };
 
-  // descobrirTimezone = (callback) ->
-  //   console.log "Descobrindo timezone..."
-
-  //   timezone = 'America/Sao_Paulo'
-  //   error = ->
-  //     console.log 'erro em descobrirTimezone'
-  //     callback(timezone)
-  //   success = (resp)=>
-  //     success = resp.status == 200
-  //     if success
-  //       data = resp.data
-  //       timezone = data.timezone
-  //     callback(timezone)
-
-  //   url = 'http://ip-api.com/json'
-  //   Vue.http.get(url).then success, error
   relogio = {
     exec: function() {
       return descobrirTimezone(function(timezone) {

@@ -1,36 +1,18 @@
 <!-- index.html -->
+
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="theme-color" content="#000000">
-
-    <link rel="manifest" href="/offline-app.webmanifest">
-    <link rel="icon" href="/images/favicon.png">
-
     <title>Player</title>
 
-    <!-- App shell CSS e libs (serão pré-cacheados pelo SW) -->
-    <link rel="stylesheet" href="/stylesheets/fonts.css">
-    <link rel="stylesheet" href="/stylesheets/styles.css">
-    <link rel="stylesheet" href="/stylesheets/sc-icons.css">
+    <script src="/javascripts/lib/array.js"></script>
+    <script src="/javascripts/lib/date.js"></script>
+    <script src="/javascripts/lib/object.js"></script>
+    <script src="/javascripts/lib/string.js"></script>
 
-    <script src="/javascripts/lib/array.js" defer></script>
-    <script src="/javascripts/lib/date.js" defer></script>
-    <script src="/javascripts/lib/object.js" defer></script>
-    <script src="/javascripts/lib/string.js" defer></script>
-
-    <!-- <script src="/javascripts/lib/sentry.min.js" integrity="sha384-/x1aHz0nKRd6zVUazsV6CbQvjJvr6zQL2CHbQZf3yoLkezyEtZUpqUNnOLW9Nt3v" crossorigin="anonymous" defer></script> -->
-    <!-- <script src="/javascripts/lib/sentry-vue.min.js" crossorigin="anonymous" defer></script> -->
-
-    <script src="/javascripts/lib/moment.min.js" defer></script>
-    <script src="/javascripts/lib/moment-timezone.js" defer></script>
-    <script src="/javascripts/lib/moment_pt-br.js" defer></script>
-    <script src="/javascripts/lib/vue.min.js" defer></script>
-    <script src="/javascripts/lib/vue-resource.min.js" defer></script>
-
-    <!-- seu player compilado -->
-    <script src="/javascripts/player.js" defer></script>
+    <link rel="icon" href="/images/favicon.png">
+    <link rel="stylesheet" type="text/css" href="stylesheets/fonts.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/styles.css">
+    <link rel="stylesheet" type="text/css" href="stylesheets/sc-icons.css">
   </head>
 
   <body id="body-player">
@@ -246,25 +228,13 @@
 
   </body>
 
+  <script src="/javascripts/lib/sentry.min.js" integrity="sha384-/x1aHz0nKRd6zVUazsV6CbQvjJvr6zQL2CHbQZf3yoLkezyEtZUpqUNnOLW9Nt3v" crossorigin="anonymous"></script>
+  <script src="/javascripts/lib/sentry-vue.min.js" crossorigin="anonymous"></script>
 
-  <!-- Registra o Service Worker -->
-  <script>
-    function currentTvId() {
-      const p = new URLSearchParams(location.search);
-      return p.get('tvId') || 'unknown';
-    }
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then(() => {
-        // pode não haver controller no 1º load; reenvia quando assumir
-        function send() {
-          if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'SET_TV_ID', tvId: currentTvId() });
-          }
-        }
-        send();
-        navigator.serviceWorker.addEventListener('controllerchange', send);
-      });
-    }
-  </script>
-
+  <script src="/javascripts/lib/moment.min.js"></script>
+  <script src="/javascripts/lib/moment-timezone.js"></script>
+  <script src="/javascripts/lib/moment_pt-br.js"></script>
+  <script src="/javascripts/lib/vue.min.js"></script>
+  <script src="/javascripts/lib/vue-resource.min.js"></script>
+  <script src="/javascripts/player.js"></script>
 </html>
