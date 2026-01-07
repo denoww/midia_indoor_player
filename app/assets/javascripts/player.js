@@ -23,6 +23,9 @@
     listaConteudoSuperior: [],
     listaConteudoMensagem: [],
     online: true,
+    now: new Date(),
+    hora: '--:--',
+    timezone: null,
     grade: {
       data: {
         cor: 'black',
@@ -938,35 +941,24 @@
   //   url = 'http://ip-api.com/json'
   //   Vue.http.get(url).then success, error
   relogio = {
-    exec: function() {
-      return descobrirTimezone(function(timezone) {
-        var hour, min, now;
-        console.log(`Timezone: ${timezone}`);
-        // now = moment.tz(new Date, 'America/Los_Angeles');
-        now = moment.tz(new Date(), timezone);
-        hour = now.get('hour');
-        min = now.get('minute');
-        if (hour < 10) {
-          // hour = now.get('hour')
-          // min  = now.get('minute')
-          // sec  = now.getSeconds()
-          hour = `0${hour}`;
-        }
-        if (min < 10) {
-          min = `0${min}`;
-        }
-        // sec  = "0#{sec}"  if sec < 10
-        this.elemHora || (this.elemHora = document.getElementById('hora'));
-        if (this.elemHora) {
-          this.elemHora.innerHTML = hour + ':' + min;
-        }
-        return this.timer = setTimeout(relogio.exec, 1000 * 60); // 1 minuto
+    start: function() {
+      return descobrirTimezone(function(tz) {
+        vm.timezone = tz || "America/Sao_Paulo";
+        relogio.tick(); // já atualiza na hora
+        return relogio.timer = setInterval(relogio.tick, 1000); // 1s (ou 30s/60s)
       });
+    },
+    tick: function() {
+      var m, tz;
+      tz = vm.timezone || "America/Sao_Paulo";
+      m = moment.tz(new Date(), tz);
+      // atualiza reativo (dia/semana dependem disso)
+      vm.now = m.toDate();
+      // atualiza hora (string)
+      return vm.hora = m.format('HH:mm');
     }
   };
 
-  // @elemHora.innerHTML = hour + ':' + min + ':' + sec if @elemHora
-  // setTimeout relogio.exec, 1000
   updateOnlineStatus = function() {
     var old, passouDeOfflineParaOnline;
     if (!this.vm) {
@@ -1017,15 +1009,12 @@
         }, 1000);
       }
     },
-    computed: {
-      now: function() {
-        return Date.now();
-      }
-    },
+    // computed:
+    //   now: -> Date.now()
     mounted: function() {
       this.loading = true;
       this.mouse();
-      relogio.exec();
+      relogio.start();
       setInterval(function() {
         // return if vm.loaded
         return checkTv();

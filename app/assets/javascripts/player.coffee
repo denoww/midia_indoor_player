@@ -23,6 +23,10 @@ data =
 
   online: true
 
+  now:  new Date()
+  hora: '--:--'
+  timezone: null
+
   grade:
     data:
       cor: 'black'
@@ -764,29 +768,21 @@ descobrirTimezone = (callback) ->
 
 
 relogio =
-  exec: ->
+  start: ->
+    descobrirTimezone (tz) ->
+      vm.timezone = tz or "America/Sao_Paulo"
+      relogio.tick()         # já atualiza na hora
+      relogio.timer = setInterval(relogio.tick, 1000)  # 1s (ou 30s/60s)
 
-    descobrirTimezone (timezone) ->
-      console.log "Timezone: #{timezone}"
+  tick: ->
+    tz = vm.timezone or "America/Sao_Paulo"
+    m  = moment.tz(new Date(), tz)
 
-      # now = moment.tz(new Date, 'America/Los_Angeles');
-      now = moment.tz(new Date, timezone);
-      hour = now.get('hour')
-      min  =  now.get('minute')
+    # atualiza reativo (dia/semana dependem disso)
+    vm.now = m.toDate()
 
-      # hour = now.get('hour')
-      # min  = now.get('minute')
-      # sec  = now.getSeconds()
-
-      hour = "0#{hour}" if hour < 10
-      min  = "0#{min}"  if min < 10
-      # sec  = "0#{sec}"  if sec < 10
-
-      @elemHora ||= document.getElementById('hora')
-      @elemHora.innerHTML = hour + ':' + min if @elemHora
-      @timer = setTimeout relogio.exec, 1000 * 60 # 1 minuto
-      # @elemHora.innerHTML = hour + ':' + min + ':' + sec if @elemHora
-      # setTimeout relogio.exec, 1000
+    # atualiza hora (string)
+    vm.hora = m.format('HH:mm')
 
 
 updateOnlineStatus = ->
@@ -824,12 +820,12 @@ window.addEventListener 'offline',  updateOnlineStatus
       @mouseTimeout = setTimeout =>
         @body.style.cursor = 'none'
       , 1000
-  computed:
-    now: -> Date.now()
+  # computed:
+  #   now: -> Date.now()
   mounted: ->
     @loading = true
     @mouse()
-    relogio.exec()
+    relogio.start()
 
 
 
