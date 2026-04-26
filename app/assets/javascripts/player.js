@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   window.onNativeVideoEnded = function() {
     console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
@@ -50,6 +50,35 @@
   // pra sincronizar overlays no futuro; hoje no-op.
   window.onNativeVideoStateChange = function(state) {
     console.log(`NativePlayer: onNativeVideoStateChange state=${state}`);
+  };
+
+  // Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
+  // Usado pelo Corpflix Android pra posicionar a SurfaceView do ExoPlayer
+  // em vez de fullscreen — preserva sidebar/feed/branding visíveis durante
+  // o vídeo (paridade com Chrome Kiosk).
+
+  // Tenta o <video> recém criado (existe via Vue v-if quando o item atual é
+  // vídeo); se não estiver no DOM ainda (timing race com Vue render), cai
+  // nos containers estáveis. Em último caso, retorna {0,0,0,0} — o cliente
+  // nativo decide entre fullscreen-fallback ou esperar.
+  nativePlayerVideoRect = function(videoId) {
+    var el, r;
+    el = document.getElementById(`video-player-${videoId}`) || document.querySelector('.midia-main') || document.querySelector('.player-item');
+    if (!el) {
+      return {
+        left: 0,
+        top: 0,
+        width: 0,
+        height: 0
+      };
+    }
+    r = el.getBoundingClientRect();
+    return {
+      left: Math.round(r.left),
+      top: Math.round(r.top),
+      width: Math.round(r.width),
+      height: Math.round(r.height)
+    };
   };
 
   timezoneGlobal = null;
@@ -604,7 +633,7 @@
     // interface do native pra eventualmente fast-forwardar quando o vídeo real
     // termina antes de `segundos`, mas é opt-in.
     playVideo: function(itemAtual) {
-      var durationMs, e, ref, versaoCache, videoId;
+      var durationMs, e, rect, ref, versaoCache, videoId;
       videoId = itemAtual.id;
       this.elUltimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
@@ -623,13 +652,22 @@
       })())) {
         durationMs = (itemAtual.segundos * 1000) || 5000;
         versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
+        rect = nativePlayerVideoRect(videoId);
         console.log(`Play video id ${videoId} via NativePlayer (ExoPlayer)`);
-        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
+        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}, rect: ${JSON.stringify(rect)}`);
         try {
-          window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+          // playVideoFramed: variante que recebe rect pra Surface posicionar
+          // dentro do layout. Adicionada no contrato em corpflix@<post-82fc7f7>.
+          // Se o cliente nativo for versão antiga (sem playVideoFramed), o
+          // try cai no catch e usamos o playVideo legado (3 args, fullscreen).
+          if (rect.width > 0 && rect.height > 0 && (window.NativePlayer.playVideoFramed != null)) {
+            window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
+          } else {
+            window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+          }
         } catch (error1) {
           e = error1;
-          console.warn('NativePlayer.playVideo falhou — fallback pra <video> HTML5', e);
+          console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
           this._playVideoHtml5(itemAtual, videoId);
         }
         return;

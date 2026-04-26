@@ -41,6 +41,28 @@ window.onNativeVideoStateChange = (state) ->
   console.log "NativePlayer: onNativeVideoStateChange state=#{state}"
   return
 
+# Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
+# Usado pelo Corpflix Android pra posicionar a SurfaceView do ExoPlayer
+# em vez de fullscreen — preserva sidebar/feed/branding visíveis durante
+# o vídeo (paridade com Chrome Kiosk).
+#
+# Tenta o <video> recém criado (existe via Vue v-if quando o item atual é
+# vídeo); se não estiver no DOM ainda (timing race com Vue render), cai
+# nos containers estáveis. Em último caso, retorna {0,0,0,0} — o cliente
+# nativo decide entre fullscreen-fallback ou esperar.
+nativePlayerVideoRect = (videoId) ->
+  el = document.getElementById("video-player-#{videoId}") or
+       document.querySelector('.midia-main') or
+       document.querySelector('.player-item')
+  return {left: 0, top: 0, width: 0, height: 0} unless el
+  r = el.getBoundingClientRect()
+  {
+    left:   Math.round(r.left)
+    top:    Math.round(r.top)
+    width:  Math.round(r.width)
+    height: Math.round(r.height)
+  }
+
 timezoneGlobal = null
 
 data =
@@ -482,12 +504,21 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
       durationMs = (itemAtual.segundos * 1000) || 5000
       versaoCache = itemAtual.midia?.versao_cache or null
+      rect = nativePlayerVideoRect(videoId)
       console.log "Play video id #{videoId} via NativePlayer (ExoPlayer)"
-      console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}"
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}, rect: #{JSON.stringify(rect)}"
       try
-        window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
+        # playVideoFramed: variante que recebe rect pra Surface posicionar
+        # dentro do layout. Adicionada no contrato em corpflix@<post-82fc7f7>.
+        # Se o cliente nativo for versão antiga (sem playVideoFramed), o
+        # try cai no catch e usamos o playVideo legado (3 args, fullscreen).
+        if rect.width > 0 and rect.height > 0 and window.NativePlayer.playVideoFramed?
+          window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''),
+                                              rect.left, rect.top, rect.width, rect.height)
+        else
+          window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
       catch e
-        console.warn 'NativePlayer.playVideo falhou — fallback pra <video> HTML5', e
+        console.warn 'NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e
         @_playVideoHtml5(itemAtual, videoId)
       return
 
