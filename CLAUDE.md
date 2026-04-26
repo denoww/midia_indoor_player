@@ -69,6 +69,34 @@ Quando o admin re-uploada um arquivo, `anexo_updated_at` muda → próxima `grad
 | Listar TVs ativas no relay | `ls /var/lib/midia_indoor_player/public/` (cada subdir = TV_ID) |
 | Restart só | `sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 restart MIDIAINDOOR` |
 
+## Medições pendentes
+
+### Verificar impacto do commit `abde089` no pico 17-20h
+
+Deploy do `abde089` (cache imutável + filename versionado) no relay: **2026-04-26 ~13:01 local** (PM2 reiniciou). ERP `seucondominio` foi pareado com campo `versao_cache` no payload de `Publicidade::Midia::Arquivo#to_frontend_obj`.
+
+**Baseline pré-deploy** (mediana de 12 dias normais, 12-22/abr, excluindo anomalias 23-24/abr):
+
+| Janela | Mediana | P90 | Pior dia normal recente |
+|---|---|---|---|
+| 17-20h (total) | ~10–12 GB | ~56 GB | 25/abr: 65 GB |
+| Dia inteiro | ~73 GB | ~99 GB | 22/abr: 90 GB |
+
+**Como medir o "depois"** (rodar a partir de 2026-04-27, com a janela 17-20h de 26/abr fechada):
+
+```bash
+aws cloudwatch get-metric-statistics --namespace AWS/EC2 --metric-name NetworkOut \
+  --dimensions Name=InstanceId,Value=i-0c566e7d2cab061a0 \
+  --start-time $(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 3600 --statistics Sum \
+  --query 'sort_by(Datapoints,&Timestamp)[*].[Timestamp,Sum]' --output text
+```
+
+Comparar **17-20h em local time (Brasil UTC-3)** dos dias pós-deploy (26/abr em diante) contra o baseline acima. Sucesso = mediana 17-20h cair pra ~5 GB ou menos. Sem mudança = `<video>` 200MB não está cacheando (ver caveat de Range requests + per-entry size cap do Chromium em `start_player.js:20` que não passa `--disk-cache-size`).
+
+**Caveat dia 26/abr:** janela 11-12h teve 7-9 GB (4-5× P90 normal) **antes** do PM2 restart. Pode ser deploy do ERP propagando filenames novos via grade.json e relay re-baixando do S3 com código antigo, ou tráfego não-relacionado. Não confundir com efeito do commit.
+
 ## Armadilhas
 
 - **Log PM2 cresce sem rotação** — `MIDIAINDOOR-out.log` tem 6+GB e enche disco. Implementar `pm2 install pm2-logrotate` ou cron de truncate.
