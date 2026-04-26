@@ -57,13 +57,18 @@
   // em vez de fullscreen — preserva sidebar/feed/branding visíveis durante
   // o vídeo (paridade com Chrome Kiosk).
 
-  // Tenta o <video> recém criado (existe via Vue v-if quando o item atual é
-  // vídeo); se não estiver no DOM ainda (timing race com Vue render), cai
-  // nos containers estáveis. Em último caso, retorna {0,0,0,0} — o cliente
-  // nativo decide entre fullscreen-fallback ou esperar.
+  // Race: `playVideo` é chamado de forma síncrona quando a timeline decide
+  // trocar de item, mas o `<video v-if="item.is_video">` só entra no DOM
+  // no próximo tick do Vue. Logo, `#video-player-<id>` quase nunca existe
+  // nesse instante. Resolvido preferindo o container **estável** (`.content-player`)
+  // que tem o tamanho do slot do vídeo (o `<video>` ocupa 100% via CSS) —
+  // o rect resultante é equivalente em todos os layouts.
+
+  // Fallback final retorna {0,0,0,0}; o bridge nativo trata como "use
+  // fullscreen" pra evitar SurfaceView 0×0 (tela preta).
   nativePlayerVideoRect = function(videoId) {
-    var el, r;
-    el = document.getElementById(`video-player-${videoId}`) || document.querySelector('.midia-main') || document.querySelector('.player-item');
+    var el, r, rect;
+    el = document.querySelector('.content-player') || document.getElementById(`video-player-${videoId}`) || document.querySelector('.player-item') || document.getElementById('content-main');
     if (!el) {
       return {
         left: 0,
@@ -73,12 +78,14 @@
       };
     }
     r = el.getBoundingClientRect();
-    return {
+    rect = {
       left: Math.round(r.left),
       top: Math.round(r.top),
       width: Math.round(r.width),
       height: Math.round(r.height)
     };
+    console.log(`nativePlayerVideoRect via ${el.tagName}.${el.className || '(no-class)'}#${el.id || '(no-id)'}: ${JSON.stringify(rect)}`);
+    return rect;
   };
 
   timezoneGlobal = null;
