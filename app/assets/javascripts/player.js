@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
 
   window.onNativeVideoEnded = function() {
     console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
@@ -67,7 +67,7 @@
   // Fallback final retorna {0,0,0,0}; o bridge nativo trata como "use
   // fullscreen" pra evitar SurfaceView 0×0 (tela preta).
   nativePlayerVideoRect = function(videoId) {
-    var el, r, rect;
+    var cs, el, r, rect, ref;
     el = document.querySelector('.content-player') || document.getElementById(`video-player-${videoId}`) || document.querySelector('.player-item') || document.getElementById('content-main');
     if (!el) {
       return {
@@ -84,8 +84,33 @@
       width: Math.round(r.width),
       height: Math.round(r.height)
     };
-    console.log(`nativePlayerVideoRect via ${el.tagName}.${el.className || '(no-class)'}#${el.id || '(no-id)'}: ${JSON.stringify(rect)}`);
+    if (rect.width === 0 || rect.height === 0) {
+      cs = getComputedStyle(el);
+      console.warn(`rect zerado em ${el.tagName}.${el.className || '(no-class)'} — ` + `display=${cs.display} visibility=${cs.visibility} ` + `offsetParent=${((ref = el.offsetParent) != null ? ref.tagName : void 0) || '(null)'} ` + `client=${el.clientWidth}x${el.clientHeight}`);
+    }
     return rect;
+  };
+
+  // Mede o rect e chama o callback. Se rect der 0×0 (race com layout pass do
+  // browser logo após vm.loaded virar true, ou Vue v-if pré-mount), tenta de
+  // novo em até [maxRetries] frames via requestAnimationFrame. Custo no
+  // happy-path é 0 — quando o rect já é válido na primeira medida, callback
+  // roda síncrono.
+  nativePlayerMeasureRect = function(videoId, callback, maxRetries = 3) {
+    var attempt;
+    attempt = function(left) {
+      var rect;
+      rect = nativePlayerVideoRect(videoId);
+      if ((rect.width === 0 || rect.height === 0) && left > 0) {
+        console.log(`nativePlayerVideoRect 0×0, retry em RAF (${left} restantes)`);
+        requestAnimationFrame(function() {
+          return attempt(left - 1);
+        });
+        return;
+      }
+      return callback(rect);
+    };
+    return attempt(maxRetries);
   };
 
   timezoneGlobal = null;
@@ -640,7 +665,7 @@
     // interface do native pra eventualmente fast-forwardar quando o vídeo real
     // termina antes de `segundos`, mas é opt-in.
     playVideo: function(itemAtual) {
-      var durationMs, e, rect, ref, versaoCache, videoId;
+      var durationMs, e, ref, versaoCache, videoId;
       videoId = itemAtual.id;
       this.elUltimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
@@ -659,24 +684,25 @@
       })())) {
         durationMs = (itemAtual.segundos * 1000) || 5000;
         versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
-        rect = nativePlayerVideoRect(videoId);
         console.log(`Play video id ${videoId} via NativePlayer (ExoPlayer)`);
-        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}, rect: ${JSON.stringify(rect)}`);
-        try {
-          // playVideoFramed: variante que recebe rect pra Surface posicionar
-          // dentro do layout. Adicionada no contrato em corpflix@<post-82fc7f7>.
-          // Se o cliente nativo for versão antiga (sem playVideoFramed), o
-          // try cai no catch e usamos o playVideo legado (3 args, fullscreen).
-          if (rect.width > 0 && rect.height > 0 && (window.NativePlayer.playVideoFramed != null)) {
-            window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
-          } else {
-            window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
+        // Mede rect com retry em RAF — cobre race com layout pass do browser
+        // logo após vm.loaded virar true, ou Vue v-if pré-mount.
+        nativePlayerMeasureRect(videoId, (rect) => {
+          try {
+            if (rect.width > 0 && rect.height > 0 && (window.NativePlayer.playVideoFramed != null)) {
+              console.log(`playVideoFramed rect=${JSON.stringify(rect)}`);
+              return window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
+            } else {
+              console.warn(`rect inválido (${rect.width}x${rect.height}) ou playVideoFramed ausente — fullscreen legado`);
+              return window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+            }
+          } catch (error1) {
+            e = error1;
+            console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
+            return this._playVideoHtml5(itemAtual, videoId);
           }
-        } catch (error1) {
-          e = error1;
-          console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
-          this._playVideoHtml5(itemAtual, videoId);
-        }
+        });
         return;
       }
       this._playVideoHtml5(itemAtual, videoId);

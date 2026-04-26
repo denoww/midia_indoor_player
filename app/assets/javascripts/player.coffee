@@ -68,8 +68,28 @@ nativePlayerVideoRect = (videoId) ->
     width:  Math.round(r.width)
     height: Math.round(r.height)
   }
-  console.log "nativePlayerVideoRect via #{el.tagName}.#{el.className or '(no-class)'}##{el.id or '(no-id)'}: #{JSON.stringify(rect)}"
+  if rect.width is 0 or rect.height is 0
+    cs = getComputedStyle(el)
+    console.warn "rect zerado em #{el.tagName}.#{el.className or '(no-class)'} — " +
+                 "display=#{cs.display} visibility=#{cs.visibility} " +
+                 "offsetParent=#{el.offsetParent?.tagName or '(null)'} " +
+                 "client=#{el.clientWidth}x#{el.clientHeight}"
   rect
+
+# Mede o rect e chama o callback. Se rect der 0×0 (race com layout pass do
+# browser logo após vm.loaded virar true, ou Vue v-if pré-mount), tenta de
+# novo em até [maxRetries] frames via requestAnimationFrame. Custo no
+# happy-path é 0 — quando o rect já é válido na primeira medida, callback
+# roda síncrono.
+nativePlayerMeasureRect = (videoId, callback, maxRetries = 3) ->
+  attempt = (left) ->
+    rect = nativePlayerVideoRect(videoId)
+    if (rect.width is 0 or rect.height is 0) and left > 0
+      console.log "nativePlayerVideoRect 0×0, retry em RAF (#{left} restantes)"
+      requestAnimationFrame -> attempt(left - 1)
+      return
+    callback(rect)
+  attempt(maxRetries)
 
 timezoneGlobal = null
 
@@ -512,22 +532,22 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
     if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
       durationMs = (itemAtual.segundos * 1000) || 5000
       versaoCache = itemAtual.midia?.versao_cache or null
-      rect = nativePlayerVideoRect(videoId)
       console.log "Play video id #{videoId} via NativePlayer (ExoPlayer)"
-      console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}, rect: #{JSON.stringify(rect)}"
-      try
-        # playVideoFramed: variante que recebe rect pra Surface posicionar
-        # dentro do layout. Adicionada no contrato em corpflix@<post-82fc7f7>.
-        # Se o cliente nativo for versão antiga (sem playVideoFramed), o
-        # try cai no catch e usamos o playVideo legado (3 args, fullscreen).
-        if rect.width > 0 and rect.height > 0 and window.NativePlayer.playVideoFramed?
-          window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''),
-                                              rect.left, rect.top, rect.width, rect.height)
-        else
-          window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
-      catch e
-        console.warn 'NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e
-        @_playVideoHtml5(itemAtual, videoId)
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}"
+      # Mede rect com retry em RAF — cobre race com layout pass do browser
+      # logo após vm.loaded virar true, ou Vue v-if pré-mount.
+      nativePlayerMeasureRect videoId, (rect) =>
+        try
+          if rect.width > 0 and rect.height > 0 and window.NativePlayer.playVideoFramed?
+            console.log "playVideoFramed rect=#{JSON.stringify(rect)}"
+            window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''),
+                                                rect.left, rect.top, rect.width, rect.height)
+          else
+            console.warn "rect inválido (#{rect.width}x#{rect.height}) ou playVideoFramed ausente — fullscreen legado"
+            window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
+        catch e
+          console.warn 'NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e
+          @_playVideoHtml5(itemAtual, videoId)
       return
 
     @_playVideoHtml5(itemAtual, videoId)
