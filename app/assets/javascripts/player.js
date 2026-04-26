@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, isFormElement, keyForUrl, mod, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus;
 
   window.onNativeVideoEnded = function() {
     console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
@@ -1340,5 +1340,104 @@
   window.corpflixPrev = function() {
     return timelineConteudoSuperior.jumpTo(-1);
   };
+
+  // ============= Atalhos cross-platform (touch + keyboard) =============
+
+  // Mesmas ações de corpflixNext/Prev, acionáveis a partir de qualquer
+  // cliente web — sem depender do Corpflix Android intermediar:
+
+  //   - **Teclado** (Chrome Kiosk em Pi/PC, browser desktop pra preview,
+  //     monitor com teclado USB plugado): setas →/← disparam next/prev.
+  //     preventDefault evita scroll horizontal acidental da página.
+
+  //   - **Touch swipe** (display touch standalone, kiosk touchscreen,
+  //     também roda de graça em qualquer outro display caso vire touch):
+  //     arrasta dedo direita→esquerda = next; esquerda→direita = prev.
+  //     Threshold de 50px filtra toques acidentais (dedo ficou no lugar).
+
+  // No Corpflix Android (Mi Box), o atalho D-pad é capturado pelo
+  // PlayerScreen.kt e disparado via evaluateJavascript — caminho
+  // preferencial porque pega antes do WebView consumir. Estes listeners
+  // ficam como caminho redundante (sem efeito colateral) caso a key chegue
+  // até o JS.
+
+  // isFormElement: skip quando o foco está em campo editável. Improvável
+  // no player, mas defensivo pra futuro form de debug não roubar setas.
+  isFormElement = function(el) {
+    var ref, tag;
+    if (!el) {
+      return false;
+    }
+    tag = (ref = el.tagName) != null ? typeof ref.toUpperCase === "function" ? ref.toUpperCase() : void 0 : void 0;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      return true;
+    }
+    if (el.isContentEditable) {
+      return true;
+    }
+    return false;
+  };
+
+  document.addEventListener('keydown', function(e) {
+    if (isFormElement(e.target)) {
+      return;
+    }
+    switch (e.key) {
+      case 'ArrowRight':
+        if (typeof window.corpflixNext === "function") {
+          window.corpflixNext();
+        }
+        e.preventDefault();
+        break;
+      case 'ArrowLeft':
+        if (typeof window.corpflixPrev === "function") {
+          window.corpflixPrev();
+        }
+        e.preventDefault();
+    }
+  });
+
+  // Swipe state — só rastreamos X porque é navegação 1D.
+  // Reset em touchcancel pra não vazar estado se sistema interrompe gesto.
+  touchStartX = null;
+
+  document.addEventListener('touchstart', function(e) {
+    var ref, ref1, ref2;
+    touchStartX = (ref = (ref1 = e.changedTouches) != null ? (ref2 = ref1[0]) != null ? ref2.clientX : void 0 : void 0) != null ? ref : null;
+  }, {
+    passive: true
+  });
+
+  document.addEventListener('touchend', function(e) {
+    var dx, endX, ref, ref1, startX;
+    startX = touchStartX;
+    touchStartX = null;
+    if (startX == null) {
+      return;
+    }
+    endX = (ref = e.changedTouches) != null ? (ref1 = ref[0]) != null ? ref1.clientX : void 0 : void 0;
+    if (endX == null) {
+      return;
+    }
+    dx = endX - startX;
+    if (Math.abs(dx) < 50) {
+      return;
+    }
+    if (dx < 0) {
+      if (typeof window.corpflixNext === "function") {
+        window.corpflixNext();
+      }
+    } else {
+      if (typeof window.corpflixPrev === "function") {
+        window.corpflixPrev();
+      }
+    }
+  }, {
+    passive: true
+  });
+
+  document.addEventListener('touchcancel', function() {
+    touchStartX = null;
+  });
 
 }).call(this);

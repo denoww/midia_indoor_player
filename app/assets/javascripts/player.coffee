@@ -1091,3 +1091,72 @@ window.corpflixNext = -> timelineConteudoSuperior.jumpTo(+1)
 window.corpflixPrev = -> timelineConteudoSuperior.jumpTo(-1)
 
 
+# ============= Atalhos cross-platform (touch + keyboard) =============
+#
+# Mesmas ações de corpflixNext/Prev, acionáveis a partir de qualquer
+# cliente web — sem depender do Corpflix Android intermediar:
+#
+#   - **Teclado** (Chrome Kiosk em Pi/PC, browser desktop pra preview,
+#     monitor com teclado USB plugado): setas →/← disparam next/prev.
+#     preventDefault evita scroll horizontal acidental da página.
+#
+#   - **Touch swipe** (display touch standalone, kiosk touchscreen,
+#     também roda de graça em qualquer outro display caso vire touch):
+#     arrasta dedo direita→esquerda = next; esquerda→direita = prev.
+#     Threshold de 50px filtra toques acidentais (dedo ficou no lugar).
+#
+# No Corpflix Android (Mi Box), o atalho D-pad é capturado pelo
+# PlayerScreen.kt e disparado via evaluateJavascript — caminho
+# preferencial porque pega antes do WebView consumir. Estes listeners
+# ficam como caminho redundante (sem efeito colateral) caso a key chegue
+# até o JS.
+#
+# isFormElement: skip quando o foco está em campo editável. Improvável
+# no player, mas defensivo pra futuro form de debug não roubar setas.
+isFormElement = (el) ->
+  return false unless el
+  tag = el.tagName?.toUpperCase?()
+  return true if tag in ['INPUT', 'TEXTAREA', 'SELECT']
+  return true if el.isContentEditable
+  false
+
+document.addEventListener 'keydown', (e) ->
+  return if isFormElement(e.target)
+  switch e.key
+    when 'ArrowRight'
+      window.corpflixNext?()
+      e.preventDefault()
+    when 'ArrowLeft'
+      window.corpflixPrev?()
+      e.preventDefault()
+  return
+
+# Swipe state — só rastreamos X porque é navegação 1D.
+# Reset em touchcancel pra não vazar estado se sistema interrompe gesto.
+touchStartX = null
+
+document.addEventListener 'touchstart', (e) ->
+  touchStartX = e.changedTouches?[0]?.clientX ? null
+  return
+, { passive: true }
+
+document.addEventListener 'touchend', (e) ->
+  startX = touchStartX
+  touchStartX = null
+  return unless startX?
+  endX = e.changedTouches?[0]?.clientX
+  return unless endX?
+  dx = endX - startX
+  return if Math.abs(dx) < 50
+  if dx < 0
+    window.corpflixNext?()  # arrastou pra esquerda → avança
+  else
+    window.corpflixPrev?()  # arrastou pra direita → volta
+  return
+, { passive: true }
+
+document.addEventListener 'touchcancel', ->
+  touchStartX = null
+  return
+
+
