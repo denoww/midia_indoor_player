@@ -193,6 +193,28 @@ p {
   width: 100%;
   height: 100%;
   object-fit: fill;
+  background: #000;
+  pointer-events: none;
+  outline: none;
+}
+
+/* Signage: zero UI nativa do <video>. Sem o hide explícito, o Chromium
+   desenha o overlay-play-button gigante (pixelado em 1920x1080) entre
+   o v-if e o primeiro frame do decoder. */
+.content-player .midia-video::-webkit-media-controls,
+.content-player .midia-video::-webkit-media-controls-enclosure,
+.content-player .midia-video::-webkit-media-controls-panel,
+.content-player .midia-video::-webkit-media-controls-overlay-play-button,
+.content-player .midia-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Fundo preto no container da mídia evita flash branco/cinza nas
+   trocas de item da playlist enquanto o próximo decoder aquece. */
+.content-player .midia-main {
+  background: #000;
 }
 
 .content-player .feed-info {
