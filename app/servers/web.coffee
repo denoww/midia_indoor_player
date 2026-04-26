@@ -138,6 +138,40 @@ module.exports = (opt={}) ->
     resp.restart_player_em = data.restart_player_em
     res.send JSON.stringify resp
 
+  # Validação se uma TV ID existe no ERP. Proxy direto pro Rails sem usar o
+  # cache em memória do Node (`global.grade.data`) — esse cache só conhece
+  # TVs que o player já carregou, então não serve pra validar TV "nova" que
+  # o operador acabou de digitar na tela de configuração.
+  #
+  # Repassa status HTTP do Rails (200 se existe, 404 se não existe). Errors
+  # de rede/Rails fora do ar viram 502 — sinaliza pro client tratar como
+  # "não pôde validar" em vez de "TV não existe".
+  #
+  # Usado pelo Corpflix Android antes de salvar config local. Não é heartbeat
+  # nem tem efeito colateral no Rails (lá em `tv_existe` não atualizamos
+  # `atualizada_em`, ao contrário de check_tv).
+  app.get '/tv_existe', (req, res) ->
+    request = require 'request'
+    params = req.getParams()
+    tvId = params.tvId or params.id
+    tvId = parseInt(tvId) if tvId
+    unless tvId and tvId > 0
+      return res.status(400).json(error: 'tvId obrigatório')
+
+    url = "#{ENV.API_SERVER_URL}/publicidades/tv_existe.json?id=#{tvId}"
+    console.log "Request GET /tv_existe → proxy #{url}"
+    request {url: url, timeout: 5000}, (error, response, body) ->
+      if error
+        console.log "  ✗ erro de rede: #{error}"
+        return res.status(502).json(error: 'upstream indisponível')
+      status = response?.statusCode or 502
+      if status == 200
+        return res.status(200).json(id: tvId)
+      if status == 404
+        return res.status(404).json(error: 'TV não cadastrada')
+      console.log "  ✗ status inesperado: #{status}"
+      res.status(502).json(error: "upstream HTTP #{status}")
+
   app.get '/download_new_content', (req, res) ->
     params = req.getParams()
     console.log  "Request GET /download_new_content params: #{JSON.stringify(params)}"
