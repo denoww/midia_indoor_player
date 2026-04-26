@@ -186,8 +186,8 @@
 
   preAquecerCache = new Set();
 
-  preAquecerVideo = function(url) {
-    var key, p;
+  preAquecerVideo = function(url, sizeBytes) {
+    var e, key, p;
     if (url == null) {
       return;
     }
@@ -196,6 +196,24 @@
       return;
     }
     preAquecerSet.add(key);
+    // Caminho preferido no Corpflix Android: warmCache nativo popula o
+    // SimpleCache do ExoPlayer **em disco**. Quando playVideoFramed chega,
+    // ExoPlayer encontra o vídeo localmente e o primeiro frame sai sem
+    // round-trip de rede. Sem blob em RAM = economia de memória no chipset
+    // barato (~40MB médios * 2-3 vídeos prefetched = 100MB+ no Pi/Mi Box).
+
+    // Fallback Chrome Kiosk em Pi/PC continua usando blob HTML5 (path antigo
+    // USAR_VIDEO_COM_BLOB_CACHE) — bridge não existe lá, ramo é ignorado.
+    if ((window.NativePlayer != null) && (window.NativePlayer.warmCache != null)) {
+      try {
+        window.NativePlayer.warmCache(url, sizeBytes || 0);
+      } catch (error1) {
+        e = error1;
+        console.warn('NativePlayer.warmCache falhou — sem prefetch, ExoPlayer baixa on-demand', e);
+        preAquecerSet.delete(key);
+      }
+      return;
+    }
     if (USAR_VIDEO_COM_BLOB_CACHE) {
       p = fetch(url, {
         mode: 'cors',
@@ -284,11 +302,14 @@
   };
 
   preAquecerMidia = function(item) {
+    var ref;
     if (item == null) {
       return;
     }
     if (item.is_video && item.arquivoUrl) {
-      return preAquecerVideo(item.arquivoUrl);
+      // Passa midia.size pra warmCache nativo (governança/log). Pro fallback
+      // HTML5 blob, size é ignorado — fetch lê Content-Length do servidor.
+      return preAquecerVideo(item.arquivoUrl, ((ref = item.midia) != null ? ref.size : void 0) || 0);
     } else if (item.is_image && item.arquivoUrl) {
       return preAquecerImagem(item.arquivoUrl);
     }
