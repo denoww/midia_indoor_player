@@ -626,6 +626,37 @@
         offset: 1
       });
     },
+    // ============= Atalhos de QA (Corpflix Android) =============
+
+    // Chamados pelo app Corpflix Android via webView.evaluateJavascript quando
+    // o operador aperta seta direita/esquerda no controle remoto. Ver
+    // corpflix/app/.../PlayerScreen.kt seção "QA shortcuts".
+
+    // Comportamento: salta pro item [atual + delta] da faixa conteudo_superior
+    // de forma circular (wraparound natural via mod). Cancela o timer pendente
+    // e dispara executar() imediatamente — operador não precisa esperar a
+    // duração do item atual acabar.
+
+    // Estado: durante a execução normal, @nextIndex aponta pro PRÓXIMO item
+    // a ser consumido (resolveNextItem incrementa após pegar o atual).
+    // Pra reproduzir [atual + delta] precisamos voltar 1 (pro 'atual') e somar
+    // delta. delta=+1 mantém @nextIndex onde está → toca o próximo (que era
+    // o que ia tocar de qualquer jeito, só sem esperar). delta=-1 retrocede
+    // 2 → toca o anterior.
+
+    // Limitação conhecida: feedIndex/playlistIndex (índices internos de feed
+    // e playlist) NÃO são revertidos no prev — voltar pro item anterior pode
+    // mostrar a próxima notícia do feed em vez da que tinha aparecido antes.
+    // Suficiente pra QA de playlist; ajustar se virar pedido de produto.
+    jumpTo: function(delta) {
+      var lista;
+      lista = vm.grade.data.conteudo_superior || [];
+      if (!lista.length) {
+        return;
+      }
+      this.nextIndex = mod(this.nextIndex - 1 + delta, lista.length);
+      this.executar();
+    },
     // =============== Loop ===============
     executar: function() {
       var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos;
@@ -1283,6 +1314,31 @@
   };
 
   // @timers = []
-// @timers.push = setTimeout => @exec(), 2000
+  // @timers.push = setTimeout => @exec(), 2000
+
+  // =====================================================================
+  // QA shortcuts — atalhos de navegação manual da playlist.
+  // =====================================================================
+
+  // Expostos como globais pra serem chamados pelo Corpflix Android via
+  // webView.evaluateJavascript("window.corpflixNext?.()") quando o operador
+  // aperta seta direita/esquerda no controle remoto. Ver
+  // /home/rodrigo/workspace/corpflix/app/src/main/java/br/com/corpflix/ui/PlayerScreen.kt
+  // seção "QA shortcuts".
+
+  // Em outros ambientes (Chrome Kiosk, browser desktop pra preview) ficam
+  // disponíveis no console — útil pra QA manual:
+  //     corpflixNext()  → próximo item
+  //     corpflixPrev()  → item anterior
+
+  // Implementação delegada a timelineConteudoSuperior.jumpTo (player.coffee
+  // logo após resolveNextItem).
+  window.corpflixNext = function() {
+    return timelineConteudoSuperior.jumpTo(+1);
+  };
+
+  window.corpflixPrev = function() {
+    return timelineConteudoSuperior.jumpTo(-1);
+  };
 
 }).call(this);
