@@ -10,7 +10,47 @@
   //   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
   // alert('2')
+
+  // ============================================================================
+  // Callbacks do NativePlayer (Corpflix Android — JS bridge)
+
+  // Chamados pelo WebView host quando o ExoPlayer nativo termina ou erra. Em
+  // Chrome Kiosk em Pi/PC essas funções existem mas nunca são invocadas (não há
+  // host Java pra disparar). Nada quebra se forem redefinidas pela aplicação.
+  // ============================================================================
+
+  // Vídeo terminou no ExoPlayer. No-op por design: o `@promessa = setTimeout`
+  // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
+  // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
+  // do lado Android lance ReferenceError.
   var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, keyForUrl, mod, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, updateContent, updateOnlineStatus;
+
+  window.onNativeVideoEnded = function() {
+    console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
+  };
+
+  // Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
+  // deixar a TV num buraco visual até o timer expirar.
+  window.onNativeVideoError = function(code, msg) {
+    var e;
+    console.warn(`NativePlayer: onNativeVideoError code=${code} msg=${msg} — forçando avanço`);
+    try {
+      if (typeof timelineConteudoSuperior !== "undefined" && timelineConteudoSuperior !== null) {
+        if (typeof timelineConteudoSuperior.executar === "function") {
+          timelineConteudoSuperior.executar();
+        }
+      }
+    } catch (error1) {
+      e = error1;
+      console.error('falha ao avançar timeline após erro do NativePlayer', e);
+    }
+  };
+
+  // Estado do ExoPlayer mudou (buffering / playing / paused). Hook opcional
+  // pra sincronizar overlays no futuro; hoje no-op.
+  window.onNativeVideoStateChange = function(state) {
+    console.log(`NativePlayer: onNativeVideoStateChange state=${state}`);
+  };
 
   timezoneGlobal = null;
 
@@ -548,8 +588,23 @@
 
     // playVideo injeta a <source> dinâmica
     // =============== Vídeo ===============
+
+    // Hook NativePlayer (Corpflix Android) — coexistência com Chrome Kiosk:
+
+    // Quando rodando dentro do Corpflix Android (WebView com `addJavascriptInterface`),
+    // `window.NativePlayer.isAvailable()` devolve true e delegamos o decode pro
+    // ExoPlayer nativo (SurfaceView por cima do WebView). Em qualquer outro
+    // ambiente — Chrome Kiosk em Pi/PC, browser desktop pra preview, etc. — a
+    // interface não existe e caímos no <video> HTML5 padrão. Mesmo deploy serve
+    // os dois mundos. Contrato em corpflix/PRD.md seção "Arquitetura híbrida".
+
+    // O timer de avanço da playlist (`@promessa = setTimeout ..., segundos`) já
+    // cuida de avançar quando o vídeo "termina" — não dependemos de evento
+    // `ended` nem do callback `onNativeVideoEnded`. Esse callback existe na
+    // interface do native pra eventualmente fast-forwardar quando o vídeo real
+    // termina antes de `segundos`, mas é opt-in.
     playVideo: function(itemAtual) {
-      var chooseAndPlay, key, pend, videoId;
+      var durationMs, e, ref, versaoCache, videoId;
       videoId = itemAtual.id;
       this.elUltimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
@@ -558,6 +613,31 @@
       if (this.playTimer2 != null) {
         clearTimeout(this.playTimer2);
       }
+      if ((window.NativePlayer != null) && ((function() {
+        try {
+          return window.NativePlayer.isAvailable();
+        } catch (error1) {
+          e = error1;
+          return false;
+        }
+      })())) {
+        durationMs = (itemAtual.segundos * 1000) || 5000;
+        versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
+        console.log(`Play video id ${videoId} via NativePlayer (ExoPlayer)`);
+        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
+        try {
+          window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+        } catch (error1) {
+          e = error1;
+          console.warn('NativePlayer.playVideo falhou — fallback pra <video> HTML5', e);
+          this._playVideoHtml5(itemAtual, videoId);
+        }
+        return;
+      }
+      this._playVideoHtml5(itemAtual, videoId);
+    },
+    _playVideoHtml5: function(itemAtual, videoId) {
+      var chooseAndPlay, key, pend;
       key = keyForUrl(itemAtual.arquivoUrl);
       pend = pendingBlobs.get(key);
       chooseAndPlay = (v) => {
@@ -611,6 +691,22 @@
     // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
     stopUltimoVideo: function() {
       var e, v;
+      // Native (Corpflix Android): para ExoPlayer e esconde SurfaceView. Idempotente.
+      if ((window.NativePlayer != null) && ((function() {
+        try {
+          return window.NativePlayer.isAvailable();
+        } catch (error1) {
+          e = error1;
+          return false;
+        }
+      })())) {
+        try {
+          window.NativePlayer.stopVideo();
+        } catch (error1) {
+          e = error1;
+          null;
+        }
+      }
       if (!this.elUltimoVideo) {
         return;
       }

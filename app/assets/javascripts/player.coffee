@@ -8,6 +8,39 @@
 #   scope.setUser id: "TV_ID_#{process.env.TV_ID}_FRONTEND"
 
 # alert('2')
+
+# ============================================================================
+# Callbacks do NativePlayer (Corpflix Android — JS bridge)
+#
+# Chamados pelo WebView host quando o ExoPlayer nativo termina ou erra. Em
+# Chrome Kiosk em Pi/PC essas funções existem mas nunca são invocadas (não há
+# host Java pra disparar). Nada quebra se forem redefinidas pela aplicação.
+# ============================================================================
+
+# Vídeo terminou no ExoPlayer. No-op por design: o `@promessa = setTimeout`
+# da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
+# este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
+# do lado Android lance ReferenceError.
+window.onNativeVideoEnded = ->
+  console.log "NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)"
+  return
+
+# Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
+# deixar a TV num buraco visual até o timer expirar.
+window.onNativeVideoError = (code, msg) ->
+  console.warn "NativePlayer: onNativeVideoError code=#{code} msg=#{msg} — forçando avanço"
+  try
+    timelineConteudoSuperior?.executar?()
+  catch e
+    console.error 'falha ao avançar timeline após erro do NativePlayer', e
+  return
+
+# Estado do ExoPlayer mudou (buffering / playing / paused). Hook opcional
+# pra sincronizar overlays no futuro; hoje no-op.
+window.onNativeVideoStateChange = (state) ->
+  console.log "NativePlayer: onNativeVideoStateChange state=#{state}"
+  return
+
 timezoneGlobal = null
 
 data =
@@ -425,14 +458,45 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
   # playVideo injeta a <source> dinâmica
   # =============== Vídeo ===============
+  #
+  # Hook NativePlayer (Corpflix Android) — coexistência com Chrome Kiosk:
+  #
+  # Quando rodando dentro do Corpflix Android (WebView com `addJavascriptInterface`),
+  # `window.NativePlayer.isAvailable()` devolve true e delegamos o decode pro
+  # ExoPlayer nativo (SurfaceView por cima do WebView). Em qualquer outro
+  # ambiente — Chrome Kiosk em Pi/PC, browser desktop pra preview, etc. — a
+  # interface não existe e caímos no <video> HTML5 padrão. Mesmo deploy serve
+  # os dois mundos. Contrato em corpflix/PRD.md seção "Arquitetura híbrida".
+  #
+  # O timer de avanço da playlist (`@promessa = setTimeout ..., segundos`) já
+  # cuida de avançar quando o vídeo "termina" — não dependemos de evento
+  # `ended` nem do callback `onNativeVideoEnded`. Esse callback existe na
+  # interface do native pra eventualmente fast-forwardar quando o vídeo real
+  # termina antes de `segundos`, mas é opt-in.
   playVideo: (itemAtual) ->
     videoId = itemAtual.id
     @elUltimoVideo = "video-player-#{itemAtual.id}"
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
-    key       = keyForUrl(itemAtual.arquivoUrl)
-    pend      = pendingBlobs.get(key)
+    if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
+      durationMs = (itemAtual.segundos * 1000) || 5000
+      versaoCache = itemAtual.midia?.versao_cache or null
+      console.log "Play video id #{videoId} via NativePlayer (ExoPlayer)"
+      console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}"
+      try
+        window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
+      catch e
+        console.warn 'NativePlayer.playVideo falhou — fallback pra <video> HTML5', e
+        @_playVideoHtml5(itemAtual, videoId)
+      return
+
+    @_playVideoHtml5(itemAtual, videoId)
+    return
+
+  _playVideoHtml5: (itemAtual, videoId) ->
+    key  = keyForUrl(itemAtual.arquivoUrl)
+    pend = pendingBlobs.get(key)
 
     chooseAndPlay = (v) =>
       entry = blobCache.get(key)
@@ -442,7 +506,7 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
       console.log "finalVideoUrl: #{finalVideoUrl}"
       console.log "arquivoUrl: #{itemAtual.arquivoUrl}"
 
-      ctype   = entry?.type or itemAtual.content_type or 'video/mp4'
+      ctype = entry?.type or itemAtual.content_type or 'video/mp4'
       injectSource(v, finalVideoUrl, ctype)
       v.currentTime = 0
       v.play().catch (e) -> console.warn('play falhou', e)
@@ -473,6 +537,10 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   # revoga blob ao parar, eliminando vazamento e caches velhos
   # NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
   stopUltimoVideo: ->
+    # Native (Corpflix Android): para ExoPlayer e esconde SurfaceView. Idempotente.
+    if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
+      try window.NativePlayer.stopVideo() catch e then null
+
     return unless @elUltimoVideo
     v = document.getElementById(@elUltimoVideo)
     if v?
