@@ -10,20 +10,7 @@ module.exports = (opt={}) ->
   server = app.listen(ENV.HTTP_PORT)
   scPrint.success("http://localhost:#{ENV.HTTP_PORT} ligado")
 
-  # ====== Cache "forte" (1 ano) para arquivos fingerprintados (mp4/png/jpg/etc.)
-  # troque os caminhos locais abaixo para a sua pasta real de vídeos/imagens
-  longCache =
-    etag: true
-    lastModified: true
-    immutable: true
-    maxAge: '365d'
-    setHeaders: (res, p) ->
-      # Só aplique immutable se o nome for "versão" (ex.: 1220.mp4, 1219.mp4 … ok se você não reaproveita nome)
-      res.setHeader 'Cache-Control', 'public, max-age=31536000, immutable'
-      # CORS opcional (se necessário para players em hosts diferentes)
-      res.setHeader 'Access-Control-Allow-Origin', '*'
-
-  # Revalidação para coisas que mudam com o mesmo nome
+  # Revalidação para coisas que mudam com o mesmo nome (assets legados sem versão).
   revalidateCache =
     etag: true
     lastModified: true
@@ -31,16 +18,24 @@ module.exports = (opt={}) ->
       res.setHeader 'Cache-Control', 'public, max-age=0, must-revalidate'
       res.setHeader 'Access-Control-Allow-Origin', '*'
 
-  # Exponha as pastas estáticas ANTES do app.all '*'
-  # Vídeos por TV: /:tvId/videos/<arquivo>.mp4 -> /var/lib/midia_indoor_player/videos/<arquivo>.mp4
-  # app.use '/:tvId/videos', express.static('/var/lib/midia_indoor_player/videos', longCache)
+  # Cache "smart": arquivos versionados (`<id>-v<unix_ts>.<ext>`, gerados pelo
+  # grade.coffee a partir de `versao_cache` do ERP) ganham 1 ano + immutable —
+  # browser da TV nem revalida. Arquivos sem `-v<n>` no nome (TVs antigas, ou
+  # payload do ERP antes do versionamento) caem em revalidate, comportamento
+  # legado preservado. Re-upload no admin → updated_at muda → filename muda →
+  # cache miss natural sem precisar limpar cache do browser.
+  smartCache =
+    etag: true
+    lastModified: true
+    setHeaders: (res, p) ->
+      res.setHeader 'Access-Control-Allow-Origin', '*'
+      if /-v\d+\.(mp4|webm|m4v|webp|jpg|jpeg|png|gif|mp3|ogg)$/i.test(p)
+        res.setHeader 'Cache-Control', 'public, max-age=31536000, immutable'
+      else
+        res.setHeader 'Cache-Control', 'public, max-age=0, must-revalidate'
 
-  # Imagens (se tiver): /images/* -> cache longo
-  # app.use '/images', express.static('/var/lib/midia_indoor_player/images', longCache)
-
-  # Seus assets públicos (mantive como estava; ajuste para longCache se forem fingerprintados)
   app.use express.static(path.join(__dirname, '../assets/'), revalidateCache)
-  app.use express.static(path.join(__dirname, '../../public/'), revalidateCache)
+  app.use express.static(path.join(__dirname, '../../public/'), smartCache)
 
   # ====== Middleware genérico (não force JSON em tudo)
   app.all '*', (req, res, next) ->

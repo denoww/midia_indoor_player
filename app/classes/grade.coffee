@@ -168,7 +168,13 @@ module.exports = ->
 
 
       item.content_type = vinculo.midia.content_type
-      nome_arquivo = "#{vinculo.midia.id}.#{vinculo.midia.extension}"
+      # Cache-bust: ERP envia `versao_cache` (= anexo_updated_at.to_i). Inclui
+      # no filename pra que web.coffee possa servir com Cache-Control: immutable
+      # e o browser da TV não re-baixe ao reiniciar. Re-upload no admin muda
+      # versao_cache → filename muda → URL muda → cache miss natural.
+      # Sem versao_cache (ERP antigo): cai no nome legado `<id>.<ext>`.
+      sufixoVersao = if vinculo.midia.versao_cache then "-v#{vinculo.midia.versao_cache}" else ''
+      nome_arquivo = "#{vinculo.midia.id}#{sufixoVersao}.#{vinculo.midia.extension}"
       nome_arquivo = @ajustImageNameToWebp item if item.is_image
 
       item.nome_arquivo = nome_arquivo
