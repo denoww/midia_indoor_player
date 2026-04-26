@@ -119,6 +119,11 @@
     body: void 0,
     loaded: false,
     loading: true,
+    // Loader sutil durante a transição entre items da playlist — evita
+    // falsa sensação de travamento. Toggled pelo timelineConteudoSuperior
+    // .executar() (ver player.coffee). CSS em .transition-loader (canto
+    // superior direito do .content-player). Auto-hide via setTimeout.
+    transitioning: false,
     indexConteudoSuperior: 0,
     indexConteudoMensagem: 0,
     listaConteudoSuperior: [],
@@ -663,6 +668,19 @@
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
+      // Loader sutil durante a transição — feedback visual de "trocando
+      // item" pra evitar falsa sensação de travamento, especialmente
+      // durante carregamento do próximo vídeo/imagem. Auto-hide em 900ms,
+      // cobre a maioria dos casos com pre-aquecimento ativo. Se o tempo
+      // de carga for maior, o loader some antes da mídia aparecer (não
+      // ideal, mas evita "loader eterno" se algum evento falha).
+      vm.transitioning = true;
+      if (this._transTimer) {
+        clearTimeout(this._transTimer);
+      }
+      this._transTimer = setTimeout((function() {
+        return vm.transitioning = false;
+      }), 900);
       itemAtual = this.resolveNextItem({
         consuming: true
       });

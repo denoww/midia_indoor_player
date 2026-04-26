@@ -98,6 +98,12 @@ data =
   loaded:  false
   loading: true
 
+  # Loader sutil durante a transição entre items da playlist — evita
+  # falsa sensação de travamento. Toggled pelo timelineConteudoSuperior
+  # .executar() (ver player.coffee). CSS em .transition-loader (canto
+  # superior direito do .content-player). Auto-hide via setTimeout.
+  transitioning: false
+
   indexConteudoSuperior: 0
   indexConteudoMensagem: 0
 
@@ -524,6 +530,16 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
   executar: ->
     clearTimeout @promessa if @promessa
+
+    # Loader sutil durante a transição — feedback visual de "trocando
+    # item" pra evitar falsa sensação de travamento, especialmente
+    # durante carregamento do próximo vídeo/imagem. Auto-hide em 900ms,
+    # cobre a maioria dos casos com pre-aquecimento ativo. Se o tempo
+    # de carga for maior, o loader some antes da mídia aparecer (não
+    # ideal, mas evita "loader eterno" se algum evento falha).
+    vm.transitioning = true
+    clearTimeout(@_transTimer) if @_transTimer
+    @_transTimer = setTimeout (-> vm.transitioning = false), 900
 
     itemAtual = @resolveNextItem({ consuming: true })
     return console.error "resolveNextItem() retornou null" unless itemAtual

@@ -100,6 +100,16 @@
           </div> <!-- content-side -->
 
           <div class="content-player">
+
+            <!-- Loader de transição entre items da playlist. Sutil
+                 (canto sup. direito), aparece quando timelineConteudo
+                 Superior.executar() é chamado e some em ~900ms. Evita
+                 falsa sensação de travamento durante carga do próximo
+                 vídeo/imagem. -->
+            <div class="transition-loader" v-if="transitioning">
+              <i class="sc-icon-carregando-1 sc-icon-spin"></i>
+            </div>
+
             <div class="player-item">
 
               <div v-for="(item, index) in listaConteudoSuperior" :key="item.id" :class="[{'active': (index === indexConteudoSuperior)}]" class="playlist-content">
