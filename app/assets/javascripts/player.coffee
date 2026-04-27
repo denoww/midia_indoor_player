@@ -599,6 +599,17 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
       versaoCache = itemAtual.midia?.versao_cache or null
       console.log "Play video id #{videoId} via NativePlayer (ExoPlayer)"
       console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}"
+
+      # Áudio é opt-in explícito (digital signage default = mute):
+      # — `vm.grade.data.audio_enabled` vem do ERP por TV (campo gerenciado
+      #   no admin /gerenciar/cd/.../publicidade/tvs).
+      # — `!!` força boolean: undefined/null/false → false; só `true` libera.
+      # — `setAudioEnabled?` proteção pra Corpflix Android < 3.1.82 (sem o
+      #   método ainda); silently no-op nessas versões, mas elas já tocam
+      #   muted por default no bridge novo, então sem regressão visual.
+      audioEnabled = !!(vm?.grade?.data?.audio_enabled)
+      if window.NativePlayer.setAudioEnabled?
+        try window.NativePlayer.setAudioEnabled(audioEnabled) catch e then null
       # Mede rect com retry em RAF — cobre race com layout pass do browser
       # logo após vm.loaded virar true, ou Vue v-if pré-mount.
       nativePlayerMeasureRect videoId, (rect) =>

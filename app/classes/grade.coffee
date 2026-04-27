@@ -121,6 +121,12 @@ module.exports = ->
         # versao_player: jsonData.versao_player
         # current_version: global.versionsControl?.currentVersion
         restart_player_em: jsonData.restart_player_em
+        # `audio_enabled` (Boolean): vem do ERP por TV. Default false em todo
+        # stack (ERP → relay → player → bridge Android) — overwhelmingly
+        # mute é o que prédio/academia/clínica querem; áudio é opt-in
+        # explícito do admin. `?? false` cobre payloads antigos que ainda
+        # não trazem o campo.
+        audio_enabled: jsonData.audio_enabled ? false
 
       @data[tvId].finance = jsonData.finance if jsonData.finance
       @data[tvId].weather = jsonData.weather if jsonData.weather
