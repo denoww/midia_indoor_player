@@ -128,6 +128,18 @@ module.exports = ->
         # não trazem o campo.
         audio_enabled: jsonData.audio_enabled ? false
 
+        # Schedule de tela ligada/desligada — vem do ERP por TV pra
+        # proteger painel contra burn-in fora do horário comercial.
+        # Default `enabled: false` mantém comportamento 24/7 em todas
+        # as TVs antigas (sem regressão). Quando habilitado, JS roda
+        # tick a cada 60s checando dia/hora local; fora da janela,
+        # pinta overlay preto fullscreen + chama setScreenActive(false)
+        # no bridge (Android para ExoPlayer e esconde WebView).
+        screen_schedule_enabled: jsonData.screen_schedule_enabled ? false
+        screen_active_days:      jsonData.screen_active_days ? '1,2,3,4,5,6,7'
+        screen_active_start:     jsonData.screen_active_start ? '00:00'
+        screen_active_end:       jsonData.screen_active_end ? '23:59'
+
       @data[tvId].finance = jsonData.finance if jsonData.finance
       @data[tvId].weather = jsonData.weather if jsonData.weather
 
