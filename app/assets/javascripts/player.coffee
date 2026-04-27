@@ -267,6 +267,116 @@ keyForUrl = (u) ->
 getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
 
 
+# ============================================================================
+# Schedule de tela ligada/desligada — anti burn-in
+#
+# Vem do ERP em `vm.grade.data`:
+#   screen_schedule_enabled: Boolean — master toggle
+#   screen_active_days:      String  — CSV ISO weekdays (Mon=1..Sun=7)
+#   screen_active_start:     String  — "HH:MM" local time
+#   screen_active_end:       String  — "HH:MM" local time
+#
+# Quando habilitado e o relógio LOCAL está fora da janela, aplicamos:
+#  1. Overlay preto fullscreen (DOM, z-index máximo) — funciona em qualquer
+#     host (Pi/Chrome legado e Corpflix Android).
+#  2. NativePlayer.setScreenActive(false) — Android para ExoPlayer e esconde
+#     WebView via Compose (defesa em profundidade — bug do JS aqui não
+#     queima painel).
+#  3. NativePlayer.stopVideo() — garante que decode pare mesmo se o JS
+#     estava no meio de um clip.
+#
+# Tick: 60s. Aplicado também a cada gradeObj.handle (pra reagir
+# imediatamente quando admin muda a config no ERP).
+# ============================================================================
+
+ensureScreenOffOverlayEl = ->
+  el = document.getElementById('screen-off-overlay')
+  return el if el
+  el = document.createElement('div')
+  el.id = 'screen-off-overlay'
+  Object.assign el.style,
+    position:      'fixed'
+    top:           '0'
+    left:          '0'
+    right:         '0'
+    bottom:        '0'
+    background:    '#000'
+    zIndex:        '2147483647'
+    pointerEvents: 'none'
+    display:       'none'
+  document.body?.appendChild(el)
+  el
+
+# 'HH:MM' -> minutos-do-dia (0..1439). null/inválido -> null.
+hhmmToMinutes = (s) ->
+  return null unless typeof s is 'string'
+  parts = s.split(':')
+  return null unless parts.length is 2
+  h = parseInt(parts[0], 10)
+  m = parseInt(parts[1], 10)
+  return null if isNaN(h) or isNaN(m)
+  return null if h < 0 or h > 23 or m < 0 or m > 59
+  h * 60 + m
+
+# Janela inclusiva nos dois extremos: [start, end]. Quando end < start,
+# entende como "atravessa meia-noite" (ex: 22:00 → 04:00).
+screenIsActiveNow = (daysCSV, startStr, endStr, now = new Date()) ->
+  isoDay = ((now.getDay() + 6) % 7) + 1  # JS 0=Sun..6=Sat → ISO 7,1..6
+  daysOk = String(daysCSV or '')
+    .split(',')
+    .map (s) -> parseInt(s.trim(), 10)
+    .filter (n) -> not isNaN(n)
+  return false if daysOk.length is 0
+  return false unless isoDay in daysOk
+
+  startMin = hhmmToMinutes(startStr) ? 0
+  endMin   = hhmmToMinutes(endStr)   ? (24*60 - 1)
+  nowMin   = now.getHours() * 60 + now.getMinutes()
+
+  if startMin <= endMin
+    nowMin >= startMin and nowMin <= endMin
+  else
+    nowMin >= startMin or nowMin <= endMin
+
+applyScreenSchedule = ->
+  d = window.vm?.grade?.data
+  return unless d  # grade ainda não carregou — overlay default invisível
+
+  shouldHide = false
+  if d.screen_schedule_enabled
+    active = screenIsActiveNow(
+      d.screen_active_days,
+      d.screen_active_start,
+      d.screen_active_end,
+    )
+    shouldHide = not active
+
+  el = ensureScreenOffOverlayEl()
+  desired = if shouldHide then 'block' else 'none'
+  return if el.style.display is desired  # idempotente
+
+  el.style.display = desired
+  console.log "screenSchedule: overlay=#{desired} " +
+    "(enabled=#{d.screen_schedule_enabled}, " +
+    "days=#{d.screen_active_days}, " +
+    "#{d.screen_active_start}-#{d.screen_active_end})"
+
+  # Bridge defesa em profundidade — Android para ExoPlayer e esconde WebView.
+  if window.NativePlayer?.setScreenActive?
+    try window.NativePlayer.setScreenActive(not shouldHide) catch e then null
+
+  # Pausa o decode em curso ao entrar em off-hours.
+  if shouldHide and window.NativePlayer?.stopVideo?
+    try window.NativePlayer.stopVideo() catch e then null
+  return
+
+screenScheduleLoopStarted = false
+startScreenScheduleLoop = ->
+  return if screenScheduleLoopStarted
+  screenScheduleLoopStarted = true
+  applyScreenSchedule()
+  setInterval applyScreenSchedule, 60_000
+
 
 @gradeObj =
   tentar: 10
@@ -319,6 +429,12 @@ getContentType = (resp) -> resp?.headers?.get('Content-Type') or 'video/mp4'
   handle: (data)->
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
+
+    # Sobe o loop de schedule de tela (idempotente — só faz setInterval
+    # uma vez) e re-avalia imediatamente, pra reagir já no próximo grade
+    # refresh quando admin muda config no ERP.
+    startScreenScheduleLoop()
+    applyScreenSchedule()
 
     return
   mountWeatherData: ->
