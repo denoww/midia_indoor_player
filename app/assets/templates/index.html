@@ -229,11 +229,12 @@
       </div> <!-- content-main -->
 
       <div class="loading" v-if="loading">
-        <div>&nbsp;</div>
-        <div class="logo" style="background-image: url('/images/logo-white.png')"></div>
-        <div class="text">
-          <div><i class="sc-icon-carregando-1 sc-icon-spin"></i></div>
-          Carregando
+        <div class="loading-inner">
+          <div class="logo" style="background-image: url('/images/logo-white.png')"></div>
+          <div class="progress-bar">
+            <div class="progress-bar-indicator"></div>
+          </div>
+          <div class="loading-label">CARREGANDO</div>
         </div>
       </div> <!-- loading -->
 

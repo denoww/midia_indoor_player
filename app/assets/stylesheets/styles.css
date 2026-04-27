@@ -9,7 +9,7 @@ html, body {
   padding: 0;
   font-size: 0.8vw;
   font-family: 'Open Sans', sans-serif;
-  background: #222;
+  background: #000;
   cursor: default;
   user-select: none;
   -webkit-user-select: none;
@@ -35,24 +35,79 @@ p {
   left: 0;
   z-index: 999;
   display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
   align-items: center;
-  background: #222;
+  justify-content: center;
+  background-color: #000;
+  background-image: radial-gradient(ellipse at center, #0b0b0b 0%, #000 70%);
   color: #fff;
+  animation: loading-fade-in 500ms ease-out both;
+}
+
+.loading .loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4.5em;
+  transform: translateY(-1.5em);
 }
 
 .loading .logo {
   width: 22em;
-  height: 8em;
+  height: 7em;
   background-size: contain;
   background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(0 0 24px rgba(255, 255, 255, 0.06));
+  animation: loading-logo-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-.loading .text {
-  font-size: 3em;
-  font-weight: 100;
-  text-align: center;
+.loading .progress-bar {
+  position: relative;
+  width: 18em;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading .progress-bar-indicator {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  height: 100%;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  border-radius: 999px;
+  animation: loading-shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.loading .loading-label {
+  font-size: 1.05em;
+  font-weight: 400;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+@keyframes loading-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes loading-logo-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loading-shimmer {
+  0%   { left: -40%; }
+  100% { left: 100%; }
 }
 
 .offline {
