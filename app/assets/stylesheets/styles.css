@@ -160,6 +160,7 @@ p {
 .content-top    { display: flex }
 .content-side   {
   width:  15vw;
+  flex: 0 0 15vw;     /* trava largura — sem shrink subpixel */
   height: 85vh;
   order: 1;
   background: rgba(0,0,0,0.25);
@@ -170,6 +171,8 @@ p {
 .content-footer { width: 100vw; height: 15vh; }
 .content-player {
   width:  85vw;
+  flex: 1 1 0;        /* ocupa o resto exato — fecha gap de subpixel no seam */
+  min-width: 0;       /* desliga min-content dos <video>/imagens internos */
   height: 85vh;
   overflow: hidden;
   order: 2;
@@ -215,13 +218,13 @@ p {
 .layout-1 .content-footer { display: none }
 
 .layout-2 .content-top    {}
-.layout-2 .content-side   { width:  15vw; height: 85vh; order: 1 }
-.layout-2 .content-player { width:  85vw; height: 85vh; }
+.layout-2 .content-side   { width:  15vw; flex: 0 0 15vw; height: 85vh; order: 1 }
+.layout-2 .content-player { width:  85vw; flex: 1 1 0; min-width: 0; height: 85vh; }
 .layout-2 .content-footer { width: 100vw; height: 15vh; }
 
 .layout-3 .content-top    {}
-.layout-3 .content-side   { width:  15vw; height: 85vh; order: 3 }
-.layout-3 .content-player { width:  85vw; height: 85vh; }
+.layout-3 .content-side   { width:  15vw; flex: 0 0 15vw; height: 85vh; order: 3 }
+.layout-3 .content-player { width:  85vw; flex: 1 1 0; min-width: 0; height: 85vh; }
 .layout-3 .content-footer { width: 100vw; height: 15vh; }
 
 .layout-4 .content-top    {}
