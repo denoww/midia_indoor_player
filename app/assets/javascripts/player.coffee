@@ -55,38 +55,66 @@ window.onNativeVideoStateChange = (state) ->
 #
 # Fallback final retorna {0,0,0,0}; o bridge nativo trata como "use
 # fullscreen" pra evitar SurfaceView 0×0 (tela preta).
+#
+# Lista de candidatos (mais específico → mais genérico). Iterada toda:
+# se o primeiro existe mas mediu 0×0 (acontece em transição de layout),
+# os seguintes salvam o frame em vez de cair no fallback fullscreen.
+nativePlayerCandidates = (videoId) ->
+  out = []
+  getters = [
+    -> document.querySelector('.content-player')
+    -> if videoId? then document.getElementById("video-player-#{videoId}") else null
+    -> document.querySelector('.player-item')
+    -> document.getElementById('content-main')
+  ]
+  for getter in getters
+    el = getter()
+    out.push(el) if el and el not in out
+  out
+
 nativePlayerVideoRect = (videoId) ->
-  el = document.querySelector('.content-player') or
-       document.getElementById("video-player-#{videoId}") or
-       document.querySelector('.player-item') or
-       document.getElementById('content-main')
-  return {left: 0, top: 0, width: 0, height: 0} unless el
-  r = el.getBoundingClientRect()
-  rect = {
-    left:   Math.round(r.left)
-    top:    Math.round(r.top)
-    width:  Math.round(r.width)
-    height: Math.round(r.height)
-  }
-  if rect.width is 0 or rect.height is 0
-    cs = getComputedStyle(el)
-    console.warn "rect zerado em #{el.tagName}.#{el.className or '(no-class)'} — " +
-                 "display=#{cs.display} visibility=#{cs.visibility} " +
-                 "offsetParent=#{el.offsetParent?.tagName or '(null)'} " +
-                 "client=#{el.clientWidth}x#{el.clientHeight}"
-  rect
+  candidates = nativePlayerCandidates(videoId)
+  return {left: 0, top: 0, width: 0, height: 0} if candidates.length is 0
+
+  # Retorna o primeiro candidato com rect não-zero. Se todos zerados,
+  # devolve o do primeiro pra o caller logar info de quem tá zerado.
+  fallback = null
+  for el in candidates
+    r = el.getBoundingClientRect()
+    rect = {
+      left:   Math.round(r.left)
+      top:    Math.round(r.top)
+      width:  Math.round(r.width)
+      height: Math.round(r.height)
+    }
+    return rect if rect.width > 0 and rect.height > 0
+    fallback ?= {el, rect}
+
+  cs = getComputedStyle(fallback.el)
+  console.warn "rect zerado em #{fallback.el.tagName}.#{fallback.el.className or '(no-class)'} — " +
+               "display=#{cs.display} visibility=#{cs.visibility} " +
+               "offsetParent=#{fallback.el.offsetParent?.tagName or '(null)'} " +
+               "client=#{fallback.el.clientWidth}x#{fallback.el.clientHeight}"
+  fallback.rect
 
 # Mede o rect e chama o callback. Se rect der 0×0 (race com layout pass do
 # browser logo após vm.loaded virar true, ou Vue v-if pré-mount), tenta de
-# novo em até [maxRetries] frames via requestAnimationFrame. Custo no
-# happy-path é 0 — quando o rect já é válido na primeira medida, callback
-# roda síncrono.
-nativePlayerMeasureRect = (videoId, callback, maxRetries = 3) ->
-  attempt = (left) ->
+# novo em até [maxRetries] frames via requestAnimationFrame. Após metade
+# dos retries, alterna pra setTimeout — cobre o caso de RAF estar pausado
+# (Chrome Kiosk em tab background, ou WebView com page visibility=hidden
+# durante transição de Activity). Custo no happy-path é 0 — quando o rect
+# já é válido na primeira medida, callback roda síncrono.
+nativePlayerMeasureRect = (videoId, callback, maxRetries = 5) ->
+  attempt = (left, viaTimeout = false) ->
     rect = nativePlayerVideoRect(videoId)
     if (rect.width is 0 or rect.height is 0) and left > 0
-      console.log "nativePlayerVideoRect 0×0, retry em RAF (#{left} restantes)"
-      requestAnimationFrame -> attempt(left - 1)
+      console.log "nativePlayerVideoRect 0×0, retry em #{if viaTimeout then 'setTimeout' else 'RAF'} (#{left} restantes)"
+      # Alterna RAF → setTimeout depois de gastar metade dos retries.
+      switchToTimeout = viaTimeout or left <= Math.ceil(maxRetries / 2)
+      if switchToTimeout
+        setTimeout((-> attempt(left - 1, true)), 16)
+      else
+        requestAnimationFrame -> attempt(left - 1, false)
       return
     callback(rect)
   attempt(maxRetries)
@@ -1038,35 +1066,58 @@ startScreenScheduleLoop = ->
     currentItem
 
 
+# Detecta timezone preferindo Intl (síncrono, no-network). Em browsers que
+# não expõem `Intl.DateTimeFormat().resolvedOptions().timeZone` cai pra
+# fetch geo-IP — com timeout curto pra não enforcar o `mounted` da TV se
+# a rede estiver tossindo (Chrome Kiosk em link congestionado, WebView
+# Android sem permissão pro endpoint http externo, ou DNS público filtrado).
 descobrirTimezone = (callback) ->
-  # fallback em caso de erro
+  # Garante callback único — protege contra Intl síncrono + fetch
+  # respondendo tarde duplicarem o tick do relógio.
+  resolved = false
   done = (tz) ->
+    return if resolved
+    resolved = true
     timezoneGlobal = tz or "America/Sao_Paulo"
     callback?(timezoneGlobal)
 
   try
-    tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    tz = Intl?.DateTimeFormat?()?.resolvedOptions?()?.timeZone
     if tz
       return done(tz)
   catch e
     console.warn "Intl timezone falhou:", e
 
-  fetch('http://ip-api.com/json')
+  # Fallback de rede com timeout. 3s passou disso é melhor cair no default
+  # do que segurar o boot da TV.
+  fetchWithTimeout = (url, ms = 3000) ->
+    return Promise.reject(new Error("AbortController indisponível")) unless typeof AbortController is 'function'
+    ctrl = new AbortController()
+    timer = setTimeout((-> ctrl.abort()), ms)
+    fetch(url, signal: ctrl.signal).finally(-> clearTimeout(timer))
+
+  fetchWithTimeout('http://ip-api.com/json')
     .then((r) -> r.json())
     .then((j) ->
       if j?.timezone
         done(j.timezone)
       else
-        throw new Error("timezone não encontrado")
+        throw new Error("ip-api sem campo timezone")
     )
-    .catch ->
-      fetch('https://worldtimeapi.org/api/ip')
+    .catch (err1) ->
+      fetchWithTimeout('https://worldtimeapi.org/api/ip')
         .then((r) -> r.json())
-        .then((j) -> done(j?.timezone))
-        .catch((e) ->
-          console.warn "Falha ao detectar timezone:", e
-          done("America/Sao_Paulo")
+        .then((j) ->
+          if j?.timezone
+            done(j.timezone)
+          else
+            throw new Error("worldtimeapi sem campo timezone")
         )
+        .catch (err2) ->
+          msg1 = err1?.message or err1
+          msg2 = err2?.message or err2
+          console.warn "Falha ao detectar timezone (ip-api: #{msg1}; worldtimeapi: #{msg2}). Usando America/Sao_Paulo."
+          done("America/Sao_Paulo")
 
 # descobrirTimezone = (callback) ->
 #   console.log "Descobrindo timezone..."
@@ -1086,14 +1137,26 @@ descobrirTimezone = (callback) ->
 #   Vue.http.get(url).then success, error
 
 
+# Guarda anti-race: `mounted` chama `relogio.start()` durante a execução
+# de `@vm = new Vue(...)`. O `Intl.DateTimeFormat` resolve síncrono → o
+# callback do `descobrirTimezone` roda síncrono → toca `vm.timezone`
+# ANTES de `@vm = ` ter terminado de atribuir window.vm → ReferenceError.
+# Solução: adiar a escrita pro próximo frame e checar disponibilidade.
 relogio =
   start: ->
     descobrirTimezone (tz) ->
-      vm.timezone = tz or "America/Sao_Paulo"
-      relogio.tick()         # já atualiza na hora
-      relogio.timer = setInterval(relogio.tick, 1000)  # 1s (ou 30s/60s)
+      assign = ->
+        unless window.vm?
+          # Race feio (mounted ainda dentro do construtor do Vue).
+          # Tenta de novo no próximo frame.
+          return requestAnimationFrame(assign)
+        vm.timezone = tz or "America/Sao_Paulo"
+        relogio.tick()         # já atualiza na hora
+        relogio.timer ?= setInterval(relogio.tick, 1000)  # 1s (ou 30s/60s)
+      assign()
 
   tick: ->
+    return unless window.vm?
     tz = vm.timezone or "America/Sao_Paulo"
     m  = moment.tz(new Date(), tz)
 
@@ -1144,7 +1207,12 @@ window.addEventListener 'offline',  updateOnlineStatus
   mounted: ->
     @loading = true
     @mouse()
-    relogio.start()
+    # Defer pro próximo tick — o `@vm = new Vue(...)` ainda não terminou
+    # de atribuir window.vm enquanto este `mounted` roda, e o
+    # `descobrirTimezone` pode resolver síncrono (Intl) e tocar
+    # `vm.timezone` na hora. `$nextTick` garante que o setup de top-level
+    # já completou.
+    @$nextTick -> relogio.start()
 
 
 

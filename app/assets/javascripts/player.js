@@ -23,7 +23,8 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, blobCache, data, descobrirTimezone, getContentType, injectSource, isFormElement, keyForUrl, mod, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus;
+  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
+    indexOf = [].indexOf;
 
   window.onNativeVideoEnded = function() {
     console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
@@ -66,10 +67,45 @@
 
   // Fallback final retorna {0,0,0,0}; o bridge nativo trata como "use
   // fullscreen" pra evitar SurfaceView 0×0 (tela preta).
+
+  // Lista de candidatos (mais específico → mais genérico). Iterada toda:
+  // se o primeiro existe mas mediu 0×0 (acontece em transição de layout),
+  // os seguintes salvam o frame em vez de cair no fallback fullscreen.
+  nativePlayerCandidates = function(videoId) {
+    var el, getter, getters, i, len, out;
+    out = [];
+    getters = [
+      function() {
+        return document.querySelector('.content-player');
+      },
+      function() {
+        if (videoId != null) {
+          return document.getElementById(`video-player-${videoId}`);
+        } else {
+          return null;
+        }
+      },
+      function() {
+        return document.querySelector('.player-item');
+      },
+      function() {
+        return document.getElementById('content-main');
+      }
+    ];
+    for (i = 0, len = getters.length; i < len; i++) {
+      getter = getters[i];
+      el = getter();
+      if (el && indexOf.call(out, el) < 0) {
+        out.push(el);
+      }
+    }
+    return out;
+  };
+
   nativePlayerVideoRect = function(videoId) {
-    var cs, el, r, rect, ref;
-    el = document.querySelector('.content-player') || document.getElementById(`video-player-${videoId}`) || document.querySelector('.player-item') || document.getElementById('content-main');
-    if (!el) {
+    var candidates, cs, el, fallback, i, len, r, rect, ref;
+    candidates = nativePlayerCandidates(videoId);
+    if (candidates.length === 0) {
       return {
         left: 0,
         top: 0,
@@ -77,35 +113,55 @@
         height: 0
       };
     }
-    r = el.getBoundingClientRect();
-    rect = {
-      left: Math.round(r.left),
-      top: Math.round(r.top),
-      width: Math.round(r.width),
-      height: Math.round(r.height)
-    };
-    if (rect.width === 0 || rect.height === 0) {
-      cs = getComputedStyle(el);
-      console.warn(`rect zerado em ${el.tagName}.${el.className || '(no-class)'} — ` + `display=${cs.display} visibility=${cs.visibility} ` + `offsetParent=${((ref = el.offsetParent) != null ? ref.tagName : void 0) || '(null)'} ` + `client=${el.clientWidth}x${el.clientHeight}`);
+    // Retorna o primeiro candidato com rect não-zero. Se todos zerados,
+    // devolve o do primeiro pra o caller logar info de quem tá zerado.
+    fallback = null;
+    for (i = 0, len = candidates.length; i < len; i++) {
+      el = candidates[i];
+      r = el.getBoundingClientRect();
+      rect = {
+        left: Math.round(r.left),
+        top: Math.round(r.top),
+        width: Math.round(r.width),
+        height: Math.round(r.height)
+      };
+      if (rect.width > 0 && rect.height > 0) {
+        return rect;
+      }
+      if (fallback == null) {
+        fallback = {el, rect};
+      }
     }
-    return rect;
+    cs = getComputedStyle(fallback.el);
+    console.warn(`rect zerado em ${fallback.el.tagName}.${fallback.el.className || '(no-class)'} — ` + `display=${cs.display} visibility=${cs.visibility} ` + `offsetParent=${((ref = fallback.el.offsetParent) != null ? ref.tagName : void 0) || '(null)'} ` + `client=${fallback.el.clientWidth}x${fallback.el.clientHeight}`);
+    return fallback.rect;
   };
 
   // Mede o rect e chama o callback. Se rect der 0×0 (race com layout pass do
   // browser logo após vm.loaded virar true, ou Vue v-if pré-mount), tenta de
-  // novo em até [maxRetries] frames via requestAnimationFrame. Custo no
-  // happy-path é 0 — quando o rect já é válido na primeira medida, callback
-  // roda síncrono.
-  nativePlayerMeasureRect = function(videoId, callback, maxRetries = 3) {
+  // novo em até [maxRetries] frames via requestAnimationFrame. Após metade
+  // dos retries, alterna pra setTimeout — cobre o caso de RAF estar pausado
+  // (Chrome Kiosk em tab background, ou WebView com page visibility=hidden
+  // durante transição de Activity). Custo no happy-path é 0 — quando o rect
+  // já é válido na primeira medida, callback roda síncrono.
+  nativePlayerMeasureRect = function(videoId, callback, maxRetries = 5) {
     var attempt;
-    attempt = function(left) {
-      var rect;
+    attempt = function(left, viaTimeout = false) {
+      var rect, switchToTimeout;
       rect = nativePlayerVideoRect(videoId);
       if ((rect.width === 0 || rect.height === 0) && left > 0) {
-        console.log(`nativePlayerVideoRect 0×0, retry em RAF (${left} restantes)`);
-        requestAnimationFrame(function() {
-          return attempt(left - 1);
-        });
+        console.log(`nativePlayerVideoRect 0×0, retry em ${viaTimeout ? 'setTimeout' : 'RAF'} (${left} restantes)`);
+        // Alterna RAF → setTimeout depois de gastar metade dos retries.
+        switchToTimeout = viaTimeout || left <= Math.ceil(maxRetries / 2);
+        if (switchToTimeout) {
+          setTimeout((function() {
+            return attempt(left - 1, true);
+          }), 16);
+        } else {
+          requestAnimationFrame(function() {
+            return attempt(left - 1, false);
+          });
+        }
         return;
       }
       return callback(rect);
@@ -339,6 +395,148 @@
     return (resp != null ? (ref = resp.headers) != null ? ref.get('Content-Type') : void 0 : void 0) || 'video/mp4';
   };
 
+  // ============================================================================
+  // Schedule de tela ligada/desligada — anti burn-in
+
+  // Vem do ERP em `vm.grade.data`:
+  //   screen_schedule_enabled: Boolean — master toggle
+  //   screen_active_days:      String  — CSV ISO weekdays (Mon=1..Sun=7)
+  //   screen_active_start:     String  — "HH:MM" local time
+  //   screen_active_end:       String  — "HH:MM" local time
+
+  // Quando habilitado e o relógio LOCAL está fora da janela, aplicamos:
+  //  1. Overlay preto fullscreen (DOM, z-index máximo) — funciona em qualquer
+  //     host (Pi/Chrome legado e Corpflix Android).
+  //  2. NativePlayer.setScreenActive(false) — Android para ExoPlayer e esconde
+  //     WebView via Compose (defesa em profundidade — bug do JS aqui não
+  //     queima painel).
+  //  3. NativePlayer.stopVideo() — garante que decode pare mesmo se o JS
+  //     estava no meio de um clip.
+
+  // Tick: 60s. Aplicado também a cada gradeObj.handle (pra reagir
+  // imediatamente quando admin muda a config no ERP).
+  // ============================================================================
+  ensureScreenOffOverlayEl = function() {
+    var el, ref;
+    el = document.getElementById('screen-off-overlay');
+    if (el) {
+      return el;
+    }
+    el = document.createElement('div');
+    el.id = 'screen-off-overlay';
+    Object.assign(el.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      right: '0',
+      bottom: '0',
+      background: '#000',
+      zIndex: '2147483647',
+      pointerEvents: 'none',
+      display: 'none'
+    });
+    if ((ref = document.body) != null) {
+      ref.appendChild(el);
+    }
+    return el;
+  };
+
+  // 'HH:MM' -> minutos-do-dia (0..1439). null/inválido -> null.
+  hhmmToMinutes = function(s) {
+    var h, m, parts;
+    if (typeof s !== 'string') {
+      return null;
+    }
+    parts = s.split(':');
+    if (parts.length !== 2) {
+      return null;
+    }
+    h = parseInt(parts[0], 10);
+    m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) {
+      return null;
+    }
+    if (h < 0 || h > 23 || m < 0 || m > 59) {
+      return null;
+    }
+    return h * 60 + m;
+  };
+
+  // Janela inclusiva nos dois extremos: [start, end]. Quando end < start,
+  // entende como "atravessa meia-noite" (ex: 22:00 → 04:00).
+  screenIsActiveNow = function(daysCSV, startStr, endStr, now = new Date()) {
+    var daysOk, endMin, isoDay, nowMin, ref, ref1, startMin;
+    isoDay = ((now.getDay() + 6) % 7) + 1; // JS 0=Sun..6=Sat → ISO 7,1..6
+    daysOk = String(daysCSV || '').split(',').map(function(s) {
+      return parseInt(s.trim(), 10);
+    }).filter(function(n) {
+      return !isNaN(n);
+    });
+    if (daysOk.length === 0) {
+      return false;
+    }
+    if (indexOf.call(daysOk, isoDay) < 0) {
+      return false;
+    }
+    startMin = (ref = hhmmToMinutes(startStr)) != null ? ref : 0;
+    endMin = (ref1 = hhmmToMinutes(endStr)) != null ? ref1 : 24 * 60 - 1;
+    nowMin = now.getHours() * 60 + now.getMinutes();
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin <= endMin;
+    } else {
+      return nowMin >= startMin || nowMin <= endMin;
+    }
+  };
+
+  applyScreenSchedule = function() {
+    var active, d, desired, e, el, ref, ref1, ref2, ref3, shouldHide;
+    d = (ref = window.vm) != null ? (ref1 = ref.grade) != null ? ref1.data : void 0 : void 0;
+    if (!d) { // grade ainda não carregou — overlay default invisível
+      return;
+    }
+    shouldHide = false;
+    if (d.screen_schedule_enabled) {
+      active = screenIsActiveNow(d.screen_active_days, d.screen_active_start, d.screen_active_end);
+      shouldHide = !active;
+    }
+    el = ensureScreenOffOverlayEl();
+    desired = shouldHide ? 'block' : 'none';
+    if (el.style.display === desired) { // idempotente
+      return;
+    }
+    el.style.display = desired;
+    console.log(`screenSchedule: overlay=${desired} ` + `(enabled=${d.screen_schedule_enabled}, ` + `days=${d.screen_active_days}, ` + `${d.screen_active_start}-${d.screen_active_end})`);
+    // Bridge defesa em profundidade — Android para ExoPlayer e esconde WebView.
+    if (((ref2 = window.NativePlayer) != null ? ref2.setScreenActive : void 0) != null) {
+      try {
+        window.NativePlayer.setScreenActive(!shouldHide);
+      } catch (error1) {
+        e = error1;
+        null;
+      }
+    }
+    // Pausa o decode em curso ao entrar em off-hours.
+    if (shouldHide && (((ref3 = window.NativePlayer) != null ? ref3.stopVideo : void 0) != null)) {
+      try {
+        window.NativePlayer.stopVideo();
+      } catch (error1) {
+        e = error1;
+        null;
+      }
+    }
+  };
+
+  screenScheduleLoopStarted = false;
+
+  startScreenScheduleLoop = function() {
+    if (screenScheduleLoopStarted) {
+      return;
+    }
+    screenScheduleLoopStarted = true;
+    applyScreenSchedule();
+    return setInterval(applyScreenSchedule, 60_000);
+  };
+
   this.gradeObj = {
     tentar: 10,
     tentativas: 0,
@@ -396,6 +594,11 @@
     handle: function(data) {
       this.restart_player_em = data.restart_player_em;
       vm.grade.data = this.data = data;
+      // Sobe o loop de schedule de tela (idempotente — só faz setInterval
+      // uma vez) e re-avalia imediatamente, pra reagir já no próximo grade
+      // refresh quando admin muda config no ERP.
+      startScreenScheduleLoop();
+      applyScreenSchedule();
     },
     mountWeatherData: function() {
       var base, dataHoje, dia, mes;
@@ -735,7 +938,7 @@
     // interface do native pra eventualmente fast-forwardar quando o vídeo real
     // termina antes de `segundos`, mas é opt-in.
     playVideo: function(itemAtual) {
-      var durationMs, e, ref, versaoCache, videoId;
+      var audioEnabled, durationMs, e, ref, ref1, ref2, versaoCache, videoId;
       videoId = itemAtual.id;
       this.elUltimoVideo = `video-player-${itemAtual.id}`;
       if (this.playTimer1 != null) {
@@ -756,6 +959,22 @@
         versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
         console.log(`Play video id ${videoId} via NativePlayer (ExoPlayer)`);
         console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
+        // Áudio é opt-in explícito (digital signage default = mute):
+        // — `vm.grade.data.audio_enabled` vem do ERP por TV (campo gerenciado
+        //   no admin /gerenciar/cd/.../publicidade/tvs).
+        // — `!!` força boolean: undefined/null/false → false; só `true` libera.
+        // — `setAudioEnabled?` proteção pra Corpflix Android < 3.1.82 (sem o
+        //   método ainda); silently no-op nessas versões, mas elas já tocam
+        //   muted por default no bridge novo, então sem regressão visual.
+        audioEnabled = !!(typeof vm !== "undefined" && vm !== null ? (ref1 = vm.grade) != null ? (ref2 = ref1.data) != null ? ref2.audio_enabled : void 0 : void 0 : void 0);
+        if (window.NativePlayer.setAudioEnabled != null) {
+          try {
+            window.NativePlayer.setAudioEnabled(audioEnabled);
+          } catch (error1) {
+            e = error1;
+            null;
+          }
+        }
         // Mede rect com retry em RAF — cobre race com layout pass do browser
         // logo após vm.loaded virar true, ou Vue v-if pré-mount.
         nativePlayerMeasureRect(videoId, (rect) => {
@@ -1125,15 +1344,26 @@
     }
   };
 
+  // Detecta timezone preferindo Intl (síncrono, no-network). Em browsers que
+  // não expõem `Intl.DateTimeFormat().resolvedOptions().timeZone` cai pra
+  // fetch geo-IP — com timeout curto pra não enforcar o `mounted` da TV se
+  // a rede estiver tossindo (Chrome Kiosk em link congestionado, WebView
+  // Android sem permissão pro endpoint http externo, ou DNS público filtrado).
   descobrirTimezone = function(callback) {
-    var done, e, tz;
-    // fallback em caso de erro
+    var done, e, fetchWithTimeout, ref, ref1, resolved, tz;
+    // Garante callback único — protege contra Intl síncrono + fetch
+    // respondendo tarde duplicarem o tick do relógio.
+    resolved = false;
     done = function(tz) {
+      if (resolved) {
+        return;
+      }
+      resolved = true;
       timezoneGlobal = tz || "America/Sao_Paulo";
       return typeof callback === "function" ? callback(timezoneGlobal) : void 0;
     };
     try {
-      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      tz = typeof Intl !== "undefined" && Intl !== null ? typeof Intl.DateTimeFormat === "function" ? (ref = Intl.DateTimeFormat()) != null ? typeof ref.resolvedOptions === "function" ? (ref1 = ref.resolvedOptions()) != null ? ref1.timeZone : void 0 : void 0 : void 0 : void 0 : void 0;
       if (tz) {
         return done(tz);
       }
@@ -1141,21 +1371,45 @@
       e = error1;
       console.warn("Intl timezone falhou:", e);
     }
-    return fetch('http://ip-api.com/json').then(function(r) {
+    // Fallback de rede com timeout. 3s passou disso é melhor cair no default
+    // do que segurar o boot da TV.
+    fetchWithTimeout = function(url, ms = 3000) {
+      var ctrl, timer;
+      if (typeof AbortController !== 'function') {
+        return Promise.reject(new Error("AbortController indisponível"));
+      }
+      ctrl = new AbortController();
+      timer = setTimeout((function() {
+        return ctrl.abort();
+      }), ms);
+      return fetch(url, {
+        signal: ctrl.signal
+      }).finally(function() {
+        return clearTimeout(timer);
+      });
+    };
+    return fetchWithTimeout('http://ip-api.com/json').then(function(r) {
       return r.json();
     }).then(function(j) {
       if (j != null ? j.timezone : void 0) {
         return done(j.timezone);
       } else {
-        throw new Error("timezone não encontrado");
+        throw new Error("ip-api sem campo timezone");
       }
-    }).catch(function() {
-      return fetch('https://worldtimeapi.org/api/ip').then(function(r) {
+    }).catch(function(err1) {
+      return fetchWithTimeout('https://worldtimeapi.org/api/ip').then(function(r) {
         return r.json();
       }).then(function(j) {
-        return done(j != null ? j.timezone : void 0);
-      }).catch(function(e) {
-        console.warn("Falha ao detectar timezone:", e);
+        if (j != null ? j.timezone : void 0) {
+          return done(j.timezone);
+        } else {
+          throw new Error("worldtimeapi sem campo timezone");
+        }
+      }).catch(function(err2) {
+        var msg1, msg2;
+        msg1 = (err1 != null ? err1.message : void 0) || err1;
+        msg2 = (err2 != null ? err2.message : void 0) || err2;
+        console.warn(`Falha ao detectar timezone (ip-api: ${msg1}; worldtimeapi: ${msg2}). Usando America/Sao_Paulo.`);
         return done("America/Sao_Paulo");
       });
     });
@@ -1177,16 +1431,34 @@
 
   //   url = 'http://ip-api.com/json'
   //   Vue.http.get(url).then success, error
+
+  // Guarda anti-race: `mounted` chama `relogio.start()` durante a execução
+  // de `@vm = new Vue(...)`. O `Intl.DateTimeFormat` resolve síncrono → o
+  // callback do `descobrirTimezone` roda síncrono → toca `vm.timezone`
+  // ANTES de `@vm = ` ter terminado de atribuir window.vm → ReferenceError.
+  // Solução: adiar a escrita pro próximo frame e checar disponibilidade.
   relogio = {
     start: function() {
       return descobrirTimezone(function(tz) {
-        vm.timezone = tz || "America/Sao_Paulo";
-        relogio.tick(); // já atualiza na hora
-        return relogio.timer = setInterval(relogio.tick, 1000); // 1s (ou 30s/60s)
+        var assign;
+        assign = function() {
+          if (window.vm == null) {
+            // Race feio (mounted ainda dentro do construtor do Vue).
+            // Tenta de novo no próximo frame.
+            return requestAnimationFrame(assign);
+          }
+          vm.timezone = tz || "America/Sao_Paulo";
+          relogio.tick(); // já atualiza na hora
+          return relogio.timer != null ? relogio.timer : relogio.timer = setInterval(relogio.tick, 1000); // 1s (ou 30s/60s)
+        };
+        return assign();
       });
     },
     tick: function() {
       var m, tz;
+      if (window.vm == null) {
+        return;
+      }
       tz = vm.timezone || "America/Sao_Paulo";
       m = moment.tz(new Date(), tz);
       // atualiza reativo (dia/semana dependem disso)
@@ -1251,7 +1523,14 @@
     mounted: function() {
       this.loading = true;
       this.mouse();
-      relogio.start();
+      // Defer pro próximo tick — o `@vm = new Vue(...)` ainda não terminou
+      // de atribuir window.vm enquanto este `mounted` roda, e o
+      // `descobrirTimezone` pode resolver síncrono (Intl) e tocar
+      // `vm.timezone` na hora. `$nextTick` garante que o setup de top-level
+      // já completou.
+      this.$nextTick(function() {
+        return relogio.start();
+      });
       setInterval(function() {
         // return if vm.loaded
         return checkTv();
