@@ -194,8 +194,6 @@ preAquecerCache = new Set()
 preAquecerVideo = (url, sizeBytes) ->
   return unless url?
   key = keyForUrl(url)
-  return if preAquecerSet.has(key) or blobCache.has(key)
-  preAquecerSet.add(key)
 
   # Caminho preferido no Corpflix Android: warmCache nativo popula o
   # SimpleCache do ExoPlayer **em disco**. Quando playVideoFramed chega,
@@ -203,15 +201,27 @@ preAquecerVideo = (url, sizeBytes) ->
   # round-trip de rede. Sem blob em RAM = economia de memória no chipset
   # barato (~40MB médios * 2-3 vídeos prefetched = 100MB+ no Pi/Mi Box).
   #
+  # ⚠️ NÃO usa preAquecerSet aqui: o bridge nativo (`videoCache.warmCache`
+  # → `CacheWriter`) é idempotente — se o range já está em disco, sai
+  # imediato sem rede. Se a gente trancasse a re-tentativa via
+  # preAquecerSet, uma TV com 3+ dias sem reboot e grade rotativa grande
+  # poderia ter clip evictado pelo LRU do SimpleCache, JS continuaria
+  # pensando "já agendado", e o playback cairia pra MISS sem prefetch.
+  # Deixar o nativo ser autoridade da dedup garante self-healing.
+  #
   # Fallback Chrome Kiosk em Pi/PC continua usando blob HTML5 (path antigo
   # USAR_VIDEO_COM_BLOB_CACHE) — bridge não existe lá, ramo é ignorado.
+  # Lá o preAquecerSet ainda faz sentido porque blob fetch é caro (RAM)
+  # e fetch duplicado é desperdício real.
   if window.NativePlayer? and window.NativePlayer.warmCache?
     try
       window.NativePlayer.warmCache(url, sizeBytes or 0)
     catch e
       console.warn 'NativePlayer.warmCache falhou — sem prefetch, ExoPlayer baixa on-demand', e
-      preAquecerSet.delete(key)
     return
+
+  return if preAquecerSet.has(key) or blobCache.has(key)
+  preAquecerSet.add(key)
 
   if USAR_VIDEO_COM_BLOB_CACHE
     p = fetch(url, {mode:'cors', credentials:'omit', cache:'force-cache'})
