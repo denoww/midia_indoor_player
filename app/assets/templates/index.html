@@ -3,6 +3,15 @@
 <html>
   <head>
     <title>Player</title>
+    <!-- Trava viewport CSS em 960×540 (= 1920×1080 device px com DPR=2 do
+         Mi Box 4) pra que `100vh` bata com a tela física. Sem esta tag, o
+         Android WebView assume viewport default de 980 CSS px e calcula
+         altura proporcional 551 px → 100vh = 1102 device px e a
+         `.content-footer` cai 22px abaixo da tela visível, escondendo a
+         barra de notícias e expondo resíduo de composição GPU da
+         TextureView do ExoPlayer. Chrome desktop ignora width/height
+         explícitos quando a janela é maior, então kiosk continua igual. -->
+    <meta name="viewport" content="width=960, height=540, initial-scale=1, user-scalable=no">
 
     <script src="/javascripts/lib/array.js"></script>
     <script src="/javascripts/lib/date.js"></script>
