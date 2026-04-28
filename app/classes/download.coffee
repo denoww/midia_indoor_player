@@ -69,12 +69,34 @@ module.exports = ->
     return
 
   doDownloadAlternative = (params, fullPath, callback)->
-    file      = fs.createWriteStream(fullPath)
     protocolo = http
     protocolo = https if params.url.match(/https/)
     logs.create "Download alternativo -> #{params.nome_arquivo}, URL: #{params.url}"
 
     protocolo.get params.url, (res)->
+      # Aborta sem escrever o arquivo se o servidor não respondeu 200.
+      #
+      # Sem essa checagem, qualquer body de erro (ex: XML AccessDenied de
+      # 263 bytes do S3 quando ACL não está pública) era gravado como se
+      # fosse o vídeo. ExoPlayer das TVs falhava parsear → Source error
+      # 3003 → loop infinito de skips. Incidente 2026-04-28: 240 vídeos
+      # quebrados em produção por ~6h até diagnóstico, ver commit
+      # `seucondominio:71a7459e22`.
+      #
+      # `doDownloadToBuffer` (caminho de imagem, abaixo) já fazia esse
+      # check via `request.get`. O `doDownloadAlternative` (caminho de
+      # vídeo/áudio via http nativo) não fazia — agora faz.
+      #
+      # `res.resume()` drena o body de erro pro socket fechar limpo
+      # (sem isso, request fica em half-open até timeout do TCP).
+      if res.statusCode != 200
+        logs.create "Download alternativo HTTP #{res.statusCode} (skip) " +
+          "-> #{params.nome_arquivo}, URL: #{params.url}"
+        res.resume()
+        callback?()
+        return
+
+      file = fs.createWriteStream(fullPath)
       res.on 'data', (data)->
         file.write data
       .on 'end', ->
