@@ -130,15 +130,27 @@ module.exports = ->
 
         # Schedule de tela ligada/desligada — vem do ERP por TV pra
         # proteger painel contra burn-in fora do horário comercial.
-        # Default `enabled: false` mantém comportamento 24/7 em todas
-        # as TVs antigas (sem regressão). Quando habilitado, JS roda
-        # tick a cada 60s checando dia/hora local; fora da janela,
-        # pinta overlay preto fullscreen + chama setScreenActive(false)
-        # no bridge (Android para ExoPlayer e esconde WebView).
-        screen_schedule_enabled: jsonData.screen_schedule_enabled ? false
+        #
+        # Defaults industry-standard pra digital signage residencial
+        # (lobby de prédio / academia / clínica): janela 06:00-23:00,
+        # 7 dias, schedule LIGADO. 7h de descanso noturno (23h-6h)
+        # cobre o período de tráfego mínimo na maioria dos prédios e
+        # protege o painel sem impactar visibilidade.
+        #
+        # Sites 24/7 (portaria 24h, hospital, etc.) explicitam
+        # `screen_schedule_enabled=false` na grade do ERP — opt-out
+        # explícito > opt-in implícito (TVs sem config sensata por
+        # default seriam o caminho que mais queima painel).
+        #
+        # Quando ativo, JS roda tick a cada 60s checando dia/hora
+        # local; fora da janela, pinta overlay preto fullscreen +
+        # chama setScreenActive(false) no bridge (Android para
+        # ExoPlayer e esconde WebView). Voltar pra dentro da janela
+        # remove overlay e dispara playVideoFramed do próximo item.
+        screen_schedule_enabled: jsonData.screen_schedule_enabled ? true
         screen_active_days:      jsonData.screen_active_days ? '1,2,3,4,5,6,7'
-        screen_active_start:     jsonData.screen_active_start ? '00:00'
-        screen_active_end:       jsonData.screen_active_end ? '23:59'
+        screen_active_start:     jsonData.screen_active_start ? '06:00'
+        screen_active_end:       jsonData.screen_active_end ? '23:00'
 
       @data[tvId].finance = jsonData.finance if jsonData.finance
       @data[tvId].weather = jsonData.weather if jsonData.weather
