@@ -160,32 +160,18 @@ p {
 /* Safe-area de overscan — só aplicada quando rodando dentro do Corpflix
    Android (classe `is-corpflix-android` é setada via JS no <head>
    detectando `window.NativePlayer`). TVs Pro Eletronic PROSB-3000 cortam
-   ~30-40px do topo do painel e ~10-20px das laterais; esse padding
-   externo recolhe o conteúdo pra dentro de uma área visível.
-   - Background preto cobre as faixas que ficariam fora.
-   - .content-main absorve o padding via box-sizing border-box (já é
-     default em styles.css linha 4).
-   Clientes kiosk sem Android (Pi/PC com Chrome) não recebem essa classe
-   e ficam exatamente como antes — viewport 960×540 pixel-perfect. */
+   ~30-40px do topo do painel e ~10-20px das laterais.
+   Estratégia: scale uniforme do `#main-player` recolhe TUDO pra dentro
+   da área visível — header, sidebar, content-main, footer (newsbar G1).
+   Cada elemento mantém sua proporção interna sem mexer em altura/width
+   de filhos, que estavam cortando a footer com proporções recalculadas.
+   Faixas de overscan ficam pretas (background do body em styles.css
+   linha 12). Clientes kiosk sem Android (Pi/PC com Chrome) não recebem
+   essa classe e ficam exatamente como antes — viewport 960×540
+   pixel-perfect. */
 .is-corpflix-android #main-player {
-  padding: 3vh 1.5vw;
-  background: #000;
-}
-.is-corpflix-android .content-main {
-  width: 97vw;
-  height: 94vh;
-}
-.is-corpflix-android .content-side,
-.is-corpflix-android .layout-2 .content-side,
-.is-corpflix-android .layout-3 .content-side {
-  /* `.content-side` original é 85vh (= 100% do content-top). Ao reduzir
-     `.content-main` pra 94vh, o content-top fica ~80vh e o footer ~14vh.
-     O cálculo `0.85 * 94 = 79.9vh` mantém a proporção. */
-  height: 79.9vh;
-}
-.is-corpflix-android .content-footer {
-  /* idem: 0.15 * 94 = 14.1vh */
-  height: 14.1vh;
+  transform: scale(0.94);
+  transform-origin: center center;
 }
 
 .content-top    { display: flex }
