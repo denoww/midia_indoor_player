@@ -22,6 +22,26 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/fonts.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/styles.css">
     <link rel="stylesheet" type="text/css" href="stylesheets/sc-icons.css">
+
+    <script>
+      // Detecta se o player está rodando dentro do Corpflix Android. O
+      // bridge `window.NativePlayer` é injetado pelo NativePlayerBridge.kt
+      // (`addJavascriptInterface(bridge, "NativePlayer")`); existe APENAS
+      // dentro do WebView do app Corpflix. Em Chrome Kiosk no Pi/PC e em
+      // qualquer outro browser, `window.NativePlayer` é undefined — a
+      // classe abaixo NÃO é aplicada e o layout original fica intacto
+      // (clientes kiosk sem Android seguem pixel-perfect como antes).
+      //
+      // Quando aplicada, a classe injeta uma safe-area de overscan no
+      // styles.css contornando o crop físico de ~30-40px do topo nas
+      // Pro Eletronic PROSB-3000. Mi Box Xiaomi tem layout pixel-exact
+      // e não precisa do padding — mas o NativePlayer também é injetado
+      // lá; aceitamos o tradeoff de uma micro-margem extra na Mi Box
+      // (~3vh) em troca da Pro Eletronic ficar legível.
+      if (typeof window.NativePlayer !== 'undefined') {
+        document.documentElement.classList.add('is-corpflix-android');
+      }
+    </script>
   </head>
 
   <body id="body-player">
