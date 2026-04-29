@@ -1,0 +1,10 @@
+{
+  "versionCode": 0,
+  "versionName": "0.0.0",
+  "url": "",
+  "sha256": "",
+  "minVersionCode": 0,
+  "rolloutPercent": 0,
+  "releaseNotes": "Manifesto inicial — ainda sem release publicado neste canal. O upload acontece via scripts/upload_apk_to_midia.sh do repo corpflix.",
+  "publishedAt": null
+}

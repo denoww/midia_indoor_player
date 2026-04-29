@@ -9,4 +9,7 @@ grade.json
 package-lock.json
 logs
 cron.log
-public
+public/*
+!public/apks/
+!public/apks/**
+public/apks/**/*.apk
