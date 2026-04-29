@@ -170,7 +170,13 @@ p {
    essa classe e ficam exatamente como antes — viewport 960×540
    pixel-perfect. */
 .is-corpflix-android #main-player {
-  transform: scale(0.94);
+  /* 0.90 = 5% safe-area por borda. Cobre overscan típico de TVs com
+     painel ruim tipo Pro Eletronic PROSB-3000 (que come ~30-50px nas
+     bordas dum 1920×1080). Mi Box Xiaomi não tem crop mas a margem
+     resultante é estética e não atrapalha legibilidade. Quando aparecer
+     fricção real na Mi Box, dá pra detectar modelo via NativePlayerBridge
+     e aplicar scale diferente por device. */
+  transform: scale(0.90);
   transform-origin: center center;
 }
 
