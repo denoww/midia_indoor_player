@@ -3,15 +3,18 @@
 <html>
   <head>
     <title>Player</title>
-    <!-- Trava viewport CSS em 960×540 (= 1920×1080 device px com DPR=2 do
-         Mi Box 4) pra que `100vh` bata com a tela física. Sem esta tag, o
-         Android WebView assume viewport default de 980 CSS px e calcula
-         altura proporcional 551 px → 100vh = 1102 device px e a
-         `.content-footer` cai 22px abaixo da tela visível, escondendo a
-         barra de notícias e expondo resíduo de composição GPU da
-         TextureView do ExoPlayer. Chrome desktop ignora width/height
-         explícitos quando a janela é maior, então kiosk continua igual. -->
-    <meta name="viewport" content="width=960, height=540, initial-scale=1, user-scalable=no">
+    <!-- Viewport CSS = tamanho real do display, sem mismatch entre 1080p
+         (Mi Box) e 720p (Pro Eletronic PROSB-3000) ou qualquer outra
+         resolução futura. `initial-scale=1` mantém escala 1:1 px-CSS↔px-device,
+         então `100vh` SEMPRE bate com a altura física e a `.content-footer`
+         (newsbar G1) fica visível inteira.
+         Anteriormente travávamos em `width=960, height=540` (calculado pra
+         Mi Box 1920×1080 com DPR=2). Em PROSB 1280×720 o cálculo se desencaixava
+         e o footer caía pra fora da viewport. Versão atual é responsiva e
+         funciona em qualquer painel sem precisar detectar device.
+         Chrome desktop ignora `device-width` quando a janela é maior do
+         que a screen — kiosk Pi/PC continua igual. -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
 
     <script src="/javascripts/lib/array.js"></script>
     <script src="/javascripts/lib/date.js"></script>
