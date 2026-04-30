@@ -1,10 +1,10 @@
 {
-  "versionCode": 3204,
-  "versionName": "3.2.4",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.4.apk",
-  "sha256": "b9775f58ed09c6283b0848d24b171f8c139f19f4910f506301e694a2ba861296",
+  "versionCode": 3205,
+  "versionName": "3.2.5",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.5.apk",
+  "sha256": "2c2ad59a1539d87266b4b1fcb8799c72c91f553e6c398e5a58a173de8e60cffd",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "smoke test canal staging — 3.2.4",
-  "publishedAt": "2026-04-30T00:34:00Z"
+  "releaseNotes": "fix UX: pausa auto-revert durante \"Buscando…\" + botão Atualizar app",
+  "publishedAt": "2026-04-30T01:09:39Z"
 }
