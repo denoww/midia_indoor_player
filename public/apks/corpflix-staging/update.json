@@ -1,10 +1,10 @@
 {
-  "versionCode": 3221,
-  "versionName": "3.2.21",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.21.apk",
-  "sha256": "7a6e31105a1c577c391a80a772fbbba80bb4b471ae5c1847abf8d4a056f90d4f",
+  "versionCode": 3222,
+  "versionName": "3.2.22",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.22.apk",
+  "sha256": "5290f08d75ed153fdec908fdb248445cebffe9a9491235e125bb57c28babaff7",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "OTA test",
-  "publishedAt": "2026-04-30T16:54:45Z"
+  "releaseNotes": "OTA test 3.2.22",
+  "publishedAt": "2026-04-30T17:08:21Z"
 }
