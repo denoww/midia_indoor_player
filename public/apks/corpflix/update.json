@@ -1,10 +1,10 @@
 {
-  "versionCode": 3218,
-  "versionName": "3.2.18",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.18.apk",
-  "sha256": "a9104fd615598bbac1756a25e57f5f854719a634120871210a8d7b94ad4ae89a",
+  "versionCode": 3203,
+  "versionName": "3.2.4",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.4.apk",
+  "sha256": "1fa55058ef8b7aeb337252eaac6d85c210ba8f1ffe489a0b09e6e959f1c37967",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "rebuild 3.2.18 (mesmo código do 3.2.17 estável)",
-  "publishedAt": "2026-04-30T03:04:22Z"
+  "releaseNotes": "fix(config): Switch do modo TV pessoal alcançável por D-pad",
+  "publishedAt": "2026-04-30T09:54:27Z"
 }
