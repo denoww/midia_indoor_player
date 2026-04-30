@@ -138,32 +138,6 @@ module.exports = (opt={}) ->
     resp.restart_player_em = data.restart_player_em
     res.send JSON.stringify resp
 
-    # Telemetria do Corpflix Android (TelemetryWorker, 1×/h): quando o
-    # cliente nativo Kotlin manda `app_versao` + métricas de cache, o
-    # relay encaminha tudo pro Rails fire-and-forget — Rails persiste em
-    # publicidade_tvs e mostra em /support/tvs. Heartbeat puro do JS
-    # (sem app_versao) não dispara o proxy: hotpath de 3s não pode bater
-    # no Rails a cada tick (seria DDoS no parque inteiro).
-    #
-    # Resposta ao cliente já foi enviada acima — proxy é assíncrono e
-    # falhas são silenciosas; se o Rails está offline ou a coluna ainda
-    # não existe (migration não rodou), telemetria desta janela é
-    # perdida e o próximo tick de 1h tenta de novo.
-    if params.app_versao? and ENV.API_SERVER_URL
-      request = require 'request'
-      url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json"
-      qs = id: tvId,
-           app_versao: params.app_versao,
-           cache_video_bytes: params.cache_video_bytes,
-           cache_video_entradas: params.cache_video_entradas,
-           cache_web_bytes: params.cache_web_bytes,
-           cache_web_entradas: params.cache_web_entradas
-      request.get url: url, qs: qs, timeout: 5000, (e, r, b) ->
-        if e
-          console.log "telemetry → Rails erro: #{e.message}"
-        else if r?.statusCode != 200
-          console.log "telemetry → Rails HTTP #{r?.statusCode}"
-
   # Validação se uma TV ID existe no ERP. Proxy direto pro Rails sem usar o
   # cache em memória do Node (`global.grade.data`) — esse cache só conhece
   # TVs que o player já carregou, então não serve pra validar TV "nova" que
