@@ -1,10 +1,10 @@
 {
-  "versionCode": 3215,
-  "versionName": "3.2.15",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.15.apk",
-  "sha256": "b5142ba38b09574e5d91571c771e560bd4553ffbfd1e43d746b663c489114703",
+  "versionCode": 3216,
+  "versionName": "3.2.16",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.16.apk",
+  "sha256": "6521454d1ac5d04e19649a3271c315001d96a6718e9d9198954fa7251d77286a",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "smoke test do ciclo Atualizar app: click → baixa → instala",
-  "publishedAt": "2026-04-30T02:44:32Z"
+  "releaseNotes": "fix dialog Atualizar app: timer movido pro VM, sobrevive ao cancel do Compose",
+  "publishedAt": "2026-04-30T02:49:30Z"
 }
