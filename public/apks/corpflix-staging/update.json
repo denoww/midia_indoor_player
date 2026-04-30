@@ -1,0 +1,10 @@
+{
+  "versionCode": 3204,
+  "versionName": "3.2.4",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.4.apk",
+  "sha256": "b9775f58ed09c6283b0848d24b171f8c139f19f4910f506301e694a2ba861296",
+  "minVersionCode": 0,
+  "rolloutPercent": 100,
+  "releaseNotes": "smoke test canal staging — 3.2.4",
+  "publishedAt": "2026-04-30T00:34:00Z"
+}
