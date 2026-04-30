@@ -159,6 +159,8 @@ module.exports = (opt={}) ->
         cache_video_entradas: params.cache_video_entradas
         cache_web_bytes: params.cache_web_bytes
         cache_web_entradas: params.cache_web_entradas
+        provisionado_ok: params.provisionado_ok
+        device_owner: params.device_owner
       request.get {url: url, qs: qs, timeout: 5000}, (e, r, b) ->
         if e
           console.log "telemetry → Rails erro: #{e.message}"
