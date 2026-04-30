@@ -1,10 +1,10 @@
 {
-  "versionCode": 3214,
-  "versionName": "3.2.14",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.14.apk",
-  "sha256": "3f1ea55439ea3a3f40838f0152e5405ef1216a4a0fbb8b9bac77b90f82c93698",
+  "versionCode": 3215,
+  "versionName": "3.2.15",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.15.apk",
+  "sha256": "b5142ba38b09574e5d91571c771e560bd4553ffbfd1e43d746b663c489114703",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Atualizar app: click → baixa → instala. Dialog modal, sem fantasmas, downgrade-safe via PackageInstaller skip",
-  "publishedAt": "2026-04-30T02:39:41Z"
+  "releaseNotes": "smoke test do ciclo Atualizar app: click → baixa → instala",
+  "publishedAt": "2026-04-30T02:44:32Z"
 }
