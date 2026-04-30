@@ -1,10 +1,10 @@
 {
-  "versionCode": 3220,
-  "versionName": "3.2.20",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.20.apk",
-  "sha256": "547430efe09dce69767a3cc20f58ce702f88cc8f531092fcfc33f48571a4c190",
+  "versionCode": 3221,
+  "versionName": "3.2.21",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.21.apk",
+  "sha256": "25b8e6a415b143e3d3cf7f5439b17bc7275ef667067c7210fb30eb6c6dbb135c",
   "minVersionCode": 0,
   "rolloutPercent": 100,
   "releaseNotes": "",
-  "publishedAt": "2026-04-30T16:13:44Z"
+  "publishedAt": "2026-04-30T22:54:54Z"
 }
