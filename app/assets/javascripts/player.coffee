@@ -175,7 +175,14 @@ lastTriggeredVc = null
 # Confere se o servidor anunciou versão de app maior que a instalada e
 # dispara um tick imediato do UpdateWorker (Corpflix Android). Sem efeito
 # em Chrome Kiosk — `window.NativePlayer` é undefined lá → early return.
-@checkAppUpdate = (data) ->
+#
+# **Sem `@`** — local var dentro do IIFE do CoffeeScript, mesma regra de
+# escopo que `restartPlayerSeNecessario` (linha ~1661 do .js compilado).
+# `@checkAppUpdate = ...` viraria `this.checkAppUpdate`, que NÃO é
+# acessível como bare reference dentro do `success` arrow do `checkTv`
+# — resultava em undefined silencioso e a função nunca rodava (validado
+# em smoke test 2026-05-02).
+checkAppUpdate = (data) ->
   return unless window.NativePlayer?.triggerUpdateCheck?
   return unless window.NativePlayer.appVersionCode? and window.NativePlayer.appUpdateChannel?
   return unless data?.latestVersionCode?

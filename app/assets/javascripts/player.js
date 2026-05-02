@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
+  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, checkAppUpdate, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
     indexOf = [].indexOf;
 
   window.onNativeVideoEnded = function() {
@@ -226,7 +226,14 @@
   // Confere se o servidor anunciou versão de app maior que a instalada e
   // dispara um tick imediato do UpdateWorker (Corpflix Android). Sem efeito
   // em Chrome Kiosk — `window.NativePlayer` é undefined lá → early return.
-  this.checkAppUpdate = function(data) {
+
+  // **Sem `@`** — local var dentro do IIFE do CoffeeScript, mesma regra de
+  // escopo que `restartPlayerSeNecessario` (linha ~1661 do .js compilado).
+  // `@checkAppUpdate = ...` viraria `this.checkAppUpdate`, que NÃO é
+  // acessível como bare reference dentro do `success` arrow do `checkTv`
+  // — resultava em undefined silencioso e a função nunca rodava (validado
+  // em smoke test 2026-05-02).
+  checkAppUpdate = function(data) {
     var channel, current, e, latest, ref;
     if (((ref = window.NativePlayer) != null ? ref.triggerUpdateCheck : void 0) == null) {
       return;
