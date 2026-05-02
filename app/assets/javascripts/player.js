@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
+  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
     indexOf = [].indexOf;
 
   window.onNativeVideoEnded = function() {
@@ -215,12 +215,64 @@
     return tvId;
   };
 
+  // Última versão pra qual já disparamos `NativePlayer.triggerUpdateCheck()`
+  // nesta page lifetime. Reseta naturalmente em todo `restart_player_em` (a
+  // página recarrega → variável volta a null). Dedup garante que TV fora do
+  // canário sticky não martele o WorkManager: vê `latestVc=3227 > 3226`,
+  // dispara 1×, worker decide "fora do bucket", no-op. Próximo tick ainda
+  // vê 3227 mas dedup bate → noop até reload ou release nova.
+  lastTriggeredVc = null;
+
+  // Confere se o servidor anunciou versão de app maior que a instalada e
+  // dispara um tick imediato do UpdateWorker (Corpflix Android). Sem efeito
+  // em Chrome Kiosk — `window.NativePlayer` é undefined lá → early return.
+  this.checkAppUpdate = function(data) {
+    var channel, current, e, latest, ref;
+    if (((ref = window.NativePlayer) != null ? ref.triggerUpdateCheck : void 0) == null) {
+      return;
+    }
+    if (!((window.NativePlayer.appVersionCode != null) && (window.NativePlayer.appUpdateChannel != null))) {
+      return;
+    }
+    if ((data != null ? data.latestVersionCode : void 0) == null) {
+      return;
+    }
+    channel = (function() {
+      try {
+        return window.NativePlayer.appUpdateChannel();
+      } catch (error1) {
+        e = error1;
+        return 'production';
+      }
+    })();
+    latest = data.latestVersionCode[channel];
+    if (!((latest != null) && latest > 0)) {
+      return;
+    }
+    current = window.NativePlayer.appVersionCode();
+    if (latest <= current) {
+      return;
+    }
+    if (lastTriggeredVc === latest) {
+      return;
+    }
+    console.log(`checkAppUpdate: current=${current} server=${latest} (${channel}) → triggerUpdateCheck`);
+    try {
+      window.NativePlayer.triggerUpdateCheck();
+      return lastTriggeredVc = latest;
+    } catch (error1) {
+      e = error1;
+      return console.warn('triggerUpdateCheck falhou', e);
+    }
+  };
+
   this.checkTv = function() {
     var error, success;
     success = (resp) => {
       data = resp.data;
       // console.log data
-      return restartPlayerSeNecessario(data);
+      restartPlayerSeNecessario(data);
+      return checkAppUpdate(data);
     };
     error = (resp) => {
       return console.log(resp);
@@ -253,28 +305,37 @@
       return;
     }
     key = keyForUrl(url);
-    if (preAquecerSet.has(key) || blobCache.has(key)) {
-      return;
-    }
-    preAquecerSet.add(key);
     // Caminho preferido no Corpflix Android: warmCache nativo popula o
     // SimpleCache do ExoPlayer **em disco**. Quando playVideoFramed chega,
     // ExoPlayer encontra o vídeo localmente e o primeiro frame sai sem
     // round-trip de rede. Sem blob em RAM = economia de memória no chipset
     // barato (~40MB médios * 2-3 vídeos prefetched = 100MB+ no Pi/Mi Box).
 
+    // ⚠️ NÃO usa preAquecerSet aqui: o bridge nativo (`videoCache.warmCache`
+    // → `CacheWriter`) é idempotente — se o range já está em disco, sai
+    // imediato sem rede. Se a gente trancasse a re-tentativa via
+    // preAquecerSet, uma TV com 3+ dias sem reboot e grade rotativa grande
+    // poderia ter clip evictado pelo LRU do SimpleCache, JS continuaria
+    // pensando "já agendado", e o playback cairia pra MISS sem prefetch.
+    // Deixar o nativo ser autoridade da dedup garante self-healing.
+
     // Fallback Chrome Kiosk em Pi/PC continua usando blob HTML5 (path antigo
     // USAR_VIDEO_COM_BLOB_CACHE) — bridge não existe lá, ramo é ignorado.
+    // Lá o preAquecerSet ainda faz sentido porque blob fetch é caro (RAM)
+    // e fetch duplicado é desperdício real.
     if ((window.NativePlayer != null) && (window.NativePlayer.warmCache != null)) {
       try {
         window.NativePlayer.warmCache(url, sizeBytes || 0);
       } catch (error1) {
         e = error1;
         console.warn('NativePlayer.warmCache falhou — sem prefetch, ExoPlayer baixa on-demand', e);
-        preAquecerSet.delete(key);
       }
       return;
     }
+    if (preAquecerSet.has(key) || blobCache.has(key)) {
+      return;
+    }
+    preAquecerSet.add(key);
     if (USAR_VIDEO_COM_BLOB_CACHE) {
       p = fetch(url, {
         mode: 'cors',
