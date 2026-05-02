@@ -1,10 +1,10 @@
 {
-  "versionCode": 3226,
-  "versionName": "3.2.26",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.26.apk",
-  "sha256": "4e0036b067a22b028a4434ab41bef6e3a30ae303fe0628d0d2ef7f7a488a7984",
+  "versionCode": 3227,
+  "versionName": "3.2.27",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.27.apk",
+  "sha256": "50d31c243945528f636600682076c2e06c97abcb15664f0156cdff123a49eb2a",
   "minVersionCode": 0,
   "rolloutPercent": 10,
-  "releaseNotes": "WifiSetupReceiver (3 actions) + fix banner SEM INTERNET trava ON",
-  "publishedAt": "2026-05-01T20:52:26Z"
+  "releaseNotes": "fix: cache podre evictado em EOFException + warmCache fail; fundo verde do decoder Allwinner mascarado por Box preto",
+  "publishedAt": "2026-05-02T00:28:25Z"
 }
