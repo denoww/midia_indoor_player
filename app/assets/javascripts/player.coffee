@@ -164,11 +164,46 @@ onLoaded = ->
   tvId = params.get("tvId")
   return tvId
 
+# Última versão pra qual já disparamos `NativePlayer.triggerUpdateCheck()`
+# nesta page lifetime. Reseta naturalmente em todo `restart_player_em` (a
+# página recarrega → variável volta a null). Dedup garante que TV fora do
+# canário sticky não martele o WorkManager: vê `latestVc=3227 > 3226`,
+# dispara 1×, worker decide "fora do bucket", no-op. Próximo tick ainda
+# vê 3227 mas dedup bate → noop até reload ou release nova.
+lastTriggeredVc = null
+
+# Confere se o servidor anunciou versão de app maior que a instalada e
+# dispara um tick imediato do UpdateWorker (Corpflix Android). Sem efeito
+# em Chrome Kiosk — `window.NativePlayer` é undefined lá → early return.
+@checkAppUpdate = (data) ->
+  return unless window.NativePlayer?.triggerUpdateCheck?
+  return unless window.NativePlayer.appVersionCode? and window.NativePlayer.appUpdateChannel?
+  return unless data?.latestVersionCode?
+
+  channel = try
+    window.NativePlayer.appUpdateChannel()
+  catch e
+    'production'
+  latest = data.latestVersionCode[channel]
+  return unless latest? and latest > 0
+
+  current = window.NativePlayer.appVersionCode()
+  return if latest <= current
+  return if lastTriggeredVc == latest
+
+  console.log "checkAppUpdate: current=#{current} server=#{latest} (#{channel}) → triggerUpdateCheck"
+  try
+    window.NativePlayer.triggerUpdateCheck()
+    lastTriggeredVc = latest
+  catch e
+    console.warn 'triggerUpdateCheck falhou', e
+
 @checkTv = ->
   success = (resp)=>
     data = resp.data
     # console.log data
     restartPlayerSeNecessario(data)
+    checkAppUpdate(data)
 
   error = (resp) => console.log resp
 

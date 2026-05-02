@@ -125,6 +125,30 @@ module.exports = (opt={}) ->
     res.send JSON.stringify data
 
 
+  # Cache do `versionCode` lido do `update.json` de cada canal. Releitura
+  # do FS é barata (~200 bytes, OS page cache) mas com 200+ TVs do parque
+  # batendo `/check_tv` a cada 3s vira ~67 stat/parse por segundo —
+  # memoizar 5s amortiza pra ~0.4/s sem introduzir atraso visível na
+  # propagação. TTL menor que o tick de 3s do JS = ainda multiplica I/O;
+  # maior que ~10s = atraso percebido entre `upload_apk_to_midia.sh`
+  # publicar e parque inteiro reagir. 5s é o ponto cego aceito.
+  manifestCache = production: null, staging: null, expiresAt: 0
+
+  readLatestVersionCodes = ->
+    now = Date.now()
+    return manifestCache if now < manifestCache.expiresAt
+    for [channel, dir] in [['production', 'corpflix'], ['staging', 'corpflix-staging']]
+      try
+        p = path.join(__dirname, '..', '..', 'public', 'apks', dir, 'update.json')
+        manifestCache[channel] = JSON.parse(fs.readFileSync(p, 'utf8'))?.versionCode ? null
+      catch e
+        # Manifesto pode não existir (canal staging nunca publicado, ou
+        # FS error transitório). Silencia — retorno null vira early-return
+        # no JS do player, comportamento neutro.
+        manifestCache[channel] = null
+    manifestCache.expiresAt = now + 5000
+    manifestCache
+
   app.get '/check_tv', (req, res) ->
     params = req.getParams()
     console.log  "Request GET /check_tv params: #{JSON.stringify(params)}"
@@ -136,6 +160,15 @@ module.exports = (opt={}) ->
     resp = {}
     resp.tvId = data.tvId
     resp.restart_player_em = data.restart_player_em
+    # Anuncia última versão publicada em cada canal — JS do player.coffee
+    # compara com `NativePlayer.appVersionCode()` e dispara
+    # `triggerUpdateCheck()` se servidor anuncia versão maior. Encurta o
+    # ciclo de detecção do parque de 1h (tick periódico do UpdateWorker)
+    # pra ≤3s do tick do JS, sem novo canal de push.
+    m = readLatestVersionCodes()
+    resp.latestVersionCode =
+      production: m.production
+      staging: m.staging
     res.send JSON.stringify resp
 
     # Telemetria do Corpflix Android (TelemetryWorker, 1×/h): quando o
