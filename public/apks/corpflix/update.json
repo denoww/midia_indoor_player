@@ -1,10 +1,10 @@
 {
-  "versionCode": 3227,
-  "versionName": "3.2.27",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.27.apk",
-  "sha256": "50d31c243945528f636600682076c2e06c97abcb15664f0156cdff123a49eb2a",
+  "versionCode": 3228,
+  "versionName": "3.2.28",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.28.apk",
+  "sha256": "4406fd6687c761372541bc68973140698100aaa5c964414aa2a268bb57e93059",
   "minVersionCode": 0,
   "rolloutPercent": 10,
-  "releaseNotes": "fix: cache podre evictado em EOFException + warmCache fail; fundo verde do decoder Allwinner mascarado por Box preto",
-  "publishedAt": "2026-05-02T00:28:25Z"
+  "releaseNotes": "indicador de buffer no slot durante D-pad rápido (sinaliza download de cache=MISS, não travou)",
+  "publishedAt": "2026-05-02T10:01:25Z"
 }
