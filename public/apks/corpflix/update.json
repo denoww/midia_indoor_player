@@ -1,10 +1,10 @@
 {
-  "versionCode": 3234,
-  "versionName": "3.2.34",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.34.apk",
-  "sha256": "e9758c728bf2c71189270699915ec47998e8c8d1ab4de44e656cb239fbd3952e",
+  "versionCode": 3235,
+  "versionName": "3.2.35",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.35.apk",
+  "sha256": "6e7eee59734bce825ac1cccc986d381875a3d81becefc5064dd90824ea9f2c10",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Device ID no rodape da ConfigScreen + UI /support/tvs unificada (tabela Devices vira fonte unica de telemetria)",
-  "publishedAt": "2026-05-03T19:05:07Z"
+  "releaseNotes": "TelemetryWorker captura defensiva de 5 metas extras (boot, OTA install, modelo, OS, disco) — visíveis em /support/tvs colunas Sistema, Boot e tooltips em App e Cache",
+  "publishedAt": "2026-05-03T19:59:41Z"
 }
