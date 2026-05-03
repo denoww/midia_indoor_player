@@ -297,13 +297,27 @@ module.exports = (opt={}) ->
         return res.status(400).json(error: 'payload obrigatório')
 
       request = require 'request'
-      qs =
+      # Forwarda como text/plain com body bruto (mesmo formato que o
+      # CrashReportWorker do APK envia pro relay). Meta vai na
+      # querystring. Antes tentamos `form: { ..., payload: req.body }`
+      # mas a lib `request` (deprecated) codificava algo que Rails
+      # rejeitava com 422+body vazio (provavelmente CSRF ou parsing de
+      # tabs/newlines em form field grande). Curl com --data-urlencode
+      # passava 200; `request` form: não. Text/plain raw é o caminho
+      # validado em probe manual via curl --data-binary que sempre
+      # retornou 200.
+      params = new URLSearchParams(
         tvId: req.query.tvId
-        deviceId: req.query.deviceId
-        app_versao: req.query.app_versao
-        payload: req.body
-      url = "#{ENV.API_SERVER_URL}/publicidades/crash_report"
-      request.post {url: url, form: qs, timeout: 10000}, (e, r, b) ->
+        app_versao: req.query.app_versao or ''
+      )
+      params.append('deviceId', req.query.deviceId) if req.query.deviceId
+      url = "#{ENV.API_SERVER_URL}/publicidades/crash_report?#{params.toString()}"
+      request.post {
+        url: url
+        body: req.body
+        headers: { 'Content-Type': 'text/plain; charset=UTF-8' }
+        timeout: 10000
+      }, (e, r, b) ->
         if e
           console.log "  ✗ erro de rede: #{e.message}"
           return res.status(502).json(error: 'upstream indisponível')
@@ -313,7 +327,7 @@ module.exports = (opt={}) ->
           # crashes.log → .sent) mas devolver o JSON ajuda em debug
           # manual via curl.
           return res.status(200).type('application/json').send(b)
-        console.log "  ✗ upstream HTTP #{r?.statusCode}: #{b?.slice(0,200)}"
+        console.log "  ✗ upstream HTTP #{r?.statusCode}: #{b?.toString?()?.slice(0,200) or b?.slice?(0,200)}"
         res.status(r?.statusCode or 502).type('application/json').send(b or '{}')
 
 
