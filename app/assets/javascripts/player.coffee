@@ -164,6 +164,49 @@ onLoaded = ->
   tvId = params.get("tvId")
   return tvId
 
+# Fase 1 do roadmap "Tv has many devices" (corpflix/ROADMAP.md): identifica
+# cada máquina física unicamente para o Rails poder distinguir os ~20
+# devices que rodam sob a mesma tv_id (ex: 19 PCs Chrome kiosk + 1 TV box
+# Android no tv_id=64). Sem isso a telemetria é "último que reportou ganha"
+# no nível Tv.
+#
+# Estável por máquina: persiste em localStorage. Sobrevive restart do
+# Chrome / reboot do Windows. Some só em "limpar dados do navegador"
+# (raro em kiosk; quando some, vira device novo — comportamento aceito).
+#
+# Backward compat: se localStorage falhar (modo private/storage cheio)
+# retorna null, e o caller omite o param — request continua funcionando
+# como antes. Crítico porque Chrome kiosk Windows do parque legado não
+# pode ser atualizado.
+@getDeviceId = ->
+  key = "corpflix.deviceId"
+  try
+    id = window.localStorage.getItem(key)
+    unless id
+      id = if window.crypto?.randomUUID
+        # UUID v4 padrão. Disponível em Chrome ≥92 — cobre quase todo
+        # parque atual e qualquer instalação de Windows recente.
+        window.crypto.randomUUID()
+      else
+        # Fallback pra Chrome antigo que ainda exista em algum kiosk
+        # esquecido. Não é UUID padrão mas serve como ID único por
+        # máquina (timestamp + random suficientemente colidir-resistente
+        # pro tamanho do parque).
+        "fallback-#{Date.now()}-#{Math.floor(Math.random() * 1e9)}"
+      window.localStorage.setItem(key, id)
+    return id
+  catch e
+    return null
+
+# Helper pra montar URLs dos endpoints do relay com tvId + deviceId. Os 4
+# GETs do player (check_tv, grade, download_new_content, feeds) usam o
+# mesmo padrão; centralizar evita esquecer de incluir deviceId em algum.
+@buildEndpointUrl = (path) ->
+  url = "#{path}?tvId=#{getTvId()}"
+  did = getDeviceId()
+  url += "&deviceId=#{encodeURIComponent(did)}" if did
+  url
+
 # Última versão pra qual já disparamos `NativePlayer.triggerUpdateCheck()`
 # nesta page lifetime. Reseta naturalmente em todo `restart_player_em` (a
 # página recarrega → variável volta a null). Dedup garante que TV fora do
@@ -216,7 +259,7 @@ checkAppUpdate = (data) ->
 
 
 
-  Vue.http.get('/check_tv?tvId='+getTvId()).then success, error
+  Vue.http.get(buildEndpointUrl('/check_tv')).then success, error
 
 # resto “sempre positivo”
 mod = (a, b) -> ((a % b) + b) % b
@@ -497,7 +540,7 @@ startScreenScheduleLoop = ->
       , @tentarNovamenteEm
       onError?()
 
-    Vue.http.get('/grade?tvId='+getTvId()).then success, error
+    Vue.http.get(buildEndpointUrl('/grade')).then success, error
     return
   downloadNewContent: ->
     success = (resp)=>
@@ -505,7 +548,7 @@ startScreenScheduleLoop = ->
         console.log "Novo Conteúdo baixado"
     error = (resp) => console.log resp
 
-    Vue.http.get('/download_new_content?tvId='+getTvId()).then success, error
+    Vue.http.get(buildEndpointUrl('/download_new_content')).then success, error
   handle: (data)->
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
@@ -569,7 +612,7 @@ startScreenScheduleLoop = ->
       setTimeout (-> feedsObj.get()), @tentarNovamenteEm
       onError?()
 
-    Vue.http.get('/feeds?tvId='+getTvId()).then success, error
+    Vue.http.get(buildEndpointUrl('/feeds')).then success, error
     return
   handle: (data)->
     @data = data

@@ -215,6 +215,55 @@
     return tvId;
   };
 
+  // Fase 1 do roadmap "Tv has many devices" (corpflix/ROADMAP.md): identifica
+  // cada máquina física unicamente para o Rails poder distinguir os ~20
+  // devices que rodam sob a mesma tv_id (ex: 19 PCs Chrome kiosk + 1 TV box
+  // Android no tv_id=64). Sem isso a telemetria é "último que reportou ganha"
+  // no nível Tv.
+
+  // Estável por máquina: persiste em localStorage. Sobrevive restart do
+  // Chrome / reboot do Windows. Some só em "limpar dados do navegador"
+  // (raro em kiosk; quando some, vira device novo — comportamento aceito).
+
+  // Backward compat: se localStorage falhar (modo private/storage cheio)
+  // retorna null, e o caller omite o param — request continua funcionando
+  // como antes. Crítico porque Chrome kiosk Windows do parque legado não
+  // pode ser atualizado.
+  this.getDeviceId = function() {
+    var e, id, key, ref;
+    key = "corpflix.deviceId";
+    try {
+      id = window.localStorage.getItem(key);
+      if (!id) {
+        // UUID v4 padrão. Disponível em Chrome ≥92 — cobre quase todo
+        // parque atual e qualquer instalação de Windows recente.
+        // Fallback pra Chrome antigo que ainda exista em algum kiosk
+        // esquecido. Não é UUID padrão mas serve como ID único por
+        // máquina (timestamp + random suficientemente colidir-resistente
+        // pro tamanho do parque).
+        id = ((ref = window.crypto) != null ? ref.randomUUID : void 0) ? window.crypto.randomUUID() : `fallback-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        window.localStorage.setItem(key, id);
+      }
+      return id;
+    } catch (error1) {
+      e = error1;
+      return null;
+    }
+  };
+
+  // Helper pra montar URLs dos endpoints do relay com tvId + deviceId. Os 4
+  // GETs do player (check_tv, grade, download_new_content, feeds) usam o
+  // mesmo padrão; centralizar evita esquecer de incluir deviceId em algum.
+  this.buildEndpointUrl = function(path) {
+    var did, url;
+    url = `${path}?tvId=${getTvId()}`;
+    did = getDeviceId();
+    if (did) {
+      url += `&deviceId=${encodeURIComponent(did)}`;
+    }
+    return url;
+  };
+
   // Última versão pra qual já disparamos `NativePlayer.triggerUpdateCheck()`
   // nesta page lifetime. Reseta naturalmente em todo `restart_player_em` (a
   // página recarrega → variável volta a null). Dedup garante que TV fora do
@@ -284,7 +333,7 @@
     error = (resp) => {
       return console.log(resp);
     };
-    return Vue.http.get('/check_tv?tvId=' + getTvId()).then(success, error);
+    return Vue.http.get(buildEndpointUrl('/check_tv')).then(success, error);
   };
 
   // resto “sempre positivo”
@@ -645,7 +694,7 @@
         }, this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      Vue.http.get('/grade?tvId=' + getTvId()).then(success, error);
+      Vue.http.get(buildEndpointUrl('/grade')).then(success, error);
     },
     downloadNewContent: function() {
       var error, success;
@@ -657,7 +706,7 @@
       error = (resp) => {
         return console.log(resp);
       };
-      return Vue.http.get('/download_new_content?tvId=' + getTvId()).then(success, error);
+      return Vue.http.get(buildEndpointUrl('/download_new_content')).then(success, error);
     },
     handle: function(data) {
       this.restart_player_em = data.restart_player_em;
@@ -726,7 +775,7 @@
         }), this.tentarNovamenteEm);
         return typeof onError === "function" ? onError() : void 0;
       };
-      Vue.http.get('/feeds?tvId=' + getTvId()).then(success, error);
+      Vue.http.get(buildEndpointUrl('/feeds')).then(success, error);
     },
     handle: function(data) {
       var base, base1, base2, base3, feed, feeds, i, l, len, len1, name, name1, posicao, ref;
