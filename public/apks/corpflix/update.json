@@ -1,10 +1,10 @@
 {
-  "versionCode": 3232,
-  "versionName": "3.2.32",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.32.apk",
-  "sha256": "b00d8cd53b43bf0886a586d717fdb749edd4f85e1fdb7ae2deefcbb7cf598ced",
+  "versionCode": 3234,
+  "versionName": "3.2.34",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.34.apk",
+  "sha256": "e9758c728bf2c71189270699915ec47998e8c8d1ab4de44e656cb239fbd3952e",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Fase 4 'Tv has many devices' - CrashReportWorker upload de crashes.log pro endpoint POST /publicidades/crash_report",
-  "publishedAt": "2026-05-03T16:41:11Z"
+  "releaseNotes": "Device ID no rodape da ConfigScreen + UI /support/tvs unificada (tabela Devices vira fonte unica de telemetria)",
+  "publishedAt": "2026-05-03T19:05:07Z"
 }
