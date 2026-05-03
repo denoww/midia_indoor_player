@@ -202,6 +202,15 @@ module.exports = (opt={}) ->
         cache_web_entradas: params.cache_web_entradas
         provisionado_ok: params.provisionado_ok
         device_owner: params.device_owner
+        # Telemetria adicional (booted_at, apk_installed_at, device_model,
+        # os_version, storage_free_bytes). Captura no nativo é defensiva —
+        # qualquer um pode chegar undefined; Rails ignora silenciosamente
+        # via .present? guards no service.
+        booted_at: params.booted_at
+        apk_installed_at: params.apk_installed_at
+        device_model: params.device_model
+        os_version: params.os_version
+        storage_free_bytes: params.storage_free_bytes
       request.get {url: url, qs: qs, timeout: 5000}, (e, r, b) ->
         if e
           console.log "telemetry → Rails erro: #{e.message}"
