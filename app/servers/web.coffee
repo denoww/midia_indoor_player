@@ -272,6 +272,50 @@ module.exports = (opt={}) ->
     #   return
     res.send JSON.stringify data
 
+  # Fase 4 do roadmap "Tv has many devices" (corpflix/ROADMAP.md):
+  # proxy de upload de crash do Corpflix Android. CrashReportWorker do
+  # APK (commit a partir de 3.2.32) detecta crashes.log não-vazio em
+  # /sdcard/Android/data/.../files/logs/ e POSTa aqui; aqui forwardamos
+  # tal-qual pro Rails persistir.
+  #
+  # Body é text/plain bruto (conteúdo do crashes.log do CrashHandler);
+  # meta vai em querystring. bodyParser.text() limit 200KB cobre o cap
+  # de 64KB do client (CrashHandler.MAX_BYTES) com folga grande.
+  #
+  # Sem cache aqui — fire-and-forward síncrono pro upstream. Frequência
+  # baixíssima (semanas entre crashes em campo), nada justifica
+  # buffering local.
+  app.post '/crash_report',
+    bodyParser.text(type: '*/*', limit: '200kb'),
+    (req, res) ->
+      console.log "Request POST /crash_report tvId=#{req.query.tvId} deviceId=#{req.query.deviceId} app_versao=#{req.query.app_versao} payloadBytes=#{req.body?.length || 0}"
+      unless ENV.API_SERVER_URL
+        return res.status(500).json(error: 'API_SERVER_URL não configurada')
+      unless req.query.tvId
+        return res.status(400).json(error: 'tvId obrigatório')
+      unless req.body and req.body.length > 0
+        return res.status(400).json(error: 'payload obrigatório')
+
+      request = require 'request'
+      qs =
+        tvId: req.query.tvId
+        deviceId: req.query.deviceId
+        app_versao: req.query.app_versao
+        payload: req.body
+      url = "#{ENV.API_SERVER_URL}/publicidades/crash_report"
+      request.post {url: url, form: qs, timeout: 10000}, (e, r, b) ->
+        if e
+          console.log "  ✗ erro de rede: #{e.message}"
+          return res.status(502).json(error: 'upstream indisponível')
+        if r?.statusCode == 200
+          # Devolve o body do Rails ({id, crashed_at}) pro cliente — o
+          # CrashReportWorker do APK só usa o status code (200 → renomeia
+          # crashes.log → .sent) mas devolver o JSON ajuda em debug
+          # manual via curl.
+          return res.status(200).type('application/json').send(b)
+        console.log "  ✗ upstream HTTP #{r?.statusCode}: #{b?.slice(0,200)}"
+        res.status(r?.statusCode or 502).type('application/json').send(b or '{}')
+
 
   # app.get  '/npm_run', (req, res) ->
   #   # GET -> http://midiaindoor.seucondominio.com.br:4001/npm_run?cmd=deploy
