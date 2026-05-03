@@ -119,7 +119,10 @@ module.exports = (opt={}) ->
     data = global?.grade?.data?[tvId] ? {}
     return unless data?
     if Object.empty data
-      global.grade.getList(tvId) if global.grade
+      # deviceId vem do JS (localStorage) ou do nativo Android. Repassa
+      # pra grade.coffee#getList propagar upstream pro Rails — Fase 1
+      # do roadmap "Tv has many devices".
+      global.grade.getList(tvId, deviceId: params.deviceId) if global.grade
       res.sendStatus(400)
       return
     res.send JSON.stringify data
@@ -187,6 +190,11 @@ module.exports = (opt={}) ->
       url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json"
       qs =
         id: tvId
+        # Fase 1 do roadmap "Tv has many devices" (corpflix/ROADMAP.md):
+        # nativo Android (TelemetryWorker) já manda deviceId junto com
+        # app_versao — propaga upstream pro Rails persistir/logar
+        # per-device em vez de "último que reportou ganha" no nível Tv.
+        deviceId: params.deviceId
         app_versao: params.app_versao
         cache_video_bytes: params.cache_video_bytes
         cache_video_entradas: params.cache_video_entradas
@@ -220,7 +228,12 @@ module.exports = (opt={}) ->
     unless tvId and tvId > 0
       return res.status(400).json(error: 'tvId obrigatório')
 
+    # deviceId opcional — Fase 1 do roadmap "Tv has many devices".
+    # Validação é one-shot (Corpflix Android antes de salvar config),
+    # sem efeito colateral, mas propaga pra ter visibilidade no log
+    # do Rails de qual device pediu validação.
     url = "#{ENV.API_SERVER_URL}/publicidades/tv_existe.json?id=#{tvId}"
+    url += "&deviceId=#{params.deviceId}" if params.deviceId
     console.log "Request GET /tv_existe → proxy #{url}"
     request {url: url, timeout: 5000}, (error, response, body) ->
       if error
@@ -239,7 +252,9 @@ module.exports = (opt={}) ->
     console.log  "Request GET /download_new_content params: #{JSON.stringify(params)}"
     tvId = params.tvId
     tvId = parseInt(tvId) if tvId
-    global.grade.getList(tvId) if tvId
+    # Repassa deviceId pra grade.coffee#getList propagar upstream —
+    # Fase 1 do roadmap "Tv has many devices".
+    global.grade.getList(tvId, deviceId: params.deviceId) if tvId
 
     resp = {}
     res.send JSON.stringify resp

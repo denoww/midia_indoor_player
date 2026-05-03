@@ -30,6 +30,12 @@ module.exports = ->
           fs.mkdirSync(folder, { recursive: true })
       return
     checkTv: (tvId) ->
+      # Server-side timer (web.coffee não chama daqui — é o setInterval
+      # 10s lá embaixo). Per-tv, sem deviceId — o relay agrega devices
+      # sob o mesmo tvId no cache local e não rastreia individualmente.
+      # Pra rastreio per-device, o caminho é o JS do player bater 3s no
+      # /check_tv com deviceId, que o web.coffee propaga upstream quando
+      # tem app_versao (Corpflix Android) ou loga no console (todos).
       url = "#{baseUrl}/check_tv.json?id=#{tvId}"
       console.log "cloud #{url}"
       request url, (error, response, body)=>
@@ -48,7 +54,13 @@ module.exports = ->
       @tvIds = @tvIds.flatten().unique()
 
 
+      # Fase 1 do roadmap "Tv has many devices" (corpflix/ROADMAP.md):
+      # propaga deviceId upstream pro Rails quando o caller passou em
+      # opt. Permite o Rails ver qual device pediu a grade (ex: das 20
+      # devices da tv_id=64, qual delas reiniciou agora). Backward
+      # compat: sem opt.deviceId, URL fica idêntica ao que era antes.
       url = "#{baseUrl}/grade.json?id=#{tvId}"
+      url += "&deviceId=#{opt.deviceId}" if opt.deviceId
       global.logs.create "URL: #{url}"
 
       @getDataOffline(tvId)
