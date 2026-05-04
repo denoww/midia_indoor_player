@@ -1,11 +1,11 @@
 {
-  "versionCode": 3236,
-  "versionName": "3.2.36",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.36.apk",
-  "sha256": "a394121b174a17fd5c507dbaf7d461157d25aa749f8400e1d31e5197e8c40a49",
+  "versionCode": 3237,
+  "versionName": "3.2.37",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.37.apk",
+  "sha256": "03c55fc4848e72a89322c6138d36c989ac8a20f96656f9db700c05d9f02f0368",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "switch 'Atualização automática' na ConfigScreen (cliente pode desligar auto-update); base do suporte a releases silent — próximas releases não-críticas vão sem popup",
-  "publishedAt": "2026-05-04T00:36:59Z",
+  "releaseNotes": "telemetria PLAYER_STUCK no /check_tv: contadores position/buffering × reprepare/skip por janela de 1h — base pra dashboard de saúde do player no /support/tvs (fase 2 no seucondominio pendente)",
+  "publishedAt": "2026-05-04T01:19:12Z",
   "silent": false
 }
