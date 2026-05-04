@@ -1,10 +1,11 @@
 {
-  "versionCode": 3235,
-  "versionName": "3.2.35",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.35.apk",
-  "sha256": "6e7eee59734bce825ac1cccc986d381875a3d81becefc5064dd90824ea9f2c10",
+  "versionCode": 3236,
+  "versionName": "3.2.36",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.36.apk",
+  "sha256": "a394121b174a17fd5c507dbaf7d461157d25aa749f8400e1d31e5197e8c40a49",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "TelemetryWorker captura defensiva de 5 metas extras (boot, OTA install, modelo, OS, disco) — visíveis em /support/tvs colunas Sistema, Boot e tooltips em App e Cache",
-  "publishedAt": "2026-05-03T19:59:41Z"
+  "releaseNotes": "switch 'Atualização automática' na ConfigScreen (cliente pode desligar auto-update); base do suporte a releases silent — próximas releases não-críticas vão sem popup",
+  "publishedAt": "2026-05-04T00:36:59Z",
+  "silent": false
 }
