@@ -137,6 +137,17 @@ module.exports = (opt={}) ->
   # publicar e parque inteiro reagir. 5s é o ponto cego aceito.
   manifestCache = production: null, staging: null, expiresAt: 0
 
+  # Rate-limit do forward do heartbeat puro (JS de 3s) pro Rails: Map em
+  # memória `tvId → lastForwardedAtMs`. Sem isso, encaminhar todo tick de
+  # 3s × 200 TVs = ~67 req/s no /publicidades/check_tv (DDoS interno).
+  # Encaminhar 1×/min × 200 TVs = ~3.3 req/s — suficiente pro threshold
+  # de 5min do Device.online no Rails (last_seen_at >= 5.minutes.ago) e
+  # leve no DB (1 update_columns só de last_seen_at por minuto). Map vive
+  # no processo PM2 — restart zera, mas perda é trivial (próximo tick
+  # encaminha de novo, defasagem ≤60s).
+  HEARTBEAT_FORWARD_INTERVAL_MS = 60 * 1000
+  heartbeatLastForwarded = {}
+
   readLatestVersionCodes = ->
     now = Date.now()
     return manifestCache if now < manifestCache.expiresAt
@@ -224,6 +235,32 @@ module.exports = (opt={}) ->
           console.log "telemetry → Rails erro: #{e.message}"
         else if r?.statusCode != 200
           console.log "telemetry → Rails HTTP #{r?.statusCode}"
+    else if params.deviceId? and ENV.API_SERVER_URL
+      # Heartbeat puro (JS de 3s): só `tvId + deviceId`, sem `app_versao`.
+      # Rate-limit a 1 forward por minuto por tvId pra atualizar o
+      # `Publicidade::Device.last_seen_at` no Rails sem inundar o
+      # /publicidades/check_tv. Pareado com Corpflix 3.2.38+ que faz o
+      # JS usar `NativePlayer.deviceId()` (ANDROID_ID) — sem isso o JS
+      # mandava UUID localStorage diferente do ANDROID_ID nativo,
+      # criando 2 Device rows por TV (um stale).
+      #
+      # Backwards-compat: TVs antigas (Chrome kiosk Windows) caem no UUID
+      # localStorage e ainda atualizam um Device row consistente — mais
+      # útil que nada.
+      now = Date.now()
+      last = heartbeatLastForwarded[tvId] ? 0
+      if (now - last) >= HEARTBEAT_FORWARD_INTERVAL_MS
+        heartbeatLastForwarded[tvId] = now
+        request = require 'request'
+        url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json"
+        qs =
+          id: tvId
+          deviceId: params.deviceId
+        request.get {url: url, qs: qs, timeout: 5000}, (e, r, b) ->
+          if e
+            console.log "heartbeat → Rails erro: #{e.message}"
+          else if r?.statusCode != 200
+            console.log "heartbeat → Rails HTTP #{r?.statusCode}"
 
   # Validação se uma TV ID existe no ERP. Proxy direto pro Rails sem usar o
   # cache em memória do Node (`global.grade.data`) — esse cache só conhece

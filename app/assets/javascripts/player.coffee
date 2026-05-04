@@ -179,6 +179,26 @@ onLoaded = ->
 # como antes. Crítico porque Chrome kiosk Windows do parque legado não
 # pode ser atualizado.
 @getDeviceId = ->
+  # Preferência 1: ANDROID_ID nativo via Corpflix WebView bridge (3.2.38+).
+  # Crítico pra Device.online: o TelemetryWorker nativo (1×/h) já envia
+  # esse mesmo ANDROID_ID em /check_tv com app_versao, e o Rails localiza
+  # o Device por device_id pra atualizar last_seen_at. Se o JS heartbeat
+  # de 3s mandar UUID localStorage diferente, o Rails cria DOIS rows
+  # distintos (UUID-based e ANDROID_ID-based) — e o ANDROID_ID-based
+  # acaba ficando OFFLINE 55min/60min mesmo com a TV saudável (só atualiza
+  # quando TelemetryWorker tick). Usar o mesmo ID em ambos os caminhos
+  # garante 1 Device por TV física com last_seen_at fresco a cada 3s.
+  try
+    if window.NativePlayer?.deviceId?
+      nativeId = window.NativePlayer.deviceId()
+      return nativeId if nativeId? and nativeId != ""
+  catch e
+    # Bridge presente mas chamada falhou (improvável) — cai no localStorage.
+
+  # Fallback: UUID localStorage. Caminhos cobertos:
+  #   - Chrome kiosk legacy no parque Windows/Pi (sem bridge nativo);
+  #   - Corpflix Android < 3.2.38 (bridge sem método deviceId());
+  #   - Cenário raro de ANDROID_ID null (factory reset corrompido).
   key = "corpflix.deviceId"
   try
     id = window.localStorage.getItem(key)

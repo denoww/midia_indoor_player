@@ -230,7 +230,32 @@
   // como antes. Crítico porque Chrome kiosk Windows do parque legado não
   // pode ser atualizado.
   this.getDeviceId = function() {
-    var e, id, key, ref;
+    var e, id, key, nativeId, ref, ref1;
+    try {
+      // Preferência 1: ANDROID_ID nativo via Corpflix WebView bridge (3.2.38+).
+      // Crítico pra Device.online: o TelemetryWorker nativo (1×/h) já envia
+      // esse mesmo ANDROID_ID em /check_tv com app_versao, e o Rails localiza
+      // o Device por device_id pra atualizar last_seen_at. Se o JS heartbeat
+      // de 3s mandar UUID localStorage diferente, o Rails cria DOIS rows
+      // distintos (UUID-based e ANDROID_ID-based) — e o ANDROID_ID-based
+      // acaba ficando OFFLINE 55min/60min mesmo com a TV saudável (só atualiza
+      // quando TelemetryWorker tick). Usar o mesmo ID em ambos os caminhos
+      // garante 1 Device por TV física com last_seen_at fresco a cada 3s.
+      if (((ref = window.NativePlayer) != null ? ref.deviceId : void 0) != null) {
+        nativeId = window.NativePlayer.deviceId();
+        if ((nativeId != null) && nativeId !== "") {
+          return nativeId;
+        }
+      }
+    } catch (error1) {
+      e = error1;
+    }
+    // Bridge presente mas chamada falhou (improvável) — cai no localStorage.
+
+    // Fallback: UUID localStorage. Caminhos cobertos:
+    //   - Chrome kiosk legacy no parque Windows/Pi (sem bridge nativo);
+    //   - Corpflix Android < 3.2.38 (bridge sem método deviceId());
+    //   - Cenário raro de ANDROID_ID null (factory reset corrompido).
     key = "corpflix.deviceId";
     try {
       id = window.localStorage.getItem(key);
@@ -241,7 +266,7 @@
         // esquecido. Não é UUID padrão mas serve como ID único por
         // máquina (timestamp + random suficientemente colidir-resistente
         // pro tamanho do parque).
-        id = ((ref = window.crypto) != null ? ref.randomUUID : void 0) ? window.crypto.randomUUID() : `fallback-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
+        id = ((ref1 = window.crypto) != null ? ref1.randomUUID : void 0) ? window.crypto.randomUUID() : `fallback-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
         window.localStorage.setItem(key, id);
       }
       return id;
