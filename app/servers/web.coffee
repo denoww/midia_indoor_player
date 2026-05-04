@@ -211,6 +211,14 @@ module.exports = (opt={}) ->
         device_model: params.device_model
         os_version: params.os_version
         storage_free_bytes: params.storage_free_bytes
+        # Contadores PLAYER_STUCK por janela de 1h (Corpflix 3.2.37+).
+        # Service no Rails incrementa atomicamente; ausência (Corpflix
+        # antigo) cai em .to_i = 0 e é skip silencioso. Ver migration
+        # add_player_stuck_counters_to_devices_and_tvs.
+        player_stuck_position: params.player_stuck_position
+        player_stuck_buffering: params.player_stuck_buffering
+        player_stuck_reprepare: params.player_stuck_reprepare
+        player_stuck_skip: params.player_stuck_skip
       request.get {url: url, qs: qs, timeout: 5000}, (e, r, b) ->
         if e
           console.log "telemetry → Rails erro: #{e.message}"
