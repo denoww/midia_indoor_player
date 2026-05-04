@@ -1030,7 +1030,15 @@
         consuming: true
       });
       if (!itemAtual) {
-        return console.error("resolveNextItem() retornou null");
+        // Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
+        // (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
+        // prendia o player até reboot manual — @promessa nunca era zerado, então
+        // o init() periódico do updateContent também desistia cedo.
+        console.error("resolveNextItem() retornou null — retry em 5s");
+        this.promessa = setTimeout((function() {
+          return timelineConteudoSuperior.executar();
+        }), 5000);
+        return;
       }
       // Mantém SOMENTE o atual no v-for
       vm.listaConteudoSuperior = [itemAtual];

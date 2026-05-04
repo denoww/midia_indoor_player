@@ -801,7 +801,14 @@ startScreenScheduleLoop = ->
     @_transTimer = setTimeout (-> vm.transitioning = false), 900
 
     itemAtual = @resolveNextItem({ consuming: true })
-    return console.error "resolveNextItem() retornou null" unless itemAtual
+    unless itemAtual
+      # Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
+      # (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
+      # prendia o player até reboot manual — @promessa nunca era zerado, então
+      # o init() periódico do updateContent também desistia cedo.
+      console.error "resolveNextItem() retornou null — retry em 5s"
+      @promessa = setTimeout (-> timelineConteudoSuperior.executar()), 5000
+      return
 
     # Mantém SOMENTE o atual no v-for
     vm.listaConteudoSuperior = [itemAtual]
