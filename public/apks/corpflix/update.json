@@ -1,11 +1,11 @@
 {
-  "versionCode": 3238,
-  "versionName": "3.2.38",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.38.apk",
-  "sha256": "96f3b482c88a172ab016cbb3f7b5ca08cb6c8263ad942dc18d741373b3b7241e",
+  "versionCode": 3239,
+  "versionName": "3.2.39",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.39.apk",
+  "sha256": "00480d067bf720e4c5d51c26e8981f86c08e36bf18c4a5b37b0896f54adc6fdc",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "bridge NativePlayer.deviceId() expõe ANDROID_ID — JS heartbeat (3s) passa a atualizar o mesmo Device row do TelemetryWorker em vez de UUID localStorage paralelo. Pareado com forward de heartbeat puro no relay (rate-limit 60s/tvId). Resolve Device.online ficando OFF 55min/60min com TV saudável",
-  "publishedAt": "2026-05-04T02:48:12Z",
+  "releaseNotes": "default 'Atualização automática' DESLIGADO — decisão de produto: parque atualiza manualmente via botão da Config (zero fricção em horário comercial). Quem quiser auto entra na Config e liga o switch. Última release com popup automático no parque inteiro",
+  "publishedAt": "2026-05-04T02:57:38Z",
   "silent": false
 }
