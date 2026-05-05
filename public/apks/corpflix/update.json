@@ -1,11 +1,11 @@
 {
-  "versionCode": 3240,
-  "versionName": "3.2.40",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.40.apk",
-  "sha256": "1c36b60beec824cce2e989c53c6ad6049fa53b09e8c16f3c946bdc388fb9faa3",
+  "versionCode": 3241,
+  "versionName": "3.2.41",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.41.apk",
+  "sha256": "af3bdd1dd2268faf1e576438a256c44fb9b187315c5528b16fad2f67a4b6dc11",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "fix crítico: desativa RebootWorker que causava ~3 outages/dia/TV por respawn falho pós-suicídio programado",
-  "publishedAt": "2026-05-04T23:49:52Z",
-  "silent": false
+  "releaseNotes": "fix UX: D-pad para baixo no switch 'Manter app aberto' agora alcanca 'Atualizacao automatica'",
+  "publishedAt": "2026-05-05T16:15:12Z",
+  "silent": true
 }
