@@ -8,6 +8,45 @@ request = require 'request'
   .defaults encoding: null
 
 module.exports = ->
+  # Watchdog do `ctrl.loading`. Histórico: o flag era setado pra `true`
+  # antes de baixar imagem e revertido no callback do download. Mas
+  # callbacks podem ser pulados em paths não-felizes:
+  #   - `convertBufferToWebp` jogando exceção síncrona dentro do callback
+  #     de `sharp.metadata` (metadata vazia → `metadata.width / metadata.height`
+  #     → TypeError) — exceção escapa do try/catch de `doDownloadToBuffer`
+  #     porque é assíncrona;
+  #   - `image.toFile` no branch `is_logo` recebendo erro mas exception em
+  #     `createLogError` antes do `callback?()`.
+  # Resultado: `ctrl.loading` ficava `true` pra sempre; fila empilhava sem
+  # consumir; tela-preta na TV até reboot/restart manual. Incidente
+  # 2026-05-11 com TV 63 foi o caso clássico.
+  #
+  # Watchdog em paralelo com o reset normal: cada vez que setamos
+  # `loading=true`, agenda timeout que força reset + retoma a fila depois
+  # de `LOADING_WATCHDOG_MS`. Idempotente (clearTimeout cancela quando
+  # o callback de sucesso roda).
+  #
+  # 2 minutos cobre download lento de imagem (~10MB com sharp resize)
+  # 4× sobre o caso normal — falso-positivo é raríssimo. Se a EC2 estiver
+  # tão lenta a ponto de baixar+resize de 1 imagem demorar mais que isso,
+  # o relay já está em estado degradado e re-tentar é melhor que travar.
+  LOADING_WATCHDOG_MS = 2 * 60 * 1000
+  watchdogTimer = null
+
+  setLoading = (val) ->
+    ctrl.loading = val
+    clearTimeout(watchdogTimer) if watchdogTimer?
+    watchdogTimer = null
+    if val
+      watchdogTimer = setTimeout ->
+        return unless ctrl.loading
+        logs?.error "Download watchdog: ctrl.loading travado " +
+          "por #{LOADING_WATCHDOG_MS/1000}s — forçando reset e processando fila",
+          tags: class: 'download'
+        ctrl.loading = false
+        next()
+      , LOADING_WATCHDOG_MS
+
   ctrl =
     fila: []
     loading: false
@@ -24,20 +63,21 @@ module.exports = ->
         return next() unless ctrl.validURL(params.url)
 
         if params.is_video || params.is_audio
+          setLoading(true)
           doDownloadAlternative params, fullPath, ->
-            ctrl.loading = false
+            setLoading(false)
             next()
           return
 
-        ctrl.loading = true
+        setLoading(true)
         if ['5', 5].includes(ENV.TV_ID) && global.grade?.data && global.grade.data.versao_player < 1.8
           doDownload params, fullPath, ->
-            ctrl.loading = false
+            setLoading(false)
             next()
           return
 
         doDownloadToBuffer params, fullPath, ->
-          ctrl.loading = false
+          setLoading(false)
           next()
     validURL: (url)->
       pattern = new RegExp('^(http|https):\\/\\/(\\w+:{0,1}\\w*)?(\\S+)(:[0-9]+)?(\\/|\\/([\\w#!:.?+=&%!\\-\\/]))?', 'i')
@@ -128,26 +168,47 @@ module.exports = ->
     image = sharp(buffer).toFormat('webp').webp(quality: 75)
 
     if params.is_logo
-      image.toFile fullPath, (error, info)->
-        createLogError('convertBufferToWebp', error, params)
-        callback?()
+      try
+        image.toFile fullPath, (error, info)->
+          createLogError('convertBufferToWebp', error, params)
+          callback?()
+      catch e
+        # Exceção síncrona de `sharp` (buffer corrompido, formato não
+        # suportado, etc) escapa em paths não-felizes. Sem este catch o
+        # callback nunca disparava e `ctrl.loading` ficava travado.
+        createLogError('convertBufferToWebp', e, params, callback)
       return
 
+    # `image.metadata` é assíncrona — qualquer throw síncrono dentro deste
+    # callback escapa do try/catch de `doDownloadToBuffer` (que envolve
+    # apenas a chamada síncrona inicial). Wrap explícito + validação de
+    # metadata pra não cair em `null.width / null.height = TypeError` em
+    # imagens parcialmente baixadas. Garante que `callback` SEMPRE roda,
+    # mesmo em paths anômalos — pré-requisito pra `setLoading(false)`
+    # liberar a fila.
     image.metadata (error, metadata) ->
       return if createLogError('convertBufferToWebp', error, params, callback)
 
-      position = sharp.gravity.center
-      position = sharp.gravity.north if metadata.width / metadata.height < 0.8
+      unless metadata?.width and metadata?.height
+        return createLogError('convertBufferToWebp',
+          new Error("metadata sem width/height: #{JSON.stringify(metadata)}"),
+          params, callback)
 
-      image.resize
-        fit:      sharp.fit.cover
-        width:    1648
-        height:   927
-        position: position
-      .flatten background: '#000000'
-      .toFile fullPath, (error, info)->
-        createLogError('convertBufferToWebp', error, params)
-        callback?()
+      try
+        position = sharp.gravity.center
+        position = sharp.gravity.north if metadata.width / metadata.height < 0.8
+
+        image.resize
+          fit:      sharp.fit.cover
+          width:    1648
+          height:   927
+          position: position
+        .flatten background: '#000000'
+        .toFile fullPath, (error, info)->
+          createLogError('convertBufferToWebp', error, params)
+          callback?()
+      catch e
+        createLogError('convertBufferToWebp', e, params, callback)
     return
 
   createLogError = (method, error, params, callback)->
