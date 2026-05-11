@@ -37,7 +37,9 @@ module.exports = ->
       # /check_tv com deviceId, que o web.coffee propaga upstream quando
       # tem app_versao (Corpflix Android) ou loga no console (todos).
       url = "#{baseUrl}/check_tv.json?id=#{tvId}"
-      console.log "cloud #{url}"
+      # Silenciado por default — ver `verboseLog` em web.coffee. Roda a
+      # cada 10s × 30 TVs = 3 linhas/s. 95% do volume do MIDIAINDOOR-out.log.
+      console.log "cloud #{url}" if process.env.DEBUG_VERBOSE_LOG == '1'
       request url, (error, response, body)=>
         if error || response?.statusCode != 200
           return
@@ -396,9 +398,10 @@ module.exports = ->
 
     startCheckTvTimer: ->
       setInterval =>
-        console.log("=========================================================")
-        console.log("Checar se grade mudou: chamar ctrl.checkTv de  #{@tvIds}")
-        console.log("=========================================================")
+        if process.env.DEBUG_VERBOSE_LOG == '1'
+          console.log("=========================================================")
+          console.log("Checar se grade mudou: chamar ctrl.checkTv de  #{@tvIds}")
+          console.log("=========================================================")
         for tvId in @tvIds
           ctrl.checkTv(tvId)
       , 10000

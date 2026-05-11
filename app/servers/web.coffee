@@ -5,6 +5,18 @@ path    = require 'path'
 bodyParser = require 'body-parser'
 fs = require 'fs'
 
+# `verboseLog` controla o spam de console.log de endpoints high-traffic.
+# Histórico: `MIDIAINDOOR-out.log` cresceu pra 7.2 GB (sem rotação) com
+# ~86 MB/dia majoritariamente de `Request GET /check_tv` (30 TVs × tick
+# de 3s = 10 linhas/s) e `cloud https://.../check_tv.json?id=X` do
+# checkTvTimer (cada TV de 10 em 10s). Esses dois respondem por > 95%
+# do volume e adicionam zero info diagnóstica em operação normal — só
+# atrapalham quando precisamos `tail -f` pra debugar algo real.
+# Logs de erro, downloads, e operações raras continuam sempre logando.
+# Reabilita com `DEBUG_VERBOSE_LOG=1` no .env quando precisar
+# inspecionar fluxo de heartbeat em campo.
+verboseLog = process.env.DEBUG_VERBOSE_LOG == '1'
+
 module.exports = (opt={}) ->
   app = express()
   server = app.listen(ENV.HTTP_PORT)
@@ -114,7 +126,7 @@ module.exports = (opt={}) ->
     
   app.get '/grade', (req, res) ->
     params = req.getParams()
-    console.log  "Request GET /grade params: #{JSON.stringify(params)}"
+    console.log  "Request GET /grade params: #{JSON.stringify(params)}" if verboseLog
     tvId = params.tvId
     data = global?.grade?.data?[tvId] ? {}
     return unless data?
@@ -165,7 +177,7 @@ module.exports = (opt={}) ->
 
   app.get '/check_tv', (req, res) ->
     params = req.getParams()
-    console.log  "Request GET /check_tv params: #{JSON.stringify(params)}"
+    console.log  "Request GET /check_tv params: #{JSON.stringify(params)}" if verboseLog
     tvId = params.tvId
     tvId = parseInt(tvId) if tvId
     data = global?.grade?.data?[tvId] ? {}
@@ -317,7 +329,7 @@ module.exports = (opt={}) ->
 
   app.get '/feeds', (req, res) ->
     params = req.getParams()
-    console.log  "Request GET /feeds params: #{JSON.stringify(params)}"
+    console.log  "Request GET /feeds params: #{JSON.stringify(params)}" if verboseLog
     tvId = params.tvId
     data = global.feeds.data[tvId] || {}
     # if Object.empty data
