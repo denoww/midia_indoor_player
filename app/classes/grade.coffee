@@ -402,4 +402,103 @@ module.exports = ->
         for tvId in @tvIds
           ctrl.checkTv(tvId)
       , 10000
+
+    # Sanity check de boot: percorre todas as `public/<tvId>/grade.json` em
+    # disco e re-enfileira via `Download.exec` qualquer item cujo arquivo
+    # local esteja faltando. Idempotente — `Download.exec` faz `fs.stat`
+    # interno e só baixa se ausente ou com tamanho divergente.
+    #
+    # Motivação: a EC2 relay vinha sendo rebootada em ciclos (perdendo a
+    # fila in-memory do downloader) E o fluxo normal de re-download depende
+    # de uma TV bater `/grade?tvId=X` PRIMEIRO ou alguém chamar
+    # `/download_new_content`. Se a fila travasse com `ctrl.loading=true`
+    # ou se a primeira chamada de `getList` falhasse silenciosamente upstream,
+    # a TV ficava tela-preta indefinidamente até intervenção manual.
+    # Incidente 2026-05-11: TV 63 ficou tela-preta pós-reboot 12:00 UTC com
+    # `/63/videos/` literalmente vazia apesar de `grade.json` + `feeds/`
+    # estarem atualizados; só restart manual do PM2 recuperou.
+    #
+    # Filtra `tvId` por `^\d+$` — `public/` acumulou subdirs com nomes
+    # corrompidos (`null/`, `63\`/`, `123456789/`, etc) de requests com
+    # tvId mal-formado; iterá-los só polui log.
+    #
+    # Roda fire-and-forget. Não bloqueia boot, não espera S3.
+    warmupCacheFromDisk: ->
+      try
+        publicDir = pastaPublic()
+        return unless fs.existsSync(publicDir)
+
+        tvDirs = fs.readdirSync(publicDir).filter (name) ->
+          /^\d+$/.test(name) &&
+            fs.statSync(path.join(publicDir, name)).isDirectory()
+
+        scPrint.warning "============================================"
+        scPrint.warning "warmupCacheFromDisk: #{tvDirs.length} TVs em disco"
+        scPrint.warning "============================================"
+
+        enfileirados = 0
+        for tvId in tvDirs
+          gradePath = path.join(publicDir, tvId, 'grade.json')
+          continue unless fs.existsSync(gradePath)
+
+          # Popula @tvIds pra `startCheckTvTimer` já fazer `checkTv` dessas
+          # TVs sem precisar esperar a primeira request bater. Sem isso, o
+          # relay fica "burro" pós-reboot até cada TV se manifestar — janela
+          # em que mudanças no ERP (restart_player_em) podem passar
+          # despercebidas.
+          tvIdInt = parseInt(tvId)
+          @tvIds.push(tvIdInt) unless tvIdInt in @tvIds
+
+          try
+            gradeData = JSON.parse(fs.readFileSync(gradePath, 'utf8') || '{}')
+          catch e
+            global.logs?.error "warmupCacheFromDisk: grade.json inválido tv #{tvId} -> #{e}",
+              tags: class: 'grade'
+            continue
+
+          @data[tvIdInt] ||= gradeData
+          enfileirados += @_enfileirarFaltantes(tvId, gradeData)
+
+        scPrint.warning "warmupCacheFromDisk: #{enfileirados} arquivos faltantes enfileirados"
+      catch e
+        global.logs?.error "warmupCacheFromDisk: #{e}", tags: class: 'grade'
+      return
+
+    # Percorre recursivamente `conteudo_superior` e `conteudo_mensagem` da
+    # grade — playlists podem aninhar items dentro de items via `handlePlaylist`,
+    # então é DFS. Pra cada item com `filePath`, verifica se existe em disco
+    # com tamanho ok; se não, chama `Download.exec(item)`. Retorna número
+    # de items enfileirados (pra log).
+    _enfileirarFaltantes: (tvId, gradeData) ->
+      enfileirados = 0
+      visit = (item) =>
+        return unless item && typeof item is 'object'
+        if item.filePath && item.url
+          fullPath = "#{pastaPublic()}/#{item.filePath}"
+          precisa = true
+          try
+            if fs.existsSync(fullPath)
+              stats = fs.statSync(fullPath)
+              if item.size
+                margem = 2
+                precisa = !(stats.size <= (item.size + margem) &&
+                            stats.size >= (item.size - margem))
+              else
+                precisa = stats.size <= 1024
+          catch e
+            precisa = true
+          if precisa
+            global.Download?.exec(item)
+            enfileirados++
+        # DFS — playlists empurram sub-items dentro do próprio item via
+        # `lista[posicao]` em handleMidia (ver grade.coffee:241).
+        for key in ['conteudo_superior', 'conteudo_mensagem']
+          if Array.isArray(item[key])
+            visit(sub) for sub in item[key]
+        return
+
+      for key in ['conteudo_superior', 'conteudo_mensagem']
+        if Array.isArray(gradeData?[key])
+          visit(it) for it in gradeData[key]
+      enfileirados
   global.grade = ctrl
