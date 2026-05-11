@@ -2,7 +2,7 @@
 
 <html>
   <head>
-    <title>Player</title>
+    <title>Player Mídia Indoor — Seu Condomínio</title>
     <!-- Viewport CSS = tamanho real do display, sem mismatch entre 1080p
          (Mi Box) e 720p (Pro Eletronic PROSB-3000) ou qualquer outra
          resolução futura. `initial-scale=1` mantém escala 1:1 px-CSS↔px-device,
@@ -15,6 +15,27 @@
          Chrome desktop ignora `device-width` quando a janela é maior do
          que a screen — kiosk Pi/PC continua igual. -->
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+
+    <!-- Link preview (WhatsApp/Telegram/Slack/Discord). Sem essas tags o
+         player aparece como URL "pelada"; com elas, o cartão fica idêntico
+         ao do site principal (seucondominio.com.br). og:image aponta pro
+         CDN do site institucional pra evitar duplicar asset no repo do
+         player — se um dia o arquivo sair do ar lá, trocar pra uma imagem
+         local em /images/. URL absoluta é mandatório: crawlers de WhatsApp
+         não resolvem relativas. Conteúdo copiado literal do <head> do
+         site principal (extraído em 2026-05-11) pra preview idêntico. -->
+    <meta name="description" content="ERP brasileiro para condomínios e administradoras: financeiro, portaria com IA nas câmeras, chatbot WhatsApp, votações, obras NBR 16280 e comunicação." />
+    <meta property="og:site_name" content="Seu Condomínio" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Seu Condomínio | ERP completo: financeiro, portaria, IA" />
+    <meta property="og:description" content="ERP brasileiro para condomínios e administradoras: financeiro, portaria com IA nas câmeras, chatbot WhatsApp, votações, obras NBR 16280 e comunicação." />
+    <meta property="og:url" content="https://midiaindoor.seucondominio.com.br/" />
+    <meta property="og:image" content="https://www.seucondominio.com.br/images/institucional/og-default.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Seu Condomínio | ERP completo: financeiro, portaria, IA" />
+    <meta name="twitter:description" content="ERP brasileiro para condomínios e administradoras: financeiro, portaria com IA nas câmeras, chatbot WhatsApp, votações, obras NBR 16280 e comunicação." />
+    <meta name="twitter:image" content="https://www.seucondominio.com.br/images/institucional/og-default.png" />
 
     <script src="/javascripts/lib/array.js"></script>
     <script src="/javascripts/lib/date.js"></script>
