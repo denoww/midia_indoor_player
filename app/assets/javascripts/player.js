@@ -804,6 +804,9 @@
     },
     handle: function(data) {
       var base, base1, base2, base3, feed, feeds, i, l, len, len1, name, name1, posicao, ref;
+      if (!data || Object.empty(data)) {
+        return;
+      }
       this.data = data;
       ref = this.posicoes;
       // pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()

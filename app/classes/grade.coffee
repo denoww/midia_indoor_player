@@ -460,6 +460,12 @@ module.exports = ->
             continue
 
           @data[tvIdInt] ||= gradeData
+          # Hidrata cache de feeds (RSS) do disco no boot. Sem isso o
+          # cache em memória fica vazio pós-restart e o cliente recebe
+          # `/feeds = {}`, disparando feedsObj.verificarNoticias() que
+          # nukea todos os feeds do grade. Cura preventiva: feeds.json
+          # do disco volta antes da primeira request do parque chegar.
+          global.feeds?.getDataOffline?(tvIdInt)
           enfileirados += @_enfileirarFaltantes(tvId, gradeData)
 
         scPrint.warning "warmupCacheFromDisk: #{enfileirados} arquivos faltantes enfileirados"

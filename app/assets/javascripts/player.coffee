@@ -635,6 +635,12 @@ startScreenScheduleLoop = ->
     Vue.http.get(buildEndpointUrl('/feeds')).then success, error
     return
   handle: (data)->
+    # Defesa contra /feeds = {} pós PM2 restart do midia_indoor: se
+    # `data` chega vazio, abandonamos sem mutar @data nem grade. Sem
+    # esse guard, `verificarNoticias()` abaixo veria todas as categorias
+    # vazias e removeria todos os feeds do grade — barra inferior some
+    # até o cliente recarregar. Mantém o último payload válido.
+    return if !data or Object.empty(data)
     @data = data
     # pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
 

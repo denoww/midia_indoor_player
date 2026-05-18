@@ -332,10 +332,15 @@ module.exports = (opt={}) ->
     console.log  "Request GET /feeds params: #{JSON.stringify(params)}" if verboseLog
     tvId = params.tvId
     data = global.feeds.data[tvId] || {}
-    # if Object.empty data
-    #   global.feeds.getList(tvId)
-    #   res.sendStatus(400)
-    #   return
+    # Fallback pra disco quando in-memory tá vazio. Após `pm2 restart` o
+    # cache em memória zera; sem este fallback, o cliente recebe `{}` e
+    # `feedsObj.verificarNoticias()` (no player.coffee) remove todos os
+    # feeds do grade — barra de notícias some no parque inteiro até
+    # alguém bater /download_new_content por TV. Disco tem feeds.json
+    # da última run, basta hidratar memória.
+    if Object.empty data
+      global.feeds.getDataOffline(tvId) if global.feeds
+      data = global.feeds.data[tvId] || {}
     res.send JSON.stringify data
 
   # Fase 4 do roadmap "Tv has many devices" (corpflix/ROADMAP.md):
