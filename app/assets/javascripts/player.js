@@ -1422,29 +1422,52 @@
     promessa: null,
     nextIndex: 0,
     playlistIndex: {},
+    ultimoTickEm: 0,
+    watchdogId: null,
     init: function() {
       if (!vm.loaded) {
         return;
       }
       if (this.promessa == null) {
-        return this.executar();
+        this.executar();
       }
+      return this.iniciarWatchdog();
+    },
+    // PROSB-3000 (Corpflix Android) com native heap >300MB faz o Chromium
+    // starvar a fila de setTimeout — o `executar` agendava o próximo tick e
+    // ele nunca disparava, deixando a barra travada num placeholder por
+    // 30h+. setInterval é independente do encadeamento e ressuscita o
+    // rotator se passar >60s sem progresso.
+    iniciarWatchdog: function() {
+      if (this.watchdogId != null) {
+        return;
+      }
+      return this.watchdogId = setInterval(() => {
+        if (Date.now() - this.ultimoTickEm < 60000) {
+          return;
+        }
+        console.warn('timelineConteudoMensagem: rotator parado, ressuscitando via watchdog');
+        return this.executar();
+      }, 30000);
     },
     executar: function() {
       var itemAtual, segundos;
       if (this.promessa) {
         clearTimeout(this.promessa);
       }
+      this.ultimoTickEm = Date.now();
       itemAtual = this.getNextItemMsg();
-      if (!itemAtual) {
-        return;
+      if (itemAtual != null) {
+        vm.indexConteudoMensagem = vm.listaConteudoMensagem.getIndexByField('id', itemAtual.id);
+        if (vm.indexConteudoMensagem == null) {
+          vm.listaConteudoMensagem.push(itemAtual);
+          vm.indexConteudoMensagem = vm.listaConteudoMensagem.length - 1;
+        }
       }
-      vm.indexConteudoMensagem = vm.listaConteudoMensagem.getIndexByField('id', itemAtual.id);
-      if (vm.indexConteudoMensagem == null) {
-        vm.listaConteudoMensagem.push(itemAtual);
-        vm.indexConteudoMensagem = vm.listaConteudoMensagem.length - 1;
-      }
-      segundos = (itemAtual.segundos * 1000) || 5000;
+      // Sempre reagendar, mesmo sem item (mesma defesa que
+      // timelineConteudoSuperior). Antes, qualquer null transiente de
+      // getNextItemMsg matava o rotador permanentemente.
+      segundos = ((itemAtual != null ? itemAtual.segundos : void 0) * 1000) || 5000;
       this.promessa = setTimeout(function() {
         return timelineConteudoMensagem.executar();
       }, segundos);
@@ -1473,7 +1496,7 @@
       }
     },
     getItemFeed: function(currentItem) {
-      var feed, feedItems, index, ref;
+      var feed, feedItems, index, item, ref;
       feedItems = ((ref = feedsObj.data[currentItem.fonte]) != null ? ref[currentItem.categoria] : void 0) || [];
       if (feedItems.empty()) {
         return currentItem;
@@ -1483,14 +1506,20 @@
       if (!feed) {
         return;
       }
-      currentItem.id = `${currentItem.id}${feed.titulo}`;
-      currentItem.data = feed.data;
-      currentItem.qrcode = feed.qrcode;
-      currentItem.titulo = feed.titulo;
-      currentItem.titulo_feed = feed.titulo_feed;
-      currentItem.categoria_feed = feed.categoria_feed;
-      currentItem.filePath = feed.filePath;
-      return currentItem;
+      // Clona em vez de mutar o grade item original. A versão antiga fazia
+      // `currentItem.id = "#{currentItem.id}#{feed.titulo}"` — ids cresciam
+      // a cada rotação e listaConteudoMensagem inflava sem limite (1 push
+      // por volta). Id estável por fonte+categoria deixa a lista convergir
+      // em até N itens (N = feeds distintos na grade).
+      item = Object.assign({}, currentItem);
+      item.id = `feed-${currentItem.fonte}-${currentItem.categoria}`;
+      item.data = feed.data;
+      item.qrcode = feed.qrcode;
+      item.titulo = feed.titulo;
+      item.titulo_feed = feed.titulo_feed;
+      item.categoria_feed = feed.categoria_feed;
+      item.filePath = feed.filePath;
+      return item;
     }
   };
 
