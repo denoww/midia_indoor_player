@@ -128,6 +128,7 @@ module.exports = ->
         cor:       jsonData.cor
         path:      tvPath
         layout:    jsonData.layout
+        orientacao: jsonData.orientacao
         cidade:    jsonData.cidade
         offline:   false
         resolucao: jsonData.resolucao
