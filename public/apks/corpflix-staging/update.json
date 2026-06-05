@@ -1,11 +1,11 @@
 {
-  "versionCode": 3236,
-  "versionName": "3.2.36",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.36.apk",
-  "sha256": "a394121b174a17fd5c507dbaf7d461157d25aa749f8400e1d31e5197e8c40a49",
+  "versionCode": 3250,
+  "versionName": "3.2.50",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix-staging/corpflix-3.2.50.apk",
+  "sha256": "6db46891443bd3f487e86b06b9fba7230af7f63f39e3f838bf6221019dbfc8d2",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "smoke test silent flag",
-  "publishedAt": "2026-05-04T00:24:39Z",
-  "silent": true
+  "releaseNotes": "STAGING: teste relaunch pos auto-update (MY_PACKAGE_REPLACED)",
+  "publishedAt": "2026-06-05T23:22:44Z",
+  "silent": false
 }
