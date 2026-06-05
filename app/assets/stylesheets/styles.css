@@ -290,6 +290,19 @@ p {
 .layout-v3 .content-side   { display: none; }
 .layout-v3 .content-player { width: 100vw; flex: 1 1 0; height: auto; order: 1; }
 .layout-v3 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 2; }
+/* Cover (preencher cortando) nos layouts verticais — vídeo/imagem landscape
+   (ou portrait dentro de caixa 16:9 com tarjas) enche a tela vertical sem
+   faixa preta, cortando as bordas. Conteúdo já portrait (aspecto bate) não é
+   cortado. Paridade com o "cover" nativo do ExoPlayer no Corpflix. */
+.layout-v1 .content-player .midia-video,
+.layout-v2 .content-player .midia-video,
+.layout-v3 .content-player .midia-video { object-fit: cover; }
+.layout-v1 .content-player .midia-imagem,
+.layout-v2 .content-player .midia-imagem,
+.layout-v3 .content-player .midia-imagem,
+.layout-v1 .content-player .feed-imagem,
+.layout-v2 .content-player .feed-imagem,
+.layout-v3 .content-player .feed-imagem { background-size: cover; }
 /* --------------- LAYOUTS VERTICAIS --------------- */
 
 /* Fallback Chrome Kiosk: framebuffer continua landscape (SO não girou) e o
