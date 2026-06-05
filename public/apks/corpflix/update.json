@@ -1,11 +1,11 @@
 {
-  "versionCode": 3245,
-  "versionName": "3.2.45",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.45.apk",
-  "sha256": "b73390e86cf4b7a525959f685c8883f9d22236366f7dcd6f2a7b56cf65597c88",
+  "versionCode": 3246,
+  "versionName": "3.2.46",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.46.apk",
+  "sha256": "89a88f0e4ff177fb1c8507a26f1d191bcd2ac7c4ea9fcd74ddd7ee08d7c3bf50",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Cover do video vertical via TextureView+clip (corrige flicker preto do 3.2.44 no Allwinner)",
-  "publishedAt": "2026-06-05T19:43:54Z",
+  "releaseNotes": "Cover do video vertical agora preenche de verdade (requiredSize) - corrige tarja do 3.2.45",
+  "publishedAt": "2026-06-05T20:19:04Z",
   "silent": true
 }
