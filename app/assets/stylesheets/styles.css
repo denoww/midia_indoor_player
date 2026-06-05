@@ -315,6 +315,18 @@ p {
 #main-player.css-rotate-180 {
   transform: rotate(180deg);
 }
+/* Dentro do css-rotate o #main-player vira portrait (100vh × 100vw), mas
+   content-main/player usam vw/vh (referenciam o viewport landscape) e não batem
+   com o container girado → conteúdo colapsa. Reancorar em % do container girado.
+   Escopo layout-v1 (vídeo vertical tela cheia, caso mais comum no kiosk); para
+   layouts com barras (v2/v3) no kiosk as faixas vh ainda não batem — preferir
+   Corpflix (rotação nativa). */
+#main-player.css-rotate-90.layout-v1 .content-main,
+#main-player.css-rotate-270.layout-v1 .content-main,
+#main-player.css-rotate-90.layout-v1 .content-top,
+#main-player.css-rotate-270.layout-v1 .content-top,
+#main-player.css-rotate-90.layout-v1 .content-player,
+#main-player.css-rotate-270.layout-v1 .content-player { width: 100%; height: 100%; }
 /* --------------- LAYOUTS --------------- */
 
 /* --------------- CORES --------------- */
