@@ -1,11 +1,11 @@
 {
-  "versionCode": 3248,
-  "versionName": "3.2.48",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.48.apk",
-  "sha256": "568a2322d4469939aae658b473b4ee1b31ac321c18739e22a37931ecc455a656",
+  "versionCode": 3249,
+  "versionName": "3.2.49",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.49.apk",
+  "sha256": "559b980b938417e26b5c66076ee53977abd16c268551e18b084dfac836970a07",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Corrige preto de 4-6s por transicao no Allwinner (revertido cover nativo; pipeline ja entrega portrait)",
-  "publishedAt": "2026-06-05T21:23:50Z",
+  "releaseNotes": "Teste de auto-update silencioso (sem mudanca de codigo)",
+  "publishedAt": "2026-06-05T22:50:48Z",
   "silent": true
 }
