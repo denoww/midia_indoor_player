@@ -257,39 +257,17 @@ p {
 .layout-v1 .content-player { width: 100vw; flex: 1 1 0; height: 100vh; order: 1; }
 .layout-v1 .content-footer { display: none; }
 
-/* v2 — Faixa superior (hora/clima/cotações) + vídeo + rodapé.
-   .content-top empilha verticalmente (column) pra faixa ficar ACIMA do vídeo;
-   a .content-side vira uma faixa horizontal (row) com os widgets lado a lado.
-   Como a faixa é baixa (18vh), os widgets internos (desenhados pra coluna
-   landscape) são reorganizados em linha e os elementos que não cabem (previsão
-   dos próximos dias, texto institucional) são escondidos pra não vazar. */
-.layout-v2 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
+/* v2 — Barra LATERAL (esquerda) + rodapé inferior (equivalente vertical do
+   layout-2). A barra de hora/clima/cotações foi desenhada como COLUNA LATERAL;
+   espremê-la numa faixa horizontal no topo fica feio. Então mantemos ela
+   lateral (coluna nativa), só alargando pro viewport portrait estreito e
+   bumpando a fonte (na vertical o vw é pequeno ~480dp → base 0.8vw ≈ 4px). */
 .layout-v2 .content-side   {
-  width: 100vw; flex: 0 0 auto; height: 22vh;
-  order: 1; flex-direction: row; align-items: stretch; overflow: hidden;
-  /* viewport vertical é estreito (~480dp) → base 0.8vw fica ~4px (ilegível).
-     Bump pra fonte ficar legível na faixa. Afeta os widgets em `em`. */
-  font-size: 2.6vw;
+  width: 36vw; flex: 0 0 36vw; height: 85vh; order: 1;
+  overflow: hidden; font-size: 1.9vw;
 }
-.layout-v2 .content-side > * { min-width: 0; height: 22vh; overflow: hidden; }
-.layout-v2 .content-side .item-hora    { flex: 0 0 26vw; justify-content: center; }
-.layout-v2 .content-side .item-hora #hora { font-size: 2em; letter-spacing: .08em; }
-/* clima horizontal e compacto; sem a previsão dos próximos dias (não cabe) */
-.layout-v2 .content-side .item-weather {
-  flex: 0 0 30vw; flex-direction: row; flex-wrap: wrap;
-  align-items: center; justify-content: center; padding: 0 .5vw;
-}
-.layout-v2 .content-side .item-weather .proximos_dias { display: none; }
-.layout-v2 .content-side .item-weather .descricao-weather { display: none; }
-.layout-v2 .content-side .item-weather .icone-weather { width: 11vw; height: 11vw; }
-.layout-v2 .content-side .item-weather .temperatura-weather span { font-size: 7vw; }
-/* cotações: 5 em coluna compacta ocupando o resto da faixa, legíveis */
-.layout-v2 .content-side .item-finance { flex: 1 1 0; flex-direction: column; }
-.layout-v2 .content-side .item-finance > * { flex: 1 1 0; min-height: 0; }
-/* texto institucional não cabe na faixa — fica no rodapé/branding */
-.layout-v2 .content-side .item-informacoes { display: none; }
-.layout-v2 .content-player { width: 100vw; flex: 1 1 0; min-height: 0; height: auto; order: 2; }
-.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 3; font-size: 2.4vw; }
+.layout-v2 .content-player { width: 64vw; flex: 1 1 0; min-width: 0; height: 85vh; order: 2; }
+.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 15vh; order: 3; font-size: 2.4vw; }
 
 /* v3 — Vídeo dominante + rodapé (equivalente vertical do layout-4). */
 .layout-v3 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
