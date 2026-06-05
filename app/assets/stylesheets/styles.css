@@ -301,13 +301,15 @@ p {
 #main-player.css-rotate-90 {
   width: 100vh; height: 100vw;
   transform-origin: top left;
-  transform: rotate(90deg) translateY(-100vh);
+  /* gira 90° horário e empurra +100vw em x pra cair exatamente no frame
+     landscape (sem isso o conteúdo fica em x negativo → faixa preta). */
+  transform: translateX(100vw) rotate(90deg);
   position: fixed; top: 0; left: 0;
 }
 #main-player.css-rotate-270 {
   width: 100vh; height: 100vw;
   transform-origin: top left;
-  transform: rotate(-90deg) translateX(-100vw);
+  transform: translateY(100vh) rotate(-90deg);
   position: fixed; top: 0; left: 0;
 }
 #main-player.css-rotate-180 {
