@@ -50,7 +50,7 @@
 
   <body id="body-player">
     <!-- style="cursor: none"> -->
-    <div id="main-player" :class="[grade.data.layout, grade.data.cor]" @mousemove="mouse">
+    <div id="main-player" :class="[grade.data.layout, grade.data.cor, orientacaoCssClass]" @mousemove="mouse">
       <div id="content-main" class="content-main" v-show="loaded">
         <!-- offline -->
         <div class="offline" v-if="!online">Sem Internet</div>

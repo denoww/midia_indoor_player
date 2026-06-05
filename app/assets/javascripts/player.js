@@ -64,13 +64,16 @@
   // Fallback: se o layout é vertical (layout-v*) mas o ERP não mandou orientacao,
   // assume vertical_horario — backwards-compat com payload sem o campo novo.
   aplicarOrientacao = function(data) {
-    var cls, e, mp, orientacao, ref;
+    var e, orientacao, ref;
     orientacao = data != null ? data.orientacao : void 0;
     if ((!orientacao || orientacao === 'landscape') && /^layout-v/.test((data != null ? data.layout : void 0) || '')) {
       orientacao = 'vertical_horario';
     }
     orientacao = orientacao || 'landscape';
     if (((ref = window.NativePlayer) != null ? ref.setOrientation : void 0) != null) {
+      if (typeof vm !== "undefined" && vm !== null) {
+        vm.orientacaoCssClass = ''; // nativo gira o conteúdo — sem CSS rotate
+      }
       try {
         window.NativePlayer.setOrientation(orientacao);
       } catch (error1) {
@@ -79,12 +82,13 @@
       }
       return;
     }
-    mp = document.getElementById('main-player');
-    if (!mp) {
+    // Chrome Kiosk: rotação via classe no binding :class do Vue (NÃO via
+    // classList.add — o re-render do #main-player ao mudar grade.data.layout
+    // sobrescreve o className e removeria a classe).
+    if (typeof vm === "undefined" || vm === null) {
       return;
     }
-    mp.classList.remove('css-rotate-90', 'css-rotate-180', 'css-rotate-270');
-    cls = (function() {
+    vm.orientacaoCssClass = (function() {
       switch (orientacao) {
         case 'vertical_horario':
           return 'css-rotate-90';
@@ -93,12 +97,9 @@
         case 'invertido':
           return 'css-rotate-180';
         default:
-          return null;
+          return '';
       }
     })();
-    if (cls) {
-      mp.classList.add(cls);
-    }
   };
 
   // Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
@@ -233,6 +234,11 @@
     listaConteudoSuperior: [],
     listaConteudoMensagem: [],
     online: true,
+    // Classe de rotação CSS (Chrome Kiosk). Dirigida pelo Vue (via aplicarOrientacao)
+    // em vez de classList.add — senão o re-render do :class do #main-player, quando
+    // grade.data.layout muda, sobrescreve o className e remove a classe. Vazio =
+    // sem rotação (landscape, ou Corpflix que rotaciona nativamente).
+    orientacaoCssClass: '',
     now: new Date(),
     hora: '--:--',
     timezone: null,

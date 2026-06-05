@@ -58,19 +58,20 @@ aplicarOrientacao = (data)->
   orientacao = orientacao or 'landscape'
 
   if window.NativePlayer?.setOrientation?
+    vm.orientacaoCssClass = '' if vm?   # nativo gira o conteúdo — sem CSS rotate
     try window.NativePlayer.setOrientation(orientacao)
     catch e then console.error 'NativePlayer.setOrientation falhou', e
     return
 
-  mp = document.getElementById('main-player')
-  return unless mp
-  mp.classList.remove('css-rotate-90', 'css-rotate-180', 'css-rotate-270')
-  cls = switch orientacao
+  # Chrome Kiosk: rotação via classe no binding :class do Vue (NÃO via
+  # classList.add — o re-render do #main-player ao mudar grade.data.layout
+  # sobrescreve o className e removeria a classe).
+  return unless vm?
+  vm.orientacaoCssClass = switch orientacao
     when 'vertical_horario'     then 'css-rotate-90'
     when 'vertical_antihorario' then 'css-rotate-270'
     when 'invertido'            then 'css-rotate-180'
-    else null
-  mp.classList.add(cls) if cls
+    else ''
   return
 
 # Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
@@ -171,6 +172,12 @@ data =
   listaConteudoMensagem: []
 
   online: true
+
+  # Classe de rotação CSS (Chrome Kiosk). Dirigida pelo Vue (via aplicarOrientacao)
+  # em vez de classList.add — senão o re-render do :class do #main-player, quando
+  # grade.data.layout muda, sobrescreve o className e remove a classe. Vazio =
+  # sem rotação (landscape, ou Corpflix que rotaciona nativamente).
+  orientacaoCssClass: ''
 
   now:  new Date()
   hora: '--:--'
