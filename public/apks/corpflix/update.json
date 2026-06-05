@@ -7,5 +7,5 @@
   "rolloutPercent": 100,
   "releaseNotes": "Teste de auto-update silencioso (sem mudanca de codigo)",
   "publishedAt": "2026-06-05T22:50:48Z",
-  "silent": true
+  "silent": false
 }
