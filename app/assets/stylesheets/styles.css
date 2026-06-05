@@ -265,25 +265,31 @@ p {
    dos próximos dias, texto institucional) são escondidos pra não vazar. */
 .layout-v2 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
 .layout-v2 .content-side   {
-  width: 100vw; flex: 0 0 auto; height: 18vh;
+  width: 100vw; flex: 0 0 auto; height: 22vh;
   order: 1; flex-direction: row; align-items: stretch; overflow: hidden;
+  /* viewport vertical é estreito (~480dp) → base 0.8vw fica ~4px (ilegível).
+     Bump pra fonte ficar legível na faixa. Afeta os widgets em `em`. */
+  font-size: 2.6vw;
 }
-.layout-v2 .content-side > * { min-width: 0; height: 18vh; overflow: hidden; }
-.layout-v2 .content-side .item-hora    { flex: 0 0 20vw; }
-/* clima horizontal e compacto; sem a faixa de próximos dias (não cabe) */
+.layout-v2 .content-side > * { min-width: 0; height: 22vh; overflow: hidden; }
+.layout-v2 .content-side .item-hora    { flex: 0 0 26vw; justify-content: center; }
+.layout-v2 .content-side .item-hora #hora { font-size: 2em; letter-spacing: .08em; }
+/* clima horizontal e compacto; sem a previsão dos próximos dias (não cabe) */
 .layout-v2 .content-side .item-weather {
-  flex: 0 0 26vw; flex-direction: row; flex-wrap: wrap;
+  flex: 0 0 30vw; flex-direction: row; flex-wrap: wrap;
   align-items: center; justify-content: center; padding: 0 .5vw;
 }
 .layout-v2 .content-side .item-weather .proximos_dias { display: none; }
-.layout-v2 .content-side .item-weather .icone-weather { width: 8vh; height: 8vh; }
-/* cotações fluindo em grade horizontal, ocupando o resto da faixa */
-.layout-v2 .content-side .item-finance { flex: 1 1 0; flex-direction: row; flex-wrap: wrap; }
-.layout-v2 .content-side .item-finance > * { flex: 1 1 33%; }
+.layout-v2 .content-side .item-weather .descricao-weather { display: none; }
+.layout-v2 .content-side .item-weather .icone-weather { width: 11vw; height: 11vw; }
+.layout-v2 .content-side .item-weather .temperatura-weather span { font-size: 7vw; }
+/* cotações: 5 em coluna compacta ocupando o resto da faixa, legíveis */
+.layout-v2 .content-side .item-finance { flex: 1 1 0; flex-direction: column; }
+.layout-v2 .content-side .item-finance > * { flex: 1 1 0; min-height: 0; }
 /* texto institucional não cabe na faixa — fica no rodapé/branding */
 .layout-v2 .content-side .item-informacoes { display: none; }
 .layout-v2 .content-player { width: 100vw; flex: 1 1 0; min-height: 0; height: auto; order: 2; }
-.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 3; }
+.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 3; font-size: 2.4vw; }
 
 /* v3 — Vídeo dominante + rodapé (equivalente vertical do layout-4). */
 .layout-v3 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
