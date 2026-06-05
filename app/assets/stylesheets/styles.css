@@ -236,6 +236,68 @@ p {
 .layout-TELA-METADE .content-side   { display: none; }
 .layout-TELA-METADE .content-player { width:  100vw; height: 50vh; }
 .layout-TELA-METADE .content-footer { width: 100vw; height: 50vh; }
+
+/* --------------- LAYOUTS VERTICAIS (TV girada 90°) ---------------
+   Assumem viewport PORTRAIT (vw = eixo curto, vh = eixo longo). No Corpflix
+   o framebuffer é girado nativamente (requestedOrientation) e o WebView já
+   recebe viewport portrait; no Chrome Kiosk sem rotação de SO, o wrapper
+   .css-rotate-90/270 abaixo gira via CSS (fallback). Em portrait a barra
+   lateral landscape não cabe (15vw ~ coluna estreita), então os widgets
+   viram FAIXAS horizontais (topo/rodapé). Ver ROADMAP_vertical.md.
+
+   Dimensão-alvo de upload por layout (casa com a região do .content-player,
+   já que o player estica via object-fit: fill):
+     layout-v1 → 9:16 cheio   (ex.: 1080x1920 / 720x1280)
+     layout-v2 → ~0.69        (ex.: 1080x1560 / 720x1040)  [header+rodapé]
+     layout-v3 → ~0.78        (ex.: 1080x1390 / 720x920)   [só rodapé]      */
+
+/* v1 — Sem Barras (vertical): vídeo 9:16 tela cheia. Custo ~zero. */
+.layout-v1 .content-top    { flex-direction: column; }
+.layout-v1 .content-side   { display: none; }
+.layout-v1 .content-player { width: 100vw; flex: 1 1 0; height: 100vh; order: 1; }
+.layout-v1 .content-footer { display: none; }
+
+/* v2 — Faixa superior (hora/clima/cotações) + vídeo + rodapé.
+   .content-top empilha verticalmente (column) pra faixa ficar ACIMA do vídeo;
+   a .content-side vira uma faixa horizontal (row) com os widgets lado a lado. */
+.layout-v2 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
+.layout-v2 .content-side   {
+  width: 100vw; flex: 0 0 auto; height: 16vh;
+  order: 1; flex-direction: row; align-items: stretch;
+}
+.layout-v2 .content-side > * { flex: 1 1 0; min-width: 0; height: 16vh; }
+.layout-v2 .content-side .item-finance { flex: 2 1 0; }
+.layout-v2 .content-player { width: 100vw; flex: 1 1 0; min-height: 0; height: auto; order: 2; }
+.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 3; }
+
+/* v3 — Vídeo dominante + rodapé (equivalente vertical do layout-4). */
+.layout-v3 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
+.layout-v3 .content-side   { display: none; }
+.layout-v3 .content-player { width: 100vw; flex: 1 1 0; height: auto; order: 1; }
+.layout-v3 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 2; }
+/* --------------- LAYOUTS VERTICAIS --------------- */
+
+/* Fallback Chrome Kiosk: framebuffer continua landscape (SO não girou) e o
+   vídeo é HTML5 <video> (participa do transform CSS, diferente do ExoPlayer
+   nativo). Gira o #main-player inteiro pra caber no frame landscape. No
+   Corpflix esta classe NÃO é aplicada (a rotação é nativa) — ver player.coffee
+   aplicarOrientacao(). transform-origin + translate posicionam o canvas
+   portrait (100vh x 100vw) dentro do frame WxH landscape. */
+#main-player.css-rotate-90 {
+  width: 100vh; height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100vh);
+  position: fixed; top: 0; left: 0;
+}
+#main-player.css-rotate-270 {
+  width: 100vh; height: 100vw;
+  transform-origin: top left;
+  transform: rotate(-90deg) translateX(-100vw);
+  position: fixed; top: 0; left: 0;
+}
+#main-player.css-rotate-180 {
+  transform: rotate(180deg);
+}
 /* --------------- LAYOUTS --------------- */
 
 /* --------------- CORES --------------- */

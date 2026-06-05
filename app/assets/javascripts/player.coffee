@@ -41,6 +41,38 @@ window.onNativeVideoStateChange = (state) ->
   console.log "NativePlayer: onNativeVideoStateChange state=#{state}"
   return
 
+# Aplica a orientação da TV (layouts verticais — TV girada 90°).
+# Vem do ERP em `grade.data.orientacao` (landscape/vertical_horario/
+# vertical_antihorario/invertido). Dois caminhos:
+#  - Corpflix Android: `NativePlayer.setOrientation` gira o CONTEÚDO (WebView +
+#    TextureView do ExoPlayer juntos) — o OEM ignora orientação de Activity,
+#    então a rotação é feita no app via graphicsLayer. Ver corpflix MainActivity.
+#  - Chrome Kiosk (sem bridge): rotaciona o #main-player via CSS (.css-rotate-*).
+#    Aqui o vídeo é <video> HTML5 e acompanha o transform CSS normalmente.
+# Fallback: se o layout é vertical (layout-v*) mas o ERP não mandou orientacao,
+# assume vertical_horario — backwards-compat com payload sem o campo novo.
+aplicarOrientacao = (data)->
+  orientacao = data?.orientacao
+  if (not orientacao or orientacao == 'landscape') and /^layout-v/.test(data?.layout or '')
+    orientacao = 'vertical_horario'
+  orientacao = orientacao or 'landscape'
+
+  if window.NativePlayer?.setOrientation?
+    try window.NativePlayer.setOrientation(orientacao)
+    catch e then console.error 'NativePlayer.setOrientation falhou', e
+    return
+
+  mp = document.getElementById('main-player')
+  return unless mp
+  mp.classList.remove('css-rotate-90', 'css-rotate-180', 'css-rotate-270')
+  cls = switch orientacao
+    when 'vertical_horario'     then 'css-rotate-90'
+    when 'vertical_antihorario' then 'css-rotate-270'
+    when 'invertido'            then 'css-rotate-180'
+    else null
+  mp.classList.add(cls) if cls
+  return
+
 # Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
 # Usado pelo Corpflix Android pra posicionar a SurfaceView do ExoPlayer
 # em vez de fullscreen — preserva sidebar/feed/branding visíveis durante
@@ -572,6 +604,7 @@ startScreenScheduleLoop = ->
   handle: (data)->
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
+    aplicarOrientacao(data)
 
     # Sobe o loop de schedule de tela (idempotente — só faz setInterval
     # uma vez) e re-avalia imediatamente, pra reagir já no próximo grade

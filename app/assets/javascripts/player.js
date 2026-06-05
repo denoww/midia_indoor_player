@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, applyScreenSchedule, blobCache, checkAppUpdate, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
+  var USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
     indexOf = [].indexOf;
 
   window.onNativeVideoEnded = function() {
@@ -51,6 +51,54 @@
   // pra sincronizar overlays no futuro; hoje no-op.
   window.onNativeVideoStateChange = function(state) {
     console.log(`NativePlayer: onNativeVideoStateChange state=${state}`);
+  };
+
+  // Aplica a orientação da TV (layouts verticais — TV girada 90°).
+  // Vem do ERP em `grade.data.orientacao` (landscape/vertical_horario/
+  // vertical_antihorario/invertido). Dois caminhos:
+  //  - Corpflix Android: `NativePlayer.setOrientation` gira o CONTEÚDO (WebView +
+  //    TextureView do ExoPlayer juntos) — o OEM ignora orientação de Activity,
+  //    então a rotação é feita no app via graphicsLayer. Ver corpflix MainActivity.
+  //  - Chrome Kiosk (sem bridge): rotaciona o #main-player via CSS (.css-rotate-*).
+  //    Aqui o vídeo é <video> HTML5 e acompanha o transform CSS normalmente.
+  // Fallback: se o layout é vertical (layout-v*) mas o ERP não mandou orientacao,
+  // assume vertical_horario — backwards-compat com payload sem o campo novo.
+  aplicarOrientacao = function(data) {
+    var cls, e, mp, orientacao, ref;
+    orientacao = data != null ? data.orientacao : void 0;
+    if ((!orientacao || orientacao === 'landscape') && /^layout-v/.test((data != null ? data.layout : void 0) || '')) {
+      orientacao = 'vertical_horario';
+    }
+    orientacao = orientacao || 'landscape';
+    if (((ref = window.NativePlayer) != null ? ref.setOrientation : void 0) != null) {
+      try {
+        window.NativePlayer.setOrientation(orientacao);
+      } catch (error1) {
+        e = error1;
+        console.error('NativePlayer.setOrientation falhou', e);
+      }
+      return;
+    }
+    mp = document.getElementById('main-player');
+    if (!mp) {
+      return;
+    }
+    mp.classList.remove('css-rotate-90', 'css-rotate-180', 'css-rotate-270');
+    cls = (function() {
+      switch (orientacao) {
+        case 'vertical_horario':
+          return 'css-rotate-90';
+        case 'vertical_antihorario':
+          return 'css-rotate-270';
+        case 'invertido':
+          return 'css-rotate-180';
+        default:
+          return null;
+      }
+    })();
+    if (cls) {
+      mp.classList.add(cls);
+    }
   };
 
   // Retângulo (CSS pixels) onde o vídeo deveria pintar dentro do layout.
@@ -736,6 +784,7 @@
     handle: function(data) {
       this.restart_player_em = data.restart_player_em;
       vm.grade.data = this.data = data;
+      aplicarOrientacao(data);
       // Sobe o loop de schedule de tela (idempotente — só faz setInterval
       // uma vez) e re-avalia imediatamente, pra reagir já no próximo grade
       // refresh quando admin muda config no ERP.
