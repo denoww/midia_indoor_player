@@ -263,11 +263,11 @@ p {
    lateral (coluna nativa), só alargando pro viewport portrait estreito e
    bumpando a fonte (na vertical o vw é pequeno ~480dp → base 0.8vw ≈ 4px). */
 .layout-v2 .content-side   {
-  width: 36vw; flex: 0 0 36vw; height: 85vh; order: 1;
-  overflow: hidden; font-size: 1.9vw;
+  width: 28vw; flex: 0 0 28vw; height: 88vh; order: 1;
+  overflow: hidden; font-size: 1.7vw;
 }
-.layout-v2 .content-player { width: 64vw; flex: 1 1 0; min-width: 0; height: 85vh; order: 2; }
-.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 15vh; order: 3; font-size: 2.4vw; }
+.layout-v2 .content-player { width: 72vw; flex: 1 1 0; min-width: 0; height: 88vh; order: 2; }
+.layout-v2 .content-footer { width: 100vw; flex: 0 0 auto; height: 12vh; order: 3; font-size: 2.2vw; }
 
 /* v3 — Vídeo dominante + rodapé (equivalente vertical do layout-4). */
 .layout-v3 .content-top    { flex-direction: column; flex: 1 1 0; min-height: 0; }
