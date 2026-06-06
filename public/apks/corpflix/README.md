@@ -58,6 +58,8 @@ O script:
 | `rolloutPercent` | int (0–100) | Canário. App calcula `hash(deviceId) % 100 < rolloutPercent` e só atualiza se passar. |
 | `releaseNotes` | string | Texto livre, opcional, para logs. |
 | `publishedAt` | ISO 8601 | Timestamp da publicação, opcional. |
+| `installPolicy` | string | **Quando instalar** (substitui a semântica do `silent`). `off-hours` (default recomendado): TV Device Owner auto-instala sozinha na próxima janela off-hour (tela já off por anti-burn-in → invisível, zero humano); non-DO degrada pra `manual`. `immediate`: instala na hora (blip ~5-10s, só fix crítico). `manual`: só pelo botão "Atualizar app". Ausente → derivado do `silent` (true→manual, false→immediate). |
+| `silent` | bool | **Legado** (TVs < 3.2.66 leem só este). `true` = staged/botão; `false` = instala. Novas releases mantêm pra retrocompat: o `upload_apk_to_midia.sh` seta `silent=true` p/ off-hours e manual, `false` p/ immediate. |
 
 ## Convivência com Play Store
 
