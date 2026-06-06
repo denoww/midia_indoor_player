@@ -1,12 +1,12 @@
 {
-  "versionCode": 3271,
-  "versionName": "3.2.71",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.71.apk",
-  "sha256": "c872e383cb1fd05add120b4cb25f33e9c9213663e25315c610238d5b4f6f8d42",
+  "versionCode": 3272,
+  "versionName": "3.2.72",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.72.apk",
+  "sha256": "664a3b7685bee9b910b7b38228f76e5cbeb252ba0a73fe6f72ae4ca1bd7cc9c6",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "Auto-update default DO-aware (PROSB fica OFF). Off-hours em Device Owner.",
-  "publishedAt": "2026-06-06T03:11:58Z",
+  "releaseNotes": "Config: cursor do numero da TV no fim + ConfigScreen nao rotaciona (D-pad/teclado consistentes no vertical).",
+  "publishedAt": "2026-06-06T03:53:13Z",
   "silent": true,
   "installPolicy": "off-hours"
 }
