@@ -1,0 +1,24 @@
+# Restart do cloud relay (PM2, sem Docker).
+#
+# O relay roda via PM2 direto no host (/var/lib/midia_indoor_player), NÃO em
+# container — por isso este workflow substitui o 12_prod_restart_server.yml
+# (comentado, modelo Docker/ECR que nunca valeu pra este projeto).
+# Equivale ao comando SSM manual documentado no CLAUDE.md → "Cloud relay".
+name: 14_prod_restart_pm2
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  restart_pm2:
+    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
+    with:
+      aws_region: us-east-1
+      ec2_com_tag: midia_indoor_player
+      remote_cmd: >-
+        cd /var/lib/midia_indoor_player &&
+        sudo -u ubuntu git pull &&
+        sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 restart MIDIAINDOOR &&
+        sleep 3 &&
+        sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 jlist | head -c 2000
+    secrets: inherit
