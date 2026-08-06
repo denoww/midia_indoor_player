@@ -12,7 +12,7 @@ path = require 'path'
 
 require 'coffeescript/register'
 require './env'
-require 'sc-node-tools'
+require './lib/sc_node_tools'
 require('./app/classes/logs')(true)
 
 require './app/classes/commons'
