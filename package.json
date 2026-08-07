@@ -12,9 +12,6 @@
     "compile_coffee": "coffee -wc app/assets/**"
   },
   "dependencies": {
-    "@sentry/browser": "6.2.5",
-    "@sentry/electron": "2.4.0",
-    "@sentry/integrations": "6.2.5",
     "@sentry/node": "6.2.5",
     "auto-launch": "^5.0.5",
     "axios": "^1.7.9",
