@@ -16,11 +16,14 @@ jobs:
             LOADBALANCE_PORTS: "https:4002:http:4001,http:4001:http:4001"
             LOADBALANCE_CERTIFICADO_HTTPS: "arn:aws:acm:us-east-1:516862767124:certificate/99570c7a-1fb8-4e70-b340-637f7bcaa535"
 
-    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
+    # O script deixou de vir de gist publico por `curl | sudo bash`: agora viaja embutido
+    # no workflow reusavel (repo privado, revisavel), entregue por SSM. Ver PSC-48.
+    # O `@<sha>` e proposital: bump do reusavel exige PR revisavel aqui.
+    uses: denoww/github_actions/.github/workflows/ligar_ec2_nos_loadbalancers.yml@ab25c866cf6b95fc1ea8ef0edf89271a606f3e3e
     with:
-      aws_region:  ${{ matrix.AWS_REGION }}
-      ec2_com_tag: ${{ matrix.EC2_COM_TAG_PROJETOS }}
-      remote_cmd: >-
-        curl -fsSL https://gist.githubusercontent.com/denoww/5044b8da36f85afabb920263925684e9/raw/2c3a995b9988640bab0cfd1a6021f94ac82e105d/ligar_ec2_nos_loadbalancers.sh |
-        sudo -E env HOME="$HOME" bash -s -- --tags "projetos=${{ matrix.EC2_COM_TAG_PROJETOS }}" --alb-name "${{ matrix.LOADBALANCE_ALB_NAME }}" --ports "${{ matrix.LOADBALANCE_PORTS }}" --tcp-healthy-threshold 3 --tcp-unhealthy-threshold 3 --region "${{ matrix.AWS_REGION }}" --certificado-https-arn "${{ matrix.LOADBALANCE_CERTIFICADO_HTTPS }}"
+      aws_region:            ${{ matrix.AWS_REGION }}
+      ec2_com_tag:           ${{ matrix.EC2_COM_TAG_PROJETOS }}
+      alb_name:              ${{ matrix.LOADBALANCE_ALB_NAME }}
+      ports:                 ${{ matrix.LOADBALANCE_PORTS }}
+      certificado_https_arn: ${{ matrix.LOADBALANCE_CERTIFICADO_HTTPS }}
     secrets: inherit
