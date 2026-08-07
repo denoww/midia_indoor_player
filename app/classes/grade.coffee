@@ -1,7 +1,7 @@
 fs      = require 'fs'
 path    = require 'path'
 shell   = require 'shelljs'
-request = require 'request'
+request = require '../../lib/sc_request'
 
 baseUrl = "#{ENV.API_SERVER_URL}/publicidades"
 

@@ -17,6 +17,7 @@
     "@sentry/integrations": "6.2.5",
     "@sentry/node": "6.2.5",
     "auto-launch": "^5.0.5",
+    "axios": "^1.7.9",
     "coffeescript": "2.5.1",
     "express": "4.17.1",
     "jimp": "0.14.0",
@@ -26,7 +27,6 @@
     "qrcode": "1.4.4",
     "rss-parser": "3.9.0",
     "sharp": "^0.31.1",
-    "shelljs": "^0.8.5",
-    "url-exists": "1.0.3"
+    "shelljs": "^0.8.5"
   }
 }

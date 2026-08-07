@@ -4,8 +4,7 @@ http    = require 'http'
 path    = require 'path'
 https   = require 'https'
 sharp   = null
-request = require 'request'
-  .defaults encoding: null
+request = require '../../lib/sc_request'
 
 module.exports = ->
   # Watchdog do `ctrl.loading`. Histórico: o flag era setado pra `true`

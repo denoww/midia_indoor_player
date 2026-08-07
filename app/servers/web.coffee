@@ -209,7 +209,7 @@ module.exports = (opt={}) ->
     # não existe (migration não rodou), telemetria desta janela é
     # perdida e o próximo tick de 1h tenta de novo.
     if params.app_versao? and ENV.API_SERVER_URL
-      request = require 'request'
+      request = require '../../lib/sc_request'
       url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json"
       qs =
         id: tvId
@@ -263,7 +263,7 @@ module.exports = (opt={}) ->
       last = heartbeatLastForwarded[tvId] ? 0
       if (now - last) >= HEARTBEAT_FORWARD_INTERVAL_MS
         heartbeatLastForwarded[tvId] = now
-        request = require 'request'
+        request = require '../../lib/sc_request'
         url = "#{ENV.API_SERVER_URL}/publicidades/check_tv.json"
         qs =
           id: tvId
@@ -287,7 +287,7 @@ module.exports = (opt={}) ->
   # nem tem efeito colateral no Rails (lá em `tv_existe` não atualizamos
   # `atualizada_em`, ao contrário de check_tv).
   app.get '/tv_existe', (req, res) ->
-    request = require 'request'
+    request = require '../../lib/sc_request'
     params = req.getParams()
     tvId = params.tvId or params.id
     tvId = parseInt(tvId) if tvId
@@ -367,7 +367,7 @@ module.exports = (opt={}) ->
       unless req.body and req.body.length > 0
         return res.status(400).json(error: 'payload obrigatório')
 
-      request = require 'request'
+      request = require '../../lib/sc_request'
       # Forwarda como text/plain com body bruto (mesmo formato que o
       # CrashReportWorker do APK envia pro relay). Meta vai na
       # querystring. Antes tentamos `form: { ..., payload: req.body }`

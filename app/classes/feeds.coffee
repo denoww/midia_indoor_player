@@ -4,8 +4,15 @@ RSS       = require 'rss-parser'
 path      = require 'path'
 QRCode    = require 'qrcode'
 moment    = require 'moment'
-request   = require 'request'
-UrlExists = require 'url-exists'
+request   = require '../../lib/sc_request'
+
+# Substitui o pacote `url-exists` (puxava o `request` depreciado): HEAD na
+# URL; existe = status < 400. Erro de rede vira `existe: false` (mesma
+# semântica do url-exists — tenta a próxima URL em vez de abortar a fila).
+UrlExists = (url, cb) ->
+  request.head url, (error, resp) ->
+    return cb(null, false) if error
+    cb(null, resp.statusCode >= 200 && resp.statusCode < 400)
 
 module.exports = ->
   ctrl =

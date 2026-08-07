@@ -18,7 +18,10 @@ jobs:
       remote_cmd: >-
         cd /var/lib/midia_indoor_player &&
         sudo -u ubuntu git pull &&
+        sudo -u ubuntu npm install --no-audit --no-fund &&
         sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 restart MIDIAINDOOR &&
-        sleep 3 &&
-        sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 jlist | head -c 2000
+        sleep 5 &&
+        sudo -u ubuntu /home/ubuntu/.npm-global/bin/pm2 jlist | head -c 1200 &&
+        echo '--- pm2 error log (30 ultimas) ---' &&
+        sudo -u ubuntu tail -n 30 /home/ubuntu/.pm2/logs/MIDIAINDOOR-error.log
     secrets: inherit
