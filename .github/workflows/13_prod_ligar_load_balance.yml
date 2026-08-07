@@ -21,6 +21,6 @@ jobs:
       aws_region:  ${{ matrix.AWS_REGION }}
       ec2_com_tag: ${{ matrix.EC2_COM_TAG_PROJETOS }}
       remote_cmd: >-
-        curl -fsSL https://gist.githubusercontent.com/denoww/5044b8da36f85afabb920263925684e9/raw |
+        curl -fsSL https://gist.githubusercontent.com/denoww/5044b8da36f85afabb920263925684e9/raw/2c3a995b9988640bab0cfd1a6021f94ac82e105d/ligar_ec2_nos_loadbalancers.sh |
         sudo -E env HOME="$HOME" bash -s -- --tags "projetos=${{ matrix.EC2_COM_TAG_PROJETOS }}" --alb-name "${{ matrix.LOADBALANCE_ALB_NAME }}" --ports "${{ matrix.LOADBALANCE_PORTS }}" --tcp-healthy-threshold 3 --tcp-unhealthy-threshold 3 --region "${{ matrix.AWS_REGION }}" --certificado-https-arn "${{ matrix.LOADBALANCE_CERTIFICADO_HTTPS }}"
     secrets: inherit
