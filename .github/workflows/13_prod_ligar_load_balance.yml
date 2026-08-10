@@ -19,7 +19,7 @@ jobs:
     # O script deixou de vir de gist publico por `curl | sudo bash`: agora viaja embutido
     # no workflow reusavel (repo privado, revisavel), entregue por SSM. Ver PSC-48.
     # O `@<sha>` e proposital: bump do reusavel exige PR revisavel aqui.
-    uses: denoww/github_actions/.github/workflows/ligar_ec2_nos_loadbalancers.yml@56ac8e1c975b4196e8c99e10af0cc143e22ebc8e
+    uses: denoww/github_actions/.github/workflows/ligar_ec2_nos_loadbalancers.yml@2a3a0859a694fbfc33d617f6072f0d1e89180b18
     with:
       aws_region:            ${{ matrix.AWS_REGION }}
       ec2_com_tag:           ${{ matrix.EC2_COM_TAG_PROJETOS }}
