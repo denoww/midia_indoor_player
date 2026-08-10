@@ -11,7 +11,7 @@ on:
 
 jobs:
   restart_pm2:
-    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@main
+    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@2a3a0859a694fbfc33d617f6072f0d1e89180b18
     with:
       aws_region: us-east-1
       ec2_com_tag: midia_indoor_player
