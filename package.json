@@ -16,14 +16,14 @@
     "auto-launch": "^5.0.5",
     "axios": "^1.7.9",
     "coffeescript": "2.5.1",
-    "express": "4.17.1",
+    "express": "^4.21.2",
     "jimp": "0.14.0",
     "md5": "2.3.0",
     "moment": "^2.29.4",
     "nodemon": "^2.0.20",
     "qrcode": "1.4.4",
     "rss-parser": "3.9.0",
-    "sharp": "^0.31.1",
+    "sharp": "^0.35.0",
     "shelljs": "^0.8.5"
   }
 }
