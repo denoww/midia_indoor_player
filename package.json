@@ -3,6 +3,9 @@
   "version": "2.3.0",
   "description": "Player",
   "private": true,
+  "engines": {
+    "node": "22"
+  },
   "scripts": {
     "start": "npm run compile_coffee & nodemon server.coffee --fullscreen=false",
     "start_fullscreen": "npm run compile_coffee & node server.coffee -- fullscreen=true",
