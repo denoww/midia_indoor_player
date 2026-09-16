@@ -86,7 +86,7 @@ if [[ "$instalar_nvm" == "y" || "$instalar_nvm" == "Y" ]] ; then
   wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.38.0/install.sh | bash
 fi
 
-nodeVersion=14.20.1
+nodeVersion=22.23.2
 read -p "--> Instalar node $nodeVersion? (y/N) " instalar_npm_install
 if [[ "$instalar_npm_install" == "y" || "$instalar_npm_install" == "Y" ]] ; then
   echo ""
