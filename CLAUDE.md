@@ -6,7 +6,7 @@ App Node.js/CoffeeScript que exibe vídeos/imagens em TVs (sinalização indoor)
 
 O **mesmo código** roda em dois lugares:
 
-1. **TV (local-mode)** — Pi/PC com Chrome Kiosk. PM2 roda `server.coffee` em `localhost:4001`. `.env` tem `TV_ID=<n>` definido. Player se identifica como aquela TV específica.
+1. **TV (local-mode)** — Pi/PC com Chrome Kiosk. PM2 roda `server.coffee` em `localhost:4001`. `.env` tem `TV_ID=<n>` definido. Player se identifica como aquela TV específica. ⚠️ **A perna Raspberry Pi/Orange Pi deste modo está DESCONTINUADA (19/09/2026)** — sem manutenção real desde 2023, sem evidência de device vivo em produção. O parque atual é o app Android `corpflix` (repo `denoww/corpflix`); a frota Windows via Chrome kiosk continua viva (~30 TVs) mas se autopatcheia sozinha via Google, sem ação necessária aqui. Contexto: `ROADMAP_dependencias_criticas.md` item #26 (repo `seucondominio`).
 2. **Cloud relay (multi-TV)** — EC2 `i-0c566e7d2cab061a0` (us-east-1d). PM2 roda o mesmo `server.coffee`, **sem `TV_ID` no `.env`**, expondo via ALB `seucondominio-web` (https:4002 + http:4001 → :4001). Atende as ~30 TVs que rodam só Chrome (sem player local) apontando pra esse host. Cache em `/var/lib/midia_indoor_player/public/<tv_id>/{videos,images,feeds}/` (~4GB).
 
 Spike de egress 17-20h vem majoritariamente do cloud relay — TVs reiniciam, perdem cache do browser, re-baixam tudo da nuvem. Ver seção "Cache invalidation" abaixo.
