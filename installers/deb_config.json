@@ -1,4 +1,5 @@
 {
+  "_deprecated": "DESCONTINUADO (19/09/2026) — empacotamento Debian/Linux pro modo de instalação Raspberry Pi / Orange Pi. Sem manutenção real desde 2023, sem evidência de nenhum device vivo em produção hoje. O parque atual roda no app Android corpflix (repo denoww/corpflix) ou, como frota legada ainda viva, em Windows via Chrome kiosk (ver README § Config windows). Contexto: ROADMAP_dependencias_criticas.md item #26 (repo seucondominio).",
   "dest": "dist/installers/",
   "icon": "app/assets/images/icon.png",
   "categories": [

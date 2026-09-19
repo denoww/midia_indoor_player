@@ -56,6 +56,8 @@ fi
 #   fi
 # fi
 
+# ⚠️ DESCONTINUADO (19/09/2026) — bloco Pi/Orange Pi (LXDE). Ver
+# ROADMAP_dependencias_criticas.md item #26 (repo seucondominio).
 read -p '--> Atualizar LXDE-pi para nao desligar a tela? (y/N) ' atualizar_lxde
 if [[ "$atualizar_lxde" == "y" || "$atualizar_lxde" == "Y" ]] ; then
   sh -c "sudo cp $projectPath/device_configs/lxde-autostart /etc/xdg/lxsession/LXDE-pi/autostart"
@@ -66,6 +68,8 @@ fi
 #   sh -c 'sudo apt install xdotool -y'
 # fi
 
+# ⚠️ DESCONTINUADO (19/09/2026) — pacote armhf é Pi/Orange Pi-specific. Ver
+# ROADMAP_dependencias_criticas.md item #26 (repo seucondominio).
 read -p '--> Instalar TeamViewer? (y/N) ' instalar_teamv
 if [[ "$instalar_teamv" == "y" || "$instalar_teamv" == "Y" ]] ; then
   sh -c 'sudo apt-get update'
@@ -118,6 +122,8 @@ if [[ "$executar_npm" == "y" || "$executar_npm" == "Y" ]] ; then
   sh -c 'npm install'
 fi
 
+# ⚠️ DESCONTINUADO (19/09/2026) — wiring de autostart LXDE, modo Pi/Orange
+# Pi. Ver ROADMAP_dependencias_criticas.md item #26 (repo seucondominio).
 read -p '--> Iniciar player no boot? (y/N) ' startup_boot
 if [[ "$startup_boot" == "y" || "$startup_boot" == "Y" ]] ; then
   node $projectPath/start_on_machine_boot.js
@@ -131,6 +137,9 @@ fi
 #  sh -c 'sudo chown root:root /etc/cron.d/crontab-sc-player'
 #fi
 
+# ⚠️ DESCONTINUADO (19/09/2026) — cron pro tasks/update_daily.sh, já 100%
+# comentado/morto. Ver ROADMAP_dependencias_criticas.md item #26 (repo
+# seucondominio).
 # update diário
 read -p '--> Atualizar firmware diariamente? - não vai reiniciar a máquina!!!!! (y/N) ' update_diario
 if [[ "$update_diario" == "y" || "$update_diario" == "Y" ]] ; then
@@ -140,6 +149,8 @@ if [[ "$update_diario" == "y" || "$update_diario" == "Y" ]] ; then
   sh -c "sudo chown root:root $folder_destino/$file_name_to_copy"
 fi
 
+# ⚠️ DESCONTINUADO (19/09/2026) — modo Pi/Orange Pi. Ver
+# ROADMAP_dependencias_criticas.md item #26 (repo seucondominio).
 read -p '--> Reiniciar diariamente? (y/N)' reboot_diario
 if [[ "$reboot_diario" == "y" || "$reboot_diario" == "Y" ]] ; then
   file_name_to_copy=midia_indoor_reinicio_diario

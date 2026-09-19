@@ -142,6 +142,16 @@ Teamviewer
 
 
 
+> ⚠️ **DESCONTINUADO (19/09/2026)** — tudo daqui até o fim do arquivo (exceto
+> a seção "## developmente" abaixo, que é setup genérico de dev e continua
+> válida) é sobre o modo de instalação Linux/Raspberry Pi / Orange Pi. Sem
+> manutenção real desde 2023, sem evidência de nenhum device vivo em
+> produção hoje. O parque atual roda no app Android `corpflix` (repo
+> `denoww/corpflix`) ou, como frota legada ainda viva, na seção
+> "Config windows" acima (essa SIM continua em uso, ~30 TVs, e o Chrome
+> dela se autoatualiza sozinho, sem ação necessária). Contexto completo:
+> `ROADMAP_dependencias_criticas.md` item #26 (repo `seucondominio`).
+
 ## Oranges
 
 #### orange 3: caso for cria imagem para microsd -> de preferencia para ubuntu bionic desktop por ser mais leve
