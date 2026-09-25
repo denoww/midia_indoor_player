@@ -97,6 +97,26 @@ Comparar **17-20h em local time (Brasil UTC-3)** dos dias pós-deploy (26/abr em
 
 **Caveat dia 26/abr:** janela 11-12h teve 7-9 GB (4-5× P90 normal) **antes** do PM2 restart. Pode ser deploy do ERP propagando filenames novos via grade.json e relay re-baixando do S3 com código antigo, ou tráfego não-relacionado. Não confundir com efeito do commit.
 
+## Tela dividida em 2..4 regiões (ERP ticket #2447, set/2026)
+
+Layouts `grade-*` do ERP dividem a tela em regiões (ex.: Condomínio × Anúncios). O catálogo mora no ERP
+(`Publicidade::Layouts`, repo `seucondominio`), e o payload traz `layout_regioes` (`[{posicao, x, y, w, h}]`,
+em % da área de conteúdo) e `layout_barra`. **Layout novo de grade não pede deploy aqui**: a geometria vem
+no payload e o player posiciona cada região de forma genérica.
+
+- **Posições:** `conteudo_superior` (região 1), `conteudo_regiao_2..4`, `conteudo_mensagem` (barra). O relay
+  (`grade.coffee`/`feeds.coffee`) enxerga todas via `posicoesConteudo(obj)` (`commons.coffee`) — ⛔ não volte a
+  escrever lista fixa de posição: a lista fixa esquecia as regiões no warmup e nos feeds.
+- **Front:** `criarTimeline(cfg)` (`player.coffee`) é a antiga `timelineConteudoSuperior`, agora fábrica. No
+  legado continua existindo UMA instância com o nome de sempre; na grade, `timelinesRegioes[posicao]`. As setas
+  e `corpflixNext/Prev` usam `timelinePrincipal()`.
+- **Vídeo nativo é recurso disputado** (`videoSlots`): APK com `playVideoFramedSlot`/`maxVideoSlots` → um slot
+  por região até o limite medido; APK antigo → 1 slot, e a região que não pega toca `<video>` HTML5 no WebView.
+  Parar vídeo numa região só para o slot DELA (parar o player único derrubaria o da vizinha).
+- **Legado intocado:** o bloco `.content-player` antigo só ganhou `v-if="!regioesPlayer.length"`, e toda regra
+  CSS nova casa só com `.layout-grade`. Validado em 25/09 com a TV voltando de grade pra `layout-2`.
+- **Texto do feed escala pela largura da região** (`--esc = w/100`, inline): o CSS do feed é todo em `vw`.
+
 ## Armadilhas
 
 - **Log PM2 cresce sem rotação** — `MIDIAINDOOR-out.log` tem 6+GB e enche disco. Implementar `pm2 install pm2-logrotate` ou cron de truncate.

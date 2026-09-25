@@ -21,13 +21,13 @@ module.exports = ->
     totalItensPorCategoria: 15
     getList: (tvId) ->
       feeds = []
-      posicoes = ['conteudo_superior', 'conteudo_mensagem']
       @dataMinima = moment().add(@diasDataMinima, 'days')
       @getDataOffline(tvId)
       global.grade ||= {}
       global.grade.data ||= {}
       data = global.grade.data[tvId] || {}
       return if data.offline
+      posicoes = posicoesConteudo(data)
 
       for posicao in posicoes
         continue unless data[posicao]?.length
@@ -35,9 +35,13 @@ module.exports = ->
           feeds.addOrExtend feed
         playlists = data[posicao].select (item)-> item.tipo_midia == 'playlist'
 
+        # A playlist guarda os itens nas posições DELA (`conteudo_superior`),
+        # que não são a posição onde a playlist está na grade — numa tela
+        # dividida ela pode estar em `conteudo_regiao_2`.
         for playlist in playlists
-          for feed in (playlist[posicao] || []).select (item)-> item.tipo_midia == 'feed'
-            feeds.addOrExtend feed
+          for posPlaylist in posicoesConteudo(playlist)
+            for feed in playlist[posPlaylist].select (item)-> item.tipo_midia == 'feed'
+              feeds.addOrExtend feed
 
       if feeds.empty()
         # ctrl.saveDataJson(tvId)

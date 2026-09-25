@@ -50,7 +50,7 @@
 
   <body id="body-player">
     <!-- style="cursor: none"> -->
-    <div id="main-player" :class="[grade.data.layout, grade.data.cor, orientacaoCssClass]" @mousemove="mouse">
+    <div id="main-player" :class="[grade.data.layout, grade.data.cor, orientacaoCssClass, classesGrade]" @mousemove="mouse">
       <div id="content-main" class="content-main" v-show="loaded">
         <!-- offline -->
         <div class="offline" v-if="!online">Sem Internet</div>
@@ -132,7 +132,7 @@
             <!-- informacoes -->
           </div> <!-- content-side -->
 
-          <div class="content-player">
+          <div class="content-player" v-if="!regioesPlayer.length">
 
             <!-- Loader de transição entre items da playlist. Sutil
                  (canto sup. direito), aparece quando timelineConteudo
@@ -220,6 +220,90 @@
 
             </div> <!-- player-item -->
           </div> <!-- content-player -->
+
+          <!-- Tela dividida em 2..4 regiões (ERP ticket #2447). Cada região é
+               posicionada pela geometria que vem do ERP (% da área de conteúdo)
+               e tem a sua própria timeline (player.coffee → criarTimeline). No
+               layout legado este bloco não existe e nada muda. -->
+          <div class="content-regioes" v-if="regioesPlayer.length">
+            <div v-for="regiao in regioesPlayer" :key="regiao.posicao" class="content-player regiao-player" :id="'regiao-' + regiao.posicao" :style="regiao.estilo">
+              <div class="transition-loader" v-if="regiao.transitioning">
+                <i class="sc-icon-carregando-1 sc-icon-spin"></i>
+              </div>
+              <div class="player-item">
+                <div v-for="(item, index) in regiao.lista" :key="item.id" :class="[{'active': (index === regiao.index)}]" class="playlist-content">
+                    <transition name="fade">
+                      <div v-show="index === regiao.index">
+                        <!-- feeds -->
+                        <div v-if="item.tipo_midia === 'feed'" class="content-feed">
+                          <div class="feed-main">
+                            <div class="feed-info">
+                              <div class="feed-fonte" :style="{'background-image': 'url(/images/feeds/' + item.fonte + '.png)'}"></div>
+                              <div class="feed-categoria">{{item.categoria_feed || item.titulo_feed}}</div>
+                              <div class="feed-out"></div>
+                            </div>
+                            <div class="feed-imagem" :style="{'background-image': 'url(' + (item.arquivoUrl ? item.arquivoUrl : '/images/no-image.png') + ')'}">&nbsp;</div>
+                            <div class="feed-titulo" :class="[{'com-qrcode': item.qrcode}]">
+                              <div class="feed-data" v-if="item.data">{{item.data | formatDate}}</div>
+                              {{item.titulo}}
+                              <div class="feed-qrcode" v-if="item.qrcode" :style="{'background-image': 'url(' + item.qrcode + ')'}"></div>
+                            </div>
+                          </div>
+                        </div>
+                        <!-- feeds -->
+
+                        <!-- midia -->
+                        <div class="midia-main" v-else-if="item.tipo_midia === 'midia'">
+                          <div class="midia-imagem" v-if="item.is_image"
+                            :style="{'background-image': 'url(' + item.arquivoUrl + ')'}">
+                          </div>
+
+                          <video
+                            class="midia-video"
+                            v-if="item.is_video"
+                            :id="'video-player-' + regiao.posicao + '-' + item.id"
+                            preload="none"
+                            autoplay
+                            playsinline
+                            muted
+                            disablepictureinpicture
+                            controlslist="nodownload nofullscreen noremoteplayback"
+                            poster="data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=">
+                          </video>
+
+                        </div>
+                        <!-- midia -->
+
+                        <!-- informativo -->
+                        <div class="informativo-main" v-else-if="item.tipo_midia === 'informativo'">
+                          <div class="informativo" :class="item.mensagem.layout" :style="
+                            {
+                              'background-image': 'url(/images/informativos/' + item.mensagem.imagem + ')',
+                              'background-color': item.mensagem.cor_fundo,
+                            }
+                          ">
+                            <svg viewBox="0 0 1920 1080">
+                              <foreignObject height="100%" width="100%">
+                                <div class="conteudo">
+                                  <div class="titulo" :style="{'color': item.mensagem.cor_titulo}">
+                                    <div>{{item.titulo}}</div>
+                                  </div>
+                                  <div class="mensagem" :style="{'color': item.mensagem.cor_mensagem}">
+                                    <div v-html="item.mensagem.texto"></div>
+                                  </div>
+                                </div>
+                              </foreignObject>
+                            </svg>
+                          </div>
+                        </div>
+                        <!-- informativo -->
+
+                      </div>
+                    </transition>
+                </div>
+              </div>
+            </div>
+          </div> <!-- content-regioes -->
         </div> <!-- content-top -->
 
         <div class="content-footer">

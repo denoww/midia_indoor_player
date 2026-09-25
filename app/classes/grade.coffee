@@ -129,6 +129,11 @@ module.exports = ->
         path:      tvPath
         layout:    jsonData.layout
         orientacao: jsonData.orientacao
+        # Tela dividida em 2..4 regiões (ERP ticket #2447). Vazio/false em
+        # layout legado — o front cai no CSS fixo de sempre. Cada região
+        # traz `posicao` + geometria em % (x, y, w, h) da área de conteúdo.
+        layout_regioes: jsonData.layout_regioes || []
+        layout_barra:   jsonData.layout_barra ? true
         cidade:    jsonData.cidade
         offline:   false
         resolucao: jsonData.resolucao
@@ -383,7 +388,8 @@ module.exports = ->
       @getDataOffline(tvId)
       @data ||= {}
       data = @data[tvId] || {}
-      for it in (data.conteudo_superior || [])
+      for posicao in posicoesConteudo(data)
+       for it in (data[posicao] || [])
         for it2 in (it.conteudo_superior || [])
           pasta = it2.pasta
           nomeArquivo = it2.nome_arquivo
@@ -502,12 +508,11 @@ module.exports = ->
             enfileirados++
         # DFS — playlists empurram sub-items dentro do próprio item via
         # `lista[posicao]` em handleMidia (ver grade.coffee:241).
-        for key in ['conteudo_superior', 'conteudo_mensagem']
-          if Array.isArray(item[key])
-            visit(sub) for sub in item[key]
+        for key in posicoesConteudo(item)
+          visit(sub) for sub in item[key]
         return
 
-      for key in ['conteudo_superior', 'conteudo_mensagem']
+      for key in posicoesConteudo(gradeData)
         if Array.isArray(gradeData?[key])
           visit(it) for it in gradeData[key]
       enfileirados

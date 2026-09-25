@@ -27,10 +27,14 @@ window.onNativeVideoEnded = ->
 
 # Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
 # deixar a TV num buraco visual até o timer expirar.
-window.onNativeVideoError = (code, msg) ->
-  console.warn "NativePlayer: onNativeVideoError code=#{code} msg=#{msg} — forçando avanço"
+window.onNativeVideoError = (code, msg, slot) ->
+  console.warn "NativePlayer: onNativeVideoError code=#{code} msg=#{msg} slot=#{slot} — forçando avanço"
   try
-    timelineConteudoSuperior?.executar?()
+    # Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
+    # slot; APK antigo não manda, e aí é de quem estiver com o slot único).
+    dono = slot or Object.keys(videoSlots?.donos or {})[0]
+    alvo = (dono and timelinesRegioes?[dono]) or timelineConteudoSuperior
+    alvo?.executar?()
   catch e
     console.error 'falha ao avançar timeline após erro do NativePlayer', e
   return
@@ -92,11 +96,11 @@ aplicarOrientacao = (data)->
 # Lista de candidatos (mais específico → mais genérico). Iterada toda:
 # se o primeiro existe mas mediu 0×0 (acontece em transição de layout),
 # os seguintes salvam o frame em vez de cair no fallback fullscreen.
-nativePlayerCandidates = (videoId) ->
+nativePlayerCandidates = (elId, containerSelector = '.content-player') ->
   out = []
   getters = [
-    -> document.querySelector('.content-player')
-    -> if videoId? then document.getElementById("video-player-#{videoId}") else null
+    -> document.querySelector(containerSelector)
+    -> if elId? then document.getElementById(elId) else null
     -> document.querySelector('.player-item')
     -> document.getElementById('content-main')
   ]
@@ -105,8 +109,8 @@ nativePlayerCandidates = (videoId) ->
     out.push(el) if el and el not in out
   out
 
-nativePlayerVideoRect = (videoId) ->
-  candidates = nativePlayerCandidates(videoId)
+nativePlayerVideoRect = (elId, containerSelector) ->
+  candidates = nativePlayerCandidates(elId, containerSelector)
   return {left: 0, top: 0, width: 0, height: 0} if candidates.length is 0
 
   # Retorna o primeiro candidato com rect não-zero. Se todos zerados,
@@ -137,9 +141,9 @@ nativePlayerVideoRect = (videoId) ->
 # (Chrome Kiosk em tab background, ou WebView com page visibility=hidden
 # durante transição de Activity). Custo no happy-path é 0 — quando o rect
 # já é válido na primeira medida, callback roda síncrono.
-nativePlayerMeasureRect = (videoId, callback, maxRetries = 5) ->
+nativePlayerMeasureRect = (elId, callback, maxRetries = 5, containerSelector = '.content-player') ->
   attempt = (left, viaTimeout = false) ->
-    rect = nativePlayerVideoRect(videoId)
+    rect = nativePlayerVideoRect(elId, containerSelector)
     if (rect.width is 0 or rect.height is 0) and left > 0
       console.log "nativePlayerVideoRect 0×0, retry em #{if viaTimeout then 'setTimeout' else 'RAF'} (#{left} restantes)"
       # Alterna RAF → setTimeout depois de gastar metade dos retries.
@@ -171,6 +175,11 @@ data =
   listaConteudoSuperior: []
   listaConteudoMensagem: []
 
+  # Tela dividida (ERP ticket #2447): uma entrada por região do layout de
+  # grade — {posicao, estilo, lista, index, transitioning}. Vazio no legado.
+  regioesPlayer: []
+  regioesAssinatura: null
+
   online: true
 
   # Classe de rotação CSS (Chrome Kiosk). Dirigida pelo Vue (via aplicarOrientacao)
@@ -194,7 +203,11 @@ onLoaded = ->
   vm.loaded ||= gradeObj.loaded && feedsObj.loaded
   vm.loading = false if vm.loaded
 
-  timelineConteudoSuperior.init()
+  if layoutGrade()
+    montarRegioes(vm.grade.data)
+    timeline.init() for own posicao, timeline of timelinesRegioes
+  else
+    timelineConteudoSuperior.init()
   timelineConteudoMensagem.init()
 
 @getTvId = ->
@@ -550,6 +563,7 @@ applyScreenSchedule = ->
   # Pausa o decode em curso ao entrar em off-hours.
   if shouldHide and window.NativePlayer?.stopVideo?
     try window.NativePlayer.stopVideo() catch e then null
+    videoSlots.pararTodos() if layoutGrade()
   return
 
 screenScheduleLoopStarted = false
@@ -612,6 +626,7 @@ startScreenScheduleLoop = ->
     @restart_player_em = data.restart_player_em
     vm.grade.data = @data = data
     aplicarOrientacao(data)
+    montarRegioes(data) if (data.layout_regioes || []).length
 
     # Sobe o loop de schedule de tela (idempotente — só faz setInterval
     # uma vez) e re-avalia imediatamente, pra reagir já no próximo grade
@@ -642,7 +657,6 @@ startScreenScheduleLoop = ->
   data: {}
   tentar: 10
   tentativas: 0
-  posicoes: ['conteudo_superior', 'conteudo_mensagem']
   get: (onSuccess, onError)->
     return if @loading
     @loading = true
@@ -684,7 +698,7 @@ startScreenScheduleLoop = ->
     @data = data
     # pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
 
-    for posicao in @posicoes
+    for posicao in posicoesDaGrade()
       vm.grade.data[posicao] ||= []
       feeds = vm.grade.data[posicao].select?((e)-> e.tipo_midia == 'feed') || []
 
@@ -697,7 +711,7 @@ startScreenScheduleLoop = ->
     for fonte, categorias of @data
       for categoria, noticias of categorias
         if (noticias || []).empty()
-          for posicao in @posicoes
+          for posicao in posicoesDaGrade()
             continue unless vm.grade.data[posicao]
 
             vm.grade.data[posicao] ||= []
@@ -705,7 +719,99 @@ startScreenScheduleLoop = ->
             vm.grade.data[posicao].removeById item.id for item in items || []
     return
 
-@timelineConteudoSuperior =
+# ============================================================================
+# Tela dividida em 2..4 regiões (ERP ticket #2447)
+#
+# O ERP manda `layout_regioes` ([{posicao, x, y, w, h}] em % da área de
+# conteúdo) e `layout_barra`. Vazio = layout legado (layout-1..4, layout-v*):
+# nada abaixo roda e o player segue EXATAMENTE como sempre, com a
+# `timelineConteudoSuperior` única.
+#
+# Em layout de grade cada região ganha a sua própria timeline (criarTimeline),
+# lendo `vm.grade.data[posicao]`. Layout novo no ERP não pede deploy aqui: a
+# geometria vem no payload.
+# ============================================================================
+
+layoutGrade = -> (window.vm?.grade?.data?.layout_regioes || []).length > 0
+
+# Posições de conteúdo presentes na grade (conteudo_superior, conteudo_regiao_N,
+# conteudo_mensagem...). Antes era lista fixa, que esquecia as regiões novas.
+posicoesDaGrade = ->
+  d = window.vm?.grade?.data || {}
+  (k for own k, v of d when /^conteudo_/.test(k) and Array.isArray(v))
+
+# Alocador de decodificador de vídeo NATIVO (ExoPlayer do Corpflix).
+#  - APK com multi-slot (`playVideoFramedSlot`): cada região tem o seu, até
+#    `maxVideoSlots()` (valor MEDIDO no hardware, não o que o XML do codec diz).
+#  - APK antigo: 1 slot só. A região que não pega o slot toca o vídeo em
+#    <video> HTML5 dentro do WebView (fallback), sem derrubar a outra.
+#  - Browser (Chrome kiosk): sem nativo, tudo HTML5, sem limite nosso.
+videoSlots =
+  donos: {}
+  nativo: -> window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
+  multi: -> !!(window.NativePlayer?.playVideoFramedSlot? and window.NativePlayer?.stopVideoSlot?)
+  capacidade: ->
+    return 99 unless @nativo()
+    return 1 unless @multi()
+    n = try parseInt(window.NativePlayer.maxVideoSlots?() ? 1, 10) catch e then 1
+    Math.max(1, n or 1)
+  pegar: (posicao) ->
+    return true if @donos[posicao]
+    return false if Object.keys(@donos).length >= @capacidade()
+    @donos[posicao] = true
+    true
+  tem: (posicao) -> !!@donos[posicao]
+  soltar: (posicao) -> delete @donos[posicao]
+  pararTodos: ->
+    for posicao of @donos
+      try
+        if @multi() then window.NativePlayer.stopVideoSlot(posicao) else window.NativePlayer.stopVideo()
+      catch e then null
+    @donos = {}
+    return
+
+timelinesRegioes = {}
+
+# Timeline "principal": a que as setas do controle / corpflixNext comandam.
+timelinePrincipal = ->
+  if layoutGrade() and timelinesRegioes.conteudo_superior
+    timelinesRegioes.conteudo_superior
+  else
+    timelineConteudoSuperior
+
+# Monta as regiões no Vue a partir do payload. Idempotente: só refaz se a
+# geometria mudou (o updateContent de 2 em 2 min chama handle de novo, e
+# refazer zeraria o item que está na tela).
+montarRegioes = (data) ->
+  regioes = data?.layout_regioes || []
+  assinatura = JSON.stringify(regioes.map (r) -> [r.posicao, r.x, r.y, r.w, r.h])
+  return if vm.regioesAssinatura == assinatura
+  vm.regioesAssinatura = assinatura
+  vm.regioesPlayer = regioes.map (r) ->
+    posicao: r.posicao
+    estilo:
+      left:   "#{r.x}%"
+      top:    "#{r.y}%"
+      width:  "#{r.w}%"
+      height: "#{r.h}%"
+      # Escala do texto (feed) proporcional à LARGURA da região: o CSS do
+      # feed é em vw, pensado pra área de conteúdo inteira.
+      '--esc': String(r.w / 100)
+    lista: []
+    index: 0
+    transitioning: false
+  for r in vm.regioesPlayer
+    do (r) ->
+      timelinesRegioes[r.posicao] ?= criarTimeline
+        posicao: r.posicao
+        containerSelector: "#regiao-#{r.posicao}"
+        videoElId: (item) -> "video-player-#{r.posicao}-#{item.id}"
+        regiao: -> vm.regioesPlayer.getByField?('posicao', r.posicao) or (x for x in vm.regioesPlayer when x.posicao == r.posicao)[0]
+  return
+
+criarTimeline = (cfg) ->
+  legado = !cfg.regiao?
+
   promessa:  null
   nextIndex: 0
   feedIndex: {}
@@ -713,19 +819,22 @@ startScreenScheduleLoop = ->
   elUltimoVideo: null
   playTimer1: null
   playTimer2: null
+  posicao: cfg.posicao
 
   init: ->
     return unless vm.loaded
     @executar() unless @promessa?
 
+  lista: -> vm.grade.data[cfg.posicao] || []
+
   # =============== Núcleo unificado ===============
 
-  # Resolve o item da faixa superior no índice atual.
+  # Resolve o item no índice atual.
   # opts:
   #   consuming: true/false  -> avança índices?
   #   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
   resolveNextItem: (opts = { consuming: true, offset: 0 }) ->
-    lista = vm.grade.data.conteudo_superior || []
+    lista = @lista()
     return null unless lista.length
 
     varOffset = opts.offset ? 0
@@ -807,10 +916,10 @@ startScreenScheduleLoop = ->
   # o operador aperta seta direita/esquerda no controle remoto. Ver
   # corpflix/app/.../PlayerScreen.kt seção "QA shortcuts".
   #
-  # Comportamento: salta pro item [atual + delta] da faixa conteudo_superior
-  # de forma circular (wraparound natural via mod). Cancela o timer pendente
-  # e dispara executar() imediatamente — operador não precisa esperar a
-  # duração do item atual acabar.
+  # Comportamento: salta pro item [atual + delta] da faixa de forma circular
+  # (wraparound natural via mod). Cancela o timer pendente e dispara
+  # executar() imediatamente — operador não precisa esperar a duração do
+  # item atual acabar.
   #
   # Estado: durante a execução normal, @nextIndex aponta pro PRÓXIMO item
   # a ser consumido (resolveNextItem incrementa após pegar o atual).
@@ -824,12 +933,31 @@ startScreenScheduleLoop = ->
   # mostrar a próxima notícia do feed em vez da que tinha aparecido antes.
   # Suficiente pra QA de playlist; ajustar se virar pedido de produto.
   jumpTo: (delta) ->
-    lista = vm.grade.data.conteudo_superior || []
+    lista = @lista()
     return unless lista.length
     @nextIndex = mod(@nextIndex - 1 + delta, lista.length)
     @executar()
     return
 
+  # =============== Tela: onde o item atual aparece ===============
+
+  setTransitioning: (valor) ->
+    if legado then vm.transitioning = valor else (cfg.regiao()?.transitioning = valor)
+
+  setItemAtual: (item) ->
+    # Mantém SOMENTE o atual no v-for
+    if legado
+      vm.listaConteudoSuperior = [item]
+      vm.indexConteudoSuperior = 0
+    else
+      regiao = cfg.regiao()
+      return unless regiao
+      regiao.lista = [item]
+      regiao.index = 0
+    return
+
+  videoElId: (item) ->
+    if cfg.videoElId then cfg.videoElId(item) else "video-player-#{item.id}"
 
   # =============== Loop ===============
 
@@ -842,9 +970,9 @@ startScreenScheduleLoop = ->
     # cobre a maioria dos casos com pre-aquecimento ativo. Se o tempo
     # de carga for maior, o loader some antes da mídia aparecer (não
     # ideal, mas evita "loader eterno" se algum evento falha).
-    vm.transitioning = true
+    @setTransitioning(true)
     clearTimeout(@_transTimer) if @_transTimer
-    @_transTimer = setTimeout (-> vm.transitioning = false), 900
+    @_transTimer = setTimeout (=> @setTransitioning(false)), 900
 
     itemAtual = @resolveNextItem({ consuming: true })
     unless itemAtual
@@ -852,28 +980,23 @@ startScreenScheduleLoop = ->
       # (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
       # prendia o player até reboot manual — @promessa nunca era zerado, então
       # o init() periódico do updateContent também desistia cedo.
-      console.error "resolveNextItem() retornou null — retry em 5s"
-      @promessa = setTimeout (-> timelineConteudoSuperior.executar()), 5000
+      console.error "resolveNextItem(#{cfg.posicao}) retornou null — retry em 5s"
+      @promessa = setTimeout (=> @executar()), 5000
       return
 
-    # Mantém SOMENTE o atual no v-for
-    vm.listaConteudoSuperior = [itemAtual]
-    vm.indexConteudoSuperior = 0
+    @setItemAtual(itemAtual)
 
     @stopUltimoVideo()
 
     # agenda próximo ciclo
     segundos = (itemAtual.segundos * 1000) || 5000
-    @promessa = setTimeout (-> timelineConteudoSuperior.executar()), segundos
+    @promessa = setTimeout (=> @executar()), segundos
 
     # Pré-aquecer N itens à frente (vídeo ou imagem)
-    # preaquecerQtdMidiasAFrente = 2
     preaquecerQtdMidiasAFrente = 1
 
-    console.log "preaquecer proximos video/imagem qtd: #{preaquecerQtdMidiasAFrente}"
     for k in [1..preaquecerQtdMidiasAFrente]
       cand = @resolveNextItem({ consuming: false, offset: k })
-      # console.log cand
       if cand?.arquivoUrl and (cand.is_video or cand.is_image)
         preAquecerMidia(cand)
 
@@ -882,34 +1005,36 @@ startScreenScheduleLoop = ->
     return
 
   # =============== Vídeo ===============
-
-  # playVideo injeta a <source> dinâmica
-  # =============== Vídeo ===============
   #
   # Hook NativePlayer (Corpflix Android) — coexistência com Chrome Kiosk:
   #
   # Quando rodando dentro do Corpflix Android (WebView com `addJavascriptInterface`),
   # `window.NativePlayer.isAvailable()` devolve true e delegamos o decode pro
-  # ExoPlayer nativo (SurfaceView por cima do WebView). Em qualquer outro
+  # ExoPlayer nativo (TextureView por cima do WebView). Em qualquer outro
   # ambiente — Chrome Kiosk em Pi/PC, browser desktop pra preview, etc. — a
   # interface não existe e caímos no <video> HTML5 padrão. Mesmo deploy serve
   # os dois mundos. Contrato em corpflix/PRD.md seção "Arquitetura híbrida".
   #
+  # Na tela dividida, o decodificador nativo é um recurso disputado: quem não
+  # consegue slot (APK antigo = 1 slot) toca no <video> HTML5 da própria região.
+  #
   # O timer de avanço da playlist (`@promessa = setTimeout ..., segundos`) já
   # cuida de avançar quando o vídeo "termina" — não dependemos de evento
-  # `ended` nem do callback `onNativeVideoEnded`. Esse callback existe na
-  # interface do native pra eventualmente fast-forwardar quando o vídeo real
-  # termina antes de `segundos`, mas é opt-in.
+  # `ended` nem do callback `onNativeVideoEnded`.
   playVideo: (itemAtual) ->
     videoId = itemAtual.id
-    @elUltimoVideo = "video-player-#{itemAtual.id}"
+    elId = @videoElId(itemAtual)
+    @elUltimoVideo = elId
     clearTimeout(@playTimer1) if @playTimer1?
     clearTimeout(@playTimer2) if @playTimer2?
 
-    if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
+    usarNativo = videoSlots.nativo()
+    usarNativo = videoSlots.pegar(cfg.posicao) if usarNativo and not legado
+
+    if usarNativo
       durationMs = (itemAtual.segundos * 1000) || 5000
       versaoCache = itemAtual.midia?.versao_cache or null
-      console.log "Play video id #{videoId} via NativePlayer (ExoPlayer)"
+      console.log "Play video id #{videoId} (#{cfg.posicao}) via NativePlayer (ExoPlayer)"
       console.log "arquivoUrl: #{itemAtual.arquivoUrl}, durationMs: #{durationMs}"
 
       # Áudio é opt-in explícito (digital signage default = mute):
@@ -924,9 +1049,12 @@ startScreenScheduleLoop = ->
         try window.NativePlayer.setAudioEnabled(audioEnabled) catch e then null
       # Mede rect com retry em RAF — cobre race com layout pass do browser
       # logo após vm.loaded virar true, ou Vue v-if pré-mount.
-      nativePlayerMeasureRect videoId, (rect) =>
+      nativePlayerMeasureRect elId, (rect) =>
         try
-          if rect.width > 0 and rect.height > 0 and window.NativePlayer.playVideoFramed?
+          if not legado and videoSlots.multi()
+            window.NativePlayer.playVideoFramedSlot(cfg.posicao, itemAtual.arquivoUrl, durationMs, String(versaoCache or ''),
+                                                    rect.left, rect.top, rect.width, rect.height)
+          else if rect.width > 0 and rect.height > 0 and window.NativePlayer.playVideoFramed?
             console.log "playVideoFramed rect=#{JSON.stringify(rect)}"
             window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''),
                                                 rect.left, rect.top, rect.width, rect.height)
@@ -935,7 +1063,9 @@ startScreenScheduleLoop = ->
             window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
         catch e
           console.warn 'NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e
+          videoSlots.soltar(cfg.posicao) unless legado
           @_playVideoHtml5(itemAtual, videoId)
+      , 5, cfg.containerSelector
       return
 
     @_playVideoHtml5(itemAtual, videoId)
@@ -984,9 +1114,20 @@ startScreenScheduleLoop = ->
   # revoga blob ao parar, eliminando vazamento e caches velhos
   # NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
   stopUltimoVideo: ->
-    # Native (Corpflix Android): para ExoPlayer e esconde SurfaceView. Idempotente.
-    if window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
-      try window.NativePlayer.stopVideo() catch e then null
+    # Native (Corpflix Android): para ExoPlayer e esconde a TextureView. Idempotente.
+    # Na tela dividida, só para o slot que ESTA região está usando — parar o
+    # player único derrubaria o vídeo da outra região.
+    if legado
+      if videoSlots.nativo()
+        try window.NativePlayer.stopVideo() catch e then null
+    else if videoSlots.tem(cfg.posicao)
+      try
+        if videoSlots.multi()
+          window.NativePlayer.stopVideoSlot(cfg.posicao)
+        else
+          window.NativePlayer.stopVideo()
+      catch e then null
+      videoSlots.soltar(cfg.posicao)
 
     return unless @elUltimoVideo
     v = document.getElementById(@elUltimoVideo)
@@ -1002,6 +1143,10 @@ startScreenScheduleLoop = ->
     clearTimeout(@playTimer2) if @playTimer2?
     @playTimer1 = @playTimer2 = null
     return
+
+@timelineConteudoSuperior = criarTimeline
+  posicao: 'conteudo_superior'
+  containerSelector: '.content-player'
 
 
 
@@ -1395,8 +1540,17 @@ window.addEventListener 'offline',  updateOnlineStatus
       @mouseTimeout = setTimeout =>
         @body.style.cursor = 'none'
       , 1000
-  # computed:
-  #   now: -> Date.now()
+  computed:
+    # Tela dividida (ERP ticket #2447): classes que o CSS da grade usa. Vazio
+    # no layout legado — nenhuma regra nova casa e o layout fica como sempre.
+    classesGrade: ->
+      return '' unless @regioesPlayer.length
+      vertical = /-v(-barra)?$/.test(@grade.data.layout or '')
+      [
+        'layout-grade'
+        (if @grade.data.layout_barra then 'com-barra' else 'sem-barra')
+        (if vertical then 'grade-vertical' else 'grade-horizontal')
+      ]
   mounted: ->
     @loading = true
     @mouse()
@@ -1491,8 +1645,8 @@ restartPlayerSeNecessario = (data) ->
 #
 # Implementação delegada a timelineConteudoSuperior.jumpTo (player.coffee
 # logo após resolveNextItem).
-window.corpflixNext = -> timelineConteudoSuperior.jumpTo(+1)
-window.corpflixPrev = -> timelineConteudoSuperior.jumpTo(-1)
+window.corpflixNext = -> timelinePrincipal().jumpTo(+1)
+window.corpflixPrev = -> timelinePrincipal().jumpTo(-1)
 
 
 # ============= Atalhos cross-platform (touch + keyboard) =============

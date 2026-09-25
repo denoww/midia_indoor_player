@@ -14,6 +14,14 @@ global.pastaPublic = -> "#{process.cwd()}/public"
 global.getTvFolder = (tvId) -> "#{tvId}"
 global.getTvFolderPublic = (tvId) -> "#{pastaPublic()}/#{getTvFolder(tvId)}"
 
+# Listas de conteúdo de uma grade (ou de um item de playlist): toda chave
+# `conteudo_*` que é Array. Antes eram fixas (`conteudo_superior` e
+# `conteudo_mensagem`); com a tela dividida (ERP ticket #2447) chegam também
+# `conteudo_regiao_2..4`, e lista fixa esquecia essas no warmup e nos feeds.
+global.posicoesConteudo = (obj) ->
+  return [] unless obj && typeof obj is 'object'
+  (key for own key, val of obj when /^conteudo_/.test(key) and Array.isArray(val))
+
 
 getDirectories = (path) ->
   fs.readdirSync(path).filter (file) ->
