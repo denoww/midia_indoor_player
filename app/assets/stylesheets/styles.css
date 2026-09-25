@@ -326,6 +326,71 @@ p {
 #main-player.css-rotate-270.layout-v1 .content-player { width: 100%; height: 100%; }
 /* --------------- LAYOUTS --------------- */
 
+/* --------------- TELA DIVIDIDA (ERP ticket #2447) ---------------
+   Layouts `grade-*`: a tela é dividida em 2..4 regiões cuja geometria vem do
+   ERP (`layout_regioes`, em % da área de conteúdo) e é aplicada inline em cada
+   .regiao-player. Estas regras só casam com `.layout-grade` (classe posta pelo
+   Vue quando há regiões) — os layouts legados acima não mudam.
+   A barra inferior segue a mesma altura dos legados: 15vh deitada, 12vh em pé. */
+.layout-grade .content-side    { display: none; }
+.layout-grade .content-top     { position: relative; width: 100vw; height: 100vh; flex: 0 0 auto; }
+.layout-grade.com-barra.grade-horizontal .content-top { height: 85vh; }
+.layout-grade.com-barra.grade-vertical   .content-top { height: 88vh; }
+.layout-grade.sem-barra .content-footer { display: none; }
+.layout-grade.com-barra.grade-horizontal .content-footer { width: 100vw; height: 15vh; }
+.layout-grade.com-barra.grade-vertical   .content-footer { width: 100vw; height: 12vh; }
+.layout-grade .content-regioes { position: relative; width: 100%; height: 100%; }
+.layout-grade .content-player.regiao-player {
+  position: absolute;
+  box-sizing: border-box;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+  /* respiro de 1px entre as regiões (o vídeo nativo cobre o retângulo, e
+     é isso que evita ele encostar na região vizinha) */
+  border: 1px solid #000;
+  background-size: auto 35%;
+}
+/* Em pé, a mídia preenche cortando (mesma regra dos layout-v*). */
+.layout-grade.grade-vertical .regiao-player .midia-video  { object-fit: cover; }
+.layout-grade.grade-vertical .regiao-player .midia-imagem,
+.layout-grade.grade-vertical .regiao-player .feed-imagem  { background-size: cover; }
+
+/* Feed: tudo em vw, dimensionado pra área inteira — escala pela largura da
+   região (--esc = w/100, posto inline pelo player). */
+.regiao-player .transition-loader { top: calc(1.2vw * var(--esc, 1)); right: calc(1.2vw * var(--esc, 1));
+  width: calc(3.2vw * var(--esc, 1)); height: calc(3.2vw * var(--esc, 1)); font-size: calc(1.6vw * var(--esc, 1)); }
+.regiao-player .feed-info { height: calc(3.7vw * var(--esc, 1)); }
+.regiao-player .feed-fonte { width: calc(5vw * var(--esc, 1)); flex: 0 0 calc(5vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-categoria { font-size: calc(1.8vw * var(--esc, 1)); padding: 0 calc(1.2vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo { padding: calc(1.2vw * var(--esc, 1)); font-size: calc(2.5vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo .feed-data { font-size: calc(0.81vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo.com-qrcode { padding-right: calc(10.2vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo.com-qrcode .feed-data { right: calc(9vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo .feed-qrcode { width: calc(9vw * var(--esc, 1)); height: calc(9vw * var(--esc, 1)); }
+.regiao-player .playlist-content .feed-titulo .feed-qrcode:before {
+  font-size: calc(0.8vw * var(--esc, 1)); width: calc(9vw * var(--esc, 1));
+  height: calc(1.2vw * var(--esc, 1)); line-height: calc(1.2vw * var(--esc, 1)); top: calc(-1.2vw * var(--esc, 1)); }
+/* Informativo é arte 16:9 (svg 1920x1080): numa região de outra proporção
+   ele sobra com faixa — centraliza em vez de colar no topo. */
+.regiao-player .informativo-main { justify-content: center; background: #000; }
+/* Chrome kiosk (sem Corpflix) gira a TV em pé por CSS (.css-rotate-*): lá
+   vw/vh continuam medindo o frame DEITADO, então a grade reancora em % do
+   #main-player girado (mesma ideia do layout-v1 acima). */
+#main-player.css-rotate-90.layout-grade .content-main,
+#main-player.css-rotate-270.layout-grade .content-main,
+#main-player.css-rotate-90.layout-grade .content-footer,
+#main-player.css-rotate-270.layout-grade .content-footer { width: 100%; }
+#main-player.css-rotate-90.layout-grade .content-main,
+#main-player.css-rotate-270.layout-grade .content-main { height: 100%; }
+#main-player.css-rotate-90.layout-grade .content-top,
+#main-player.css-rotate-270.layout-grade .content-top { width: 100%; height: 100%; }
+#main-player.css-rotate-90.layout-grade.com-barra .content-top,
+#main-player.css-rotate-270.layout-grade.com-barra .content-top { height: 88%; }
+#main-player.css-rotate-90.layout-grade.com-barra .content-footer,
+#main-player.css-rotate-270.layout-grade.com-barra .content-footer { height: 12%; }
+/* --------------- TELA DIVIDIDA --------------- */
+
 /* --------------- CORES --------------- */
 .gray   .content-main { background: hsl(  0,   0%, 85%); color: #222; }
 .black  .content-main { background: hsl(  0,   0%, 15%); color: #fff; }

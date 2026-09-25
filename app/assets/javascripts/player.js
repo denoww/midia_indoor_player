@@ -23,8 +23,9 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, mod, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus,
-    indexOf = [].indexOf;
+  var USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
+    indexOf = [].indexOf,
+    hasProp = {}.hasOwnProperty;
 
   window.onNativeVideoEnded = function() {
     console.log("NativePlayer: onNativeVideoEnded (ignorado — timer da timeline cuida do avanço)");
@@ -32,13 +33,17 @@
 
   // Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
   // deixar a TV num buraco visual até o timer expirar.
-  window.onNativeVideoError = function(code, msg) {
-    var e;
-    console.warn(`NativePlayer: onNativeVideoError code=${code} msg=${msg} — forçando avanço`);
+  window.onNativeVideoError = function(code, msg, slot) {
+    var alvo, dono, e;
+    console.warn(`NativePlayer: onNativeVideoError code=${code} msg=${msg} slot=${slot} — forçando avanço`);
     try {
-      if (typeof timelineConteudoSuperior !== "undefined" && timelineConteudoSuperior !== null) {
-        if (typeof timelineConteudoSuperior.executar === "function") {
-          timelineConteudoSuperior.executar();
+      // Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
+      // slot; APK antigo não manda, e aí é de quem estiver com o slot único).
+      dono = slot || Object.keys((typeof videoSlots !== "undefined" && videoSlots !== null ? videoSlots.donos : void 0) || {})[0];
+      alvo = (dono && (typeof timelinesRegioes !== "undefined" && timelinesRegioes !== null ? timelinesRegioes[dono] : void 0)) || timelineConteudoSuperior;
+      if (alvo != null) {
+        if (typeof alvo.executar === "function") {
+          alvo.executar();
         }
       }
     } catch (error1) {
@@ -120,16 +125,16 @@
   // Lista de candidatos (mais específico → mais genérico). Iterada toda:
   // se o primeiro existe mas mediu 0×0 (acontece em transição de layout),
   // os seguintes salvam o frame em vez de cair no fallback fullscreen.
-  nativePlayerCandidates = function(videoId) {
+  nativePlayerCandidates = function(elId, containerSelector = '.content-player') {
     var el, getter, getters, i, len, out;
     out = [];
     getters = [
       function() {
-        return document.querySelector('.content-player');
+        return document.querySelector(containerSelector);
       },
       function() {
-        if (videoId != null) {
-          return document.getElementById(`video-player-${videoId}`);
+        if (elId != null) {
+          return document.getElementById(elId);
         } else {
           return null;
         }
@@ -151,9 +156,9 @@
     return out;
   };
 
-  nativePlayerVideoRect = function(videoId) {
+  nativePlayerVideoRect = function(elId, containerSelector) {
     var candidates, cs, el, fallback, i, len, r, rect, ref;
-    candidates = nativePlayerCandidates(videoId);
+    candidates = nativePlayerCandidates(elId, containerSelector);
     if (candidates.length === 0) {
       return {
         left: 0,
@@ -193,11 +198,11 @@
   // (Chrome Kiosk em tab background, ou WebView com page visibility=hidden
   // durante transição de Activity). Custo no happy-path é 0 — quando o rect
   // já é válido na primeira medida, callback roda síncrono.
-  nativePlayerMeasureRect = function(videoId, callback, maxRetries = 5) {
+  nativePlayerMeasureRect = function(elId, callback, maxRetries = 5, containerSelector = '.content-player') {
     var attempt;
     attempt = function(left, viaTimeout = false) {
       var rect, switchToTimeout;
-      rect = nativePlayerVideoRect(videoId);
+      rect = nativePlayerVideoRect(elId, containerSelector);
       if ((rect.width === 0 || rect.height === 0) && left > 0) {
         console.log(`nativePlayerVideoRect 0×0, retry em ${viaTimeout ? 'setTimeout' : 'RAF'} (${left} restantes)`);
         // Alterna RAF → setTimeout depois de gastar metade dos retries.
@@ -233,6 +238,10 @@
     indexConteudoMensagem: 0,
     listaConteudoSuperior: [],
     listaConteudoMensagem: [],
+    // Tela dividida (ERP ticket #2447): uma entrada por região do layout de
+    // grade — {posicao, estilo, lista, index, transitioning}. Vazio no legado.
+    regioesPlayer: [],
+    regioesAssinatura: null,
     online: true,
     // Classe de rotação CSS (Chrome Kiosk). Dirigida pelo Vue (via aplicarOrientacao)
     // em vez de classList.add — senão o re-render do :class do #main-player, quando
@@ -253,11 +262,21 @@
   };
 
   onLoaded = function() {
+    var posicao, timeline;
     vm.loaded || (vm.loaded = gradeObj.loaded && feedsObj.loaded);
     if (vm.loaded) {
       vm.loading = false;
     }
-    timelineConteudoSuperior.init();
+    if (layoutGrade()) {
+      montarRegioes(vm.grade.data);
+      for (posicao in timelinesRegioes) {
+        if (!hasProp.call(timelinesRegioes, posicao)) continue;
+        timeline = timelinesRegioes[posicao];
+        timeline.init();
+      }
+    } else {
+      timelineConteudoSuperior.init();
+    }
     return timelineConteudoMensagem.init();
   };
 
@@ -719,6 +738,9 @@
         e = error1;
         null;
       }
+      if (layoutGrade()) {
+        videoSlots.pararTodos();
+      }
     }
   };
 
@@ -791,6 +813,9 @@
       this.restart_player_em = data.restart_player_em;
       vm.grade.data = this.data = data;
       aplicarOrientacao(data);
+      if ((data.layout_regioes || []).length) {
+        montarRegioes(data);
+      }
       // Sobe o loop de schedule de tela (idempotente — só faz setInterval
       // uma vez) e re-avalia imediatamente, pra reagir já no próximo grade
       // refresh quando admin muda config no ERP.
@@ -821,7 +846,6 @@
     data: {},
     tentar: 10,
     tentativas: 0,
-    posicoes: ['conteudo_superior', 'conteudo_mensagem'],
     get: function(onSuccess, onError) {
       var error, success;
       if (this.loading) {
@@ -863,7 +887,7 @@
         return;
       }
       this.data = data;
-      ref = this.posicoes;
+      ref = posicoesDaGrade();
       // pre-montar a estrutura dos feeds com base na grade para ser usado em verificarNoticias()
       for (i = 0, len = ref.length; i < len; i++) {
         posicao = ref[i];
@@ -887,7 +911,7 @@
         for (categoria in categorias) {
           noticias = categorias[categoria];
           if ((noticias || []).empty()) {
-            ref1 = this.posicoes;
+            ref1 = posicoesDaGrade();
             for (i = 0, len = ref1.length; i < len; i++) {
               posicao = ref1[i];
               if (!vm.grade.data[posicao]) {
@@ -909,404 +933,634 @@
     }
   };
 
-  this.timelineConteudoSuperior = {
-    promessa: null,
-    nextIndex: 0,
-    feedIndex: {},
-    playlistIndex: {},
-    elUltimoVideo: null,
-    playTimer1: null,
-    playTimer2: null,
-    init: function() {
-      if (!vm.loaded) {
-        return;
-      }
-      if (this.promessa == null) {
-        return this.executar();
-      }
-    },
-    // =============== Núcleo unificado ===============
+  // ============================================================================
+  // Tela dividida em 2..4 regiões (ERP ticket #2447)
 
-    // Resolve o item da faixa superior no índice atual.
-    // opts:
-    //   consuming: true/false  -> avança índices?
-    //   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
-    resolveNextItem: function(opts = {
-        consuming: true,
-        offset: 0
-      }) {
-      var idxLista, item, lista, raw, ref, varOffset;
-      lista = vm.grade.data.conteudo_superior || [];
-      if (!lista.length) {
-        return null;
-      }
-      varOffset = (ref = opts.offset) != null ? ref : 0;
-      idxLista = mod(this.nextIndex + varOffset, lista.length);
-      raw = lista[idxLista];
-      item = this.resolveItem(raw, opts);
-      if (!item) {
-        return null;
-      }
-      if (opts.consuming && varOffset === 0) {
-        // só consome quando offset é 0 (o "agora")
-        this.nextIndex = mod(this.nextIndex + 1, lista.length);
-      }
-      return item;
-    },
-    // Resolve um item: simples, feed ou playlist
-    resolveItem: function(rawItem, opts) {
-      if (rawItem == null) {
-        return null;
-      }
-      switch (rawItem != null ? rawItem.tipo_midia : void 0) {
-        case 'feed':
-          return this.resolveFeedItem(rawItem, opts);
-        case 'playlist':
-          return this.resolvePlaylistItem(rawItem, opts);
-        default:
-          return rawItem; // midia/informativo/mensagem etc.
-      }
-    },
-    
-    // Feed com índice por (fonte,categoria), id estável
-    resolveFeedItem: function(rawItem, opts = {}) {
-      var base, categ, feed, feeds, fonte, idx, item, ref, ref1;
-      fonte = rawItem.fonte;
-      categ = rawItem.categoria;
-      feeds = ((ref = feedsObj.data[fonte]) != null ? ref[categ] : void 0) || [];
-      if (!feeds.length) {
-        return null;
-      }
-      if ((base = this.feedIndex)[fonte] == null) {
-        base[fonte] = {};
-      }
-      idx = this.feedIndex[fonte][categ];
-      if (!Number.isInteger(idx)) {
-        idx = 0;
-      }
-      feed = feeds[Math.min(idx, feeds.length - 1)];
-      if (!feed) {
-        return null;
-      }
-      item = Object.assign({}, rawItem);
-      item.id = `feed-${fonte}-${categ}`;
-      item.data = feed.data;
-      item.qrcode = feed.qrcode;
-      item.titulo = feed.titulo;
-      item.titulo_feed = feed.titulo_feed;
-      item.categoria_feed = feed.categoria_feed;
-      item.nome_arquivo = feed.nome_arquivo;
-      item.arquivoUrl = (ref1 = feed.arquivoUrl) != null ? ref1 : feed.filePath;
-      if (opts.consuming) {
-        this.feedIndex[fonte][categ] = mod(idx + 1, feeds.length);
-      }
-      return item;
-    },
-    // Playlist mantém um índice por playlist.id
-    resolvePlaylistItem: function(playlist, opts = {}) {
-      var base, cand, contentSup, idx, name;
-      contentSup = playlist.conteudo_superior || [];
-      if (!contentSup.length) {
-        return null;
-      }
-      if ((base = this.playlistIndex)[name = playlist.id] == null) {
-        base[name] = 0;
-      }
-      idx = this.playlistIndex[playlist.id];
-      if (!Number.isInteger(idx)) {
-        idx = 0;
-      }
-      cand = contentSup[Math.min(idx, contentSup.length - 1)];
-      if (opts.consuming) {
-        this.playlistIndex[playlist.id] = mod(idx + 1, contentSup.length);
-      }
-      if ((cand != null ? cand.tipo_midia : void 0) !== 'feed') {
-        return cand;
-      }
-      // se o item da playlist for feed, resolve via feed (sem consumir duas vezes)
-      // Passa consuming do call original (para avançar feedIndex somente se consumir)
-      return this.resolveFeedItem(cand, opts);
-    },
-    // Apenas olha o próximo sem avançar índices
-    peekNextItem: function() {
-      return this.resolveNextItem({
-        consuming: false,
-        offset: 1
-      });
-    },
-    // ============= Atalhos de QA (Corpflix Android) =============
+  // O ERP manda `layout_regioes` ([{posicao, x, y, w, h}] em % da área de
+  // conteúdo) e `layout_barra`. Vazio = layout legado (layout-1..4, layout-v*):
+  // nada abaixo roda e o player segue EXATAMENTE como sempre, com a
+  // `timelineConteudoSuperior` única.
 
-    // Chamados pelo app Corpflix Android via webView.evaluateJavascript quando
-    // o operador aperta seta direita/esquerda no controle remoto. Ver
-    // corpflix/app/.../PlayerScreen.kt seção "QA shortcuts".
+  // Em layout de grade cada região ganha a sua própria timeline (criarTimeline),
+  // lendo `vm.grade.data[posicao]`. Layout novo no ERP não pede deploy aqui: a
+  // geometria vem no payload.
+  // ============================================================================
+  layoutGrade = function() {
+    var ref, ref1, ref2;
+    return (((ref = window.vm) != null ? (ref1 = ref.grade) != null ? (ref2 = ref1.data) != null ? ref2.layout_regioes : void 0 : void 0 : void 0) || []).length > 0;
+  };
 
-    // Comportamento: salta pro item [atual + delta] da faixa conteudo_superior
-    // de forma circular (wraparound natural via mod). Cancela o timer pendente
-    // e dispara executar() imediatamente — operador não precisa esperar a
-    // duração do item atual acabar.
+  // Posições de conteúdo presentes na grade (conteudo_superior, conteudo_regiao_N,
+  // conteudo_mensagem...). Antes era lista fixa, que esquecia as regiões novas.
+  posicoesDaGrade = function() {
+    var d, k, ref, ref1, results, v;
+    d = ((ref = window.vm) != null ? (ref1 = ref.grade) != null ? ref1.data : void 0 : void 0) || {};
+    results = [];
+    for (k in d) {
+      if (!hasProp.call(d, k)) continue;
+      v = d[k];
+      if (/^conteudo_/.test(k) && Array.isArray(v)) {
+        results.push(k);
+      }
+    }
+    return results;
+  };
 
-    // Estado: durante a execução normal, @nextIndex aponta pro PRÓXIMO item
-    // a ser consumido (resolveNextItem incrementa após pegar o atual).
-    // Pra reproduzir [atual + delta] precisamos voltar 1 (pro 'atual') e somar
-    // delta. delta=+1 mantém @nextIndex onde está → toca o próximo (que era
-    // o que ia tocar de qualquer jeito, só sem esperar). delta=-1 retrocede
-    // 2 → toca o anterior.
-
-    // Limitação conhecida: feedIndex/playlistIndex (índices internos de feed
-    // e playlist) NÃO são revertidos no prev — voltar pro item anterior pode
-    // mostrar a próxima notícia do feed em vez da que tinha aparecido antes.
-    // Suficiente pra QA de playlist; ajustar se virar pedido de produto.
-    jumpTo: function(delta) {
-      var lista;
-      lista = vm.grade.data.conteudo_superior || [];
-      if (!lista.length) {
-        return;
-      }
-      this.nextIndex = mod(this.nextIndex - 1 + delta, lista.length);
-      this.executar();
-    },
-    // =============== Loop ===============
-    executar: function() {
-      var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos;
-      if (this.promessa) {
-        clearTimeout(this.promessa);
-      }
-      // Loader sutil durante a transição — feedback visual de "trocando
-      // item" pra evitar falsa sensação de travamento, especialmente
-      // durante carregamento do próximo vídeo/imagem. Auto-hide em 900ms,
-      // cobre a maioria dos casos com pre-aquecimento ativo. Se o tempo
-      // de carga for maior, o loader some antes da mídia aparecer (não
-      // ideal, mas evita "loader eterno" se algum evento falha).
-      vm.transitioning = true;
-      if (this._transTimer) {
-        clearTimeout(this._transTimer);
-      }
-      this._transTimer = setTimeout((function() {
-        return vm.transitioning = false;
-      }), 900);
-      itemAtual = this.resolveNextItem({
-        consuming: true
-      });
-      if (!itemAtual) {
-        // Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
-        // (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
-        // prendia o player até reboot manual — @promessa nunca era zerado, então
-        // o init() periódico do updateContent também desistia cedo.
-        console.error("resolveNextItem() retornou null — retry em 5s");
-        this.promessa = setTimeout((function() {
-          return timelineConteudoSuperior.executar();
-        }), 5000);
-        return;
-      }
-      // Mantém SOMENTE o atual no v-for
-      vm.listaConteudoSuperior = [itemAtual];
-      vm.indexConteudoSuperior = 0;
-      this.stopUltimoVideo();
-      // agenda próximo ciclo
-      segundos = (itemAtual.segundos * 1000) || 5000;
-      this.promessa = setTimeout((function() {
-        return timelineConteudoSuperior.executar();
-      }), segundos);
-      // Pré-aquecer N itens à frente (vídeo ou imagem)
-      // preaquecerQtdMidiasAFrente = 2
-      preaquecerQtdMidiasAFrente = 1;
-      console.log(`preaquecer proximos video/imagem qtd: ${preaquecerQtdMidiasAFrente}`);
-      for (k = i = 1, ref = preaquecerQtdMidiasAFrente; (1 <= ref ? i <= ref : i >= ref); k = 1 <= ref ? ++i : --i) {
-        cand = this.resolveNextItem({
-          consuming: false,
-          offset: k
-        });
-        // console.log cand
-        if ((cand != null ? cand.arquivoUrl : void 0) && (cand.is_video || cand.is_image)) {
-          preAquecerMidia(cand);
-        }
-      }
-      if (itemAtual.is_video) {
-        // Toca o atual (se for vídeo)
-        this.playVideo(itemAtual);
-      }
-    },
-    // =============== Vídeo ===============
-
-    // playVideo injeta a <source> dinâmica
-    // =============== Vídeo ===============
-
-    // Hook NativePlayer (Corpflix Android) — coexistência com Chrome Kiosk:
-
-    // Quando rodando dentro do Corpflix Android (WebView com `addJavascriptInterface`),
-    // `window.NativePlayer.isAvailable()` devolve true e delegamos o decode pro
-    // ExoPlayer nativo (SurfaceView por cima do WebView). Em qualquer outro
-    // ambiente — Chrome Kiosk em Pi/PC, browser desktop pra preview, etc. — a
-    // interface não existe e caímos no <video> HTML5 padrão. Mesmo deploy serve
-    // os dois mundos. Contrato em corpflix/PRD.md seção "Arquitetura híbrida".
-
-    // O timer de avanço da playlist (`@promessa = setTimeout ..., segundos`) já
-    // cuida de avançar quando o vídeo "termina" — não dependemos de evento
-    // `ended` nem do callback `onNativeVideoEnded`. Esse callback existe na
-    // interface do native pra eventualmente fast-forwardar quando o vídeo real
-    // termina antes de `segundos`, mas é opt-in.
-    playVideo: function(itemAtual) {
-      var audioEnabled, durationMs, e, ref, ref1, ref2, versaoCache, videoId;
-      videoId = itemAtual.id;
-      this.elUltimoVideo = `video-player-${itemAtual.id}`;
-      if (this.playTimer1 != null) {
-        clearTimeout(this.playTimer1);
-      }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
-      }
-      if ((window.NativePlayer != null) && ((function() {
+  // Alocador de decodificador de vídeo NATIVO (ExoPlayer do Corpflix).
+  //  - APK com multi-slot (`playVideoFramedSlot`): cada região tem o seu, até
+  //    `maxVideoSlots()` (valor MEDIDO no hardware, não o que o XML do codec diz).
+  //  - APK antigo: 1 slot só. A região que não pega o slot toca o vídeo em
+  //    <video> HTML5 dentro do WebView (fallback), sem derrubar a outra.
+  //  - Browser (Chrome kiosk): sem nativo, tudo HTML5, sem limite nosso.
+  videoSlots = {
+    donos: {},
+    nativo: function() {
+      var e;
+      return (window.NativePlayer != null) && ((function() {
         try {
           return window.NativePlayer.isAvailable();
         } catch (error1) {
           e = error1;
           return false;
         }
-      })())) {
-        durationMs = (itemAtual.segundos * 1000) || 5000;
-        versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
-        console.log(`Play video id ${videoId} via NativePlayer (ExoPlayer)`);
-        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
-        // Áudio é opt-in explícito (digital signage default = mute):
-        // — `vm.grade.data.audio_enabled` vem do ERP por TV (campo gerenciado
-        //   no admin /gerenciar/cd/.../publicidade/tvs).
-        // — `!!` força boolean: undefined/null/false → false; só `true` libera.
-        // — `setAudioEnabled?` proteção pra Corpflix Android < 3.1.82 (sem o
-        //   método ainda); silently no-op nessas versões, mas elas já tocam
-        //   muted por default no bridge novo, então sem regressão visual.
-        audioEnabled = !!(typeof vm !== "undefined" && vm !== null ? (ref1 = vm.grade) != null ? (ref2 = ref1.data) != null ? ref2.audio_enabled : void 0 : void 0 : void 0);
-        if (window.NativePlayer.setAudioEnabled != null) {
+      })());
+    },
+    multi: function() {
+      var ref, ref1;
+      return !!((((ref = window.NativePlayer) != null ? ref.playVideoFramedSlot : void 0) != null) && (((ref1 = window.NativePlayer) != null ? ref1.stopVideoSlot : void 0) != null));
+    },
+    capacidade: function() {
+      var e, n;
+      if (!this.nativo()) {
+        return 99;
+      }
+      if (!this.multi()) {
+        return 1;
+      }
+      n = (function() {
+        var base, ref;
+        try {
+          return parseInt((ref = typeof (base = window.NativePlayer).maxVideoSlots === "function" ? base.maxVideoSlots() : void 0) != null ? ref : 1, 10);
+        } catch (error1) {
+          e = error1;
+          return 1;
+        }
+      })();
+      return Math.max(1, n || 1);
+    },
+    pegar: function(posicao) {
+      if (this.donos[posicao]) {
+        return true;
+      }
+      if (Object.keys(this.donos).length >= this.capacidade()) {
+        return false;
+      }
+      this.donos[posicao] = true;
+      return true;
+    },
+    tem: function(posicao) {
+      return !!this.donos[posicao];
+    },
+    soltar: function(posicao) {
+      return delete this.donos[posicao];
+    },
+    pararTodos: function() {
+      var e, posicao;
+      for (posicao in this.donos) {
+        try {
+          if (this.multi()) {
+            window.NativePlayer.stopVideoSlot(posicao);
+          } else {
+            window.NativePlayer.stopVideo();
+          }
+        } catch (error1) {
+          e = error1;
+          null;
+        }
+      }
+      this.donos = {};
+    }
+  };
+
+  timelinesRegioes = {};
+
+  // Timeline "principal": a que as setas do controle / corpflixNext comandam.
+  timelinePrincipal = function() {
+    if (layoutGrade() && timelinesRegioes.conteudo_superior) {
+      return timelinesRegioes.conteudo_superior;
+    } else {
+      return timelineConteudoSuperior;
+    }
+  };
+
+  // Monta as regiões no Vue a partir do payload. Idempotente: só refaz se a
+  // geometria mudou (o updateContent de 2 em 2 min chama handle de novo, e
+  // refazer zeraria o item que está na tela).
+  montarRegioes = function(data) {
+    var assinatura, i, len, r, ref, regioes;
+    regioes = (data != null ? data.layout_regioes : void 0) || [];
+    assinatura = JSON.stringify(regioes.map(function(r) {
+      return [r.posicao, r.x, r.y, r.w, r.h];
+    }));
+    if (vm.regioesAssinatura === assinatura) {
+      return;
+    }
+    vm.regioesAssinatura = assinatura;
+    vm.regioesPlayer = regioes.map(function(r) {
+      return {
+        posicao: r.posicao,
+        estilo: {
+          left: `${r.x}%`,
+          top: `${r.y}%`,
+          width: `${r.w}%`,
+          height: `${r.h}%`,
+          // Escala do texto (feed) proporcional à LARGURA da região: o CSS do
+          // feed é em vw, pensado pra área de conteúdo inteira.
+          '--esc': String(r.w / 100)
+        },
+        lista: [],
+        index: 0,
+        transitioning: false
+      };
+    });
+    ref = vm.regioesPlayer;
+    for (i = 0, len = ref.length; i < len; i++) {
+      r = ref[i];
+      (function(r) {
+        var name;
+        return timelinesRegioes[name = r.posicao] != null ? timelinesRegioes[name] : timelinesRegioes[name] = criarTimeline({
+          posicao: r.posicao,
+          containerSelector: `#regiao-${r.posicao}`,
+          videoElId: function(item) {
+            return `video-player-${r.posicao}-${item.id}`;
+          },
+          regiao: function() {
+            var base, x;
+            return (typeof (base = vm.regioesPlayer).getByField === "function" ? base.getByField('posicao', r.posicao) : void 0) || ((function() {
+              var l, len1, ref1, results;
+              ref1 = vm.regioesPlayer;
+              results = [];
+              for (l = 0, len1 = ref1.length; l < len1; l++) {
+                x = ref1[l];
+                if (x.posicao === r.posicao) {
+                  results.push(x);
+                }
+              }
+              return results;
+            })())[0];
+          }
+        });
+      })(r);
+    }
+  };
+
+  criarTimeline = function(cfg) {
+    var legado;
+    legado = cfg.regiao == null;
+    return {
+      promessa: null,
+      nextIndex: 0,
+      feedIndex: {},
+      playlistIndex: {},
+      elUltimoVideo: null,
+      playTimer1: null,
+      playTimer2: null,
+      posicao: cfg.posicao,
+      init: function() {
+        if (!vm.loaded) {
+          return;
+        }
+        if (this.promessa == null) {
+          return this.executar();
+        }
+      },
+      lista: function() {
+        return vm.grade.data[cfg.posicao] || [];
+      },
+      // =============== Núcleo unificado ===============
+
+      // Resolve o item no índice atual.
+      // opts:
+      //   consuming: true/false  -> avança índices?
+      //   offset:    inteiro     -> 0 = atual, 1 = próximo, 2 = +2, ...
+      resolveNextItem: function(opts = {
+          consuming: true,
+          offset: 0
+        }) {
+        var idxLista, item, lista, raw, ref, varOffset;
+        lista = this.lista();
+        if (!lista.length) {
+          return null;
+        }
+        varOffset = (ref = opts.offset) != null ? ref : 0;
+        idxLista = mod(this.nextIndex + varOffset, lista.length);
+        raw = lista[idxLista];
+        item = this.resolveItem(raw, opts);
+        if (!item) {
+          return null;
+        }
+        if (opts.consuming && varOffset === 0) {
+          // só consome quando offset é 0 (o "agora")
+          this.nextIndex = mod(this.nextIndex + 1, lista.length);
+        }
+        return item;
+      },
+      // Resolve um item: simples, feed ou playlist
+      resolveItem: function(rawItem, opts) {
+        if (rawItem == null) {
+          return null;
+        }
+        switch (rawItem != null ? rawItem.tipo_midia : void 0) {
+          case 'feed':
+            return this.resolveFeedItem(rawItem, opts);
+          case 'playlist':
+            return this.resolvePlaylistItem(rawItem, opts);
+          default:
+            return rawItem; // midia/informativo/mensagem etc.
+        }
+      },
+      
+      // Feed com índice por (fonte,categoria), id estável
+      resolveFeedItem: function(rawItem, opts = {}) {
+        var base, categ, feed, feeds, fonte, idx, item, ref, ref1;
+        fonte = rawItem.fonte;
+        categ = rawItem.categoria;
+        feeds = ((ref = feedsObj.data[fonte]) != null ? ref[categ] : void 0) || [];
+        if (!feeds.length) {
+          return null;
+        }
+        if ((base = this.feedIndex)[fonte] == null) {
+          base[fonte] = {};
+        }
+        idx = this.feedIndex[fonte][categ];
+        if (!Number.isInteger(idx)) {
+          idx = 0;
+        }
+        feed = feeds[Math.min(idx, feeds.length - 1)];
+        if (!feed) {
+          return null;
+        }
+        item = Object.assign({}, rawItem);
+        item.id = `feed-${fonte}-${categ}`;
+        item.data = feed.data;
+        item.qrcode = feed.qrcode;
+        item.titulo = feed.titulo;
+        item.titulo_feed = feed.titulo_feed;
+        item.categoria_feed = feed.categoria_feed;
+        item.nome_arquivo = feed.nome_arquivo;
+        item.arquivoUrl = (ref1 = feed.arquivoUrl) != null ? ref1 : feed.filePath;
+        if (opts.consuming) {
+          this.feedIndex[fonte][categ] = mod(idx + 1, feeds.length);
+        }
+        return item;
+      },
+      // Playlist mantém um índice por playlist.id
+      resolvePlaylistItem: function(playlist, opts = {}) {
+        var base, cand, contentSup, idx, name;
+        contentSup = playlist.conteudo_superior || [];
+        if (!contentSup.length) {
+          return null;
+        }
+        if ((base = this.playlistIndex)[name = playlist.id] == null) {
+          base[name] = 0;
+        }
+        idx = this.playlistIndex[playlist.id];
+        if (!Number.isInteger(idx)) {
+          idx = 0;
+        }
+        cand = contentSup[Math.min(idx, contentSup.length - 1)];
+        if (opts.consuming) {
+          this.playlistIndex[playlist.id] = mod(idx + 1, contentSup.length);
+        }
+        if ((cand != null ? cand.tipo_midia : void 0) !== 'feed') {
+          return cand;
+        }
+        // se o item da playlist for feed, resolve via feed (sem consumir duas vezes)
+        // Passa consuming do call original (para avançar feedIndex somente se consumir)
+        return this.resolveFeedItem(cand, opts);
+      },
+      // Apenas olha o próximo sem avançar índices
+      peekNextItem: function() {
+        return this.resolveNextItem({
+          consuming: false,
+          offset: 1
+        });
+      },
+      // ============= Atalhos de QA (Corpflix Android) =============
+
+      // Chamados pelo app Corpflix Android via webView.evaluateJavascript quando
+      // o operador aperta seta direita/esquerda no controle remoto. Ver
+      // corpflix/app/.../PlayerScreen.kt seção "QA shortcuts".
+
+      // Comportamento: salta pro item [atual + delta] da faixa de forma circular
+      // (wraparound natural via mod). Cancela o timer pendente e dispara
+      // executar() imediatamente — operador não precisa esperar a duração do
+      // item atual acabar.
+
+      // Estado: durante a execução normal, @nextIndex aponta pro PRÓXIMO item
+      // a ser consumido (resolveNextItem incrementa após pegar o atual).
+      // Pra reproduzir [atual + delta] precisamos voltar 1 (pro 'atual') e somar
+      // delta. delta=+1 mantém @nextIndex onde está → toca o próximo (que era
+      // o que ia tocar de qualquer jeito, só sem esperar). delta=-1 retrocede
+      // 2 → toca o anterior.
+
+      // Limitação conhecida: feedIndex/playlistIndex (índices internos de feed
+      // e playlist) NÃO são revertidos no prev — voltar pro item anterior pode
+      // mostrar a próxima notícia do feed em vez da que tinha aparecido antes.
+      // Suficiente pra QA de playlist; ajustar se virar pedido de produto.
+      jumpTo: function(delta) {
+        var lista;
+        lista = this.lista();
+        if (!lista.length) {
+          return;
+        }
+        this.nextIndex = mod(this.nextIndex - 1 + delta, lista.length);
+        this.executar();
+      },
+      // =============== Tela: onde o item atual aparece ===============
+      setTransitioning: function(valor) {
+        var ref;
+        if (legado) {
+          return vm.transitioning = valor;
+        } else {
+          return (ref = cfg.regiao()) != null ? ref.transitioning = valor : void 0;
+        }
+      },
+      setItemAtual: function(item) {
+        var regiao;
+        // Mantém SOMENTE o atual no v-for
+        if (legado) {
+          vm.listaConteudoSuperior = [item];
+          vm.indexConteudoSuperior = 0;
+        } else {
+          regiao = cfg.regiao();
+          if (!regiao) {
+            return;
+          }
+          regiao.lista = [item];
+          regiao.index = 0;
+        }
+      },
+      videoElId: function(item) {
+        if (cfg.videoElId) {
+          return cfg.videoElId(item);
+        } else {
+          return `video-player-${item.id}`;
+        }
+      },
+      // =============== Loop ===============
+      executar: function() {
+        var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos;
+        if (this.promessa) {
+          clearTimeout(this.promessa);
+        }
+        // Loader sutil durante a transição — feedback visual de "trocando
+        // item" pra evitar falsa sensação de travamento, especialmente
+        // durante carregamento do próximo vídeo/imagem. Auto-hide em 900ms,
+        // cobre a maioria dos casos com pre-aquecimento ativo. Se o tempo
+        // de carga for maior, o loader some antes da mídia aparecer (não
+        // ideal, mas evita "loader eterno" se algum evento falha).
+        this.setTransitioning(true);
+        if (this._transTimer) {
+          clearTimeout(this._transTimer);
+        }
+        this._transTimer = setTimeout((() => {
+          return this.setTransitioning(false);
+        }), 900);
+        itemAtual = this.resolveNextItem({
+          consuming: true
+        });
+        if (!itemAtual) {
+          // Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
+          // (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
+          // prendia o player até reboot manual — @promessa nunca era zerado, então
+          // o init() periódico do updateContent também desistia cedo.
+          console.error(`resolveNextItem(${cfg.posicao}) retornou null — retry em 5s`);
+          this.promessa = setTimeout((() => {
+            return this.executar();
+          }), 5000);
+          return;
+        }
+        this.setItemAtual(itemAtual);
+        this.stopUltimoVideo();
+        // agenda próximo ciclo
+        segundos = (itemAtual.segundos * 1000) || 5000;
+        this.promessa = setTimeout((() => {
+          return this.executar();
+        }), segundos);
+        // Pré-aquecer N itens à frente (vídeo ou imagem)
+        preaquecerQtdMidiasAFrente = 1;
+        for (k = i = 1, ref = preaquecerQtdMidiasAFrente; (1 <= ref ? i <= ref : i >= ref); k = 1 <= ref ? ++i : --i) {
+          cand = this.resolveNextItem({
+            consuming: false,
+            offset: k
+          });
+          if ((cand != null ? cand.arquivoUrl : void 0) && (cand.is_video || cand.is_image)) {
+            preAquecerMidia(cand);
+          }
+        }
+        if (itemAtual.is_video) {
+          // Toca o atual (se for vídeo)
+          this.playVideo(itemAtual);
+        }
+      },
+      // =============== Vídeo ===============
+
+      // Hook NativePlayer (Corpflix Android) — coexistência com Chrome Kiosk:
+
+      // Quando rodando dentro do Corpflix Android (WebView com `addJavascriptInterface`),
+      // `window.NativePlayer.isAvailable()` devolve true e delegamos o decode pro
+      // ExoPlayer nativo (TextureView por cima do WebView). Em qualquer outro
+      // ambiente — Chrome Kiosk em Pi/PC, browser desktop pra preview, etc. — a
+      // interface não existe e caímos no <video> HTML5 padrão. Mesmo deploy serve
+      // os dois mundos. Contrato em corpflix/PRD.md seção "Arquitetura híbrida".
+
+      // Na tela dividida, o decodificador nativo é um recurso disputado: quem não
+      // consegue slot (APK antigo = 1 slot) toca no <video> HTML5 da própria região.
+
+      // O timer de avanço da playlist (`@promessa = setTimeout ..., segundos`) já
+      // cuida de avançar quando o vídeo "termina" — não dependemos de evento
+      // `ended` nem do callback `onNativeVideoEnded`.
+      playVideo: function(itemAtual) {
+        var audioEnabled, durationMs, e, elId, ref, ref1, ref2, usarNativo, versaoCache, videoId;
+        videoId = itemAtual.id;
+        elId = this.videoElId(itemAtual);
+        this.elUltimoVideo = elId;
+        if (this.playTimer1 != null) {
+          clearTimeout(this.playTimer1);
+        }
+        if (this.playTimer2 != null) {
+          clearTimeout(this.playTimer2);
+        }
+        usarNativo = videoSlots.nativo();
+        if (usarNativo && !legado) {
+          usarNativo = videoSlots.pegar(cfg.posicao);
+        }
+        if (usarNativo) {
+          durationMs = (itemAtual.segundos * 1000) || 5000;
+          versaoCache = ((ref = itemAtual.midia) != null ? ref.versao_cache : void 0) || null;
+          console.log(`Play video id ${videoId} (${cfg.posicao}) via NativePlayer (ExoPlayer)`);
+          console.log(`arquivoUrl: ${itemAtual.arquivoUrl}, durationMs: ${durationMs}`);
+          // Áudio é opt-in explícito (digital signage default = mute):
+          // — `vm.grade.data.audio_enabled` vem do ERP por TV (campo gerenciado
+          //   no admin /gerenciar/cd/.../publicidade/tvs).
+          // — `!!` força boolean: undefined/null/false → false; só `true` libera.
+          // — `setAudioEnabled?` proteção pra Corpflix Android < 3.1.82 (sem o
+          //   método ainda); silently no-op nessas versões, mas elas já tocam
+          //   muted por default no bridge novo, então sem regressão visual.
+          audioEnabled = !!(typeof vm !== "undefined" && vm !== null ? (ref1 = vm.grade) != null ? (ref2 = ref1.data) != null ? ref2.audio_enabled : void 0 : void 0 : void 0);
+          if (window.NativePlayer.setAudioEnabled != null) {
+            try {
+              window.NativePlayer.setAudioEnabled(audioEnabled);
+            } catch (error1) {
+              e = error1;
+              null;
+            }
+          }
+          // Mede rect com retry em RAF — cobre race com layout pass do browser
+          // logo após vm.loaded virar true, ou Vue v-if pré-mount.
+          nativePlayerMeasureRect(elId, (rect) => {
+            try {
+              if (!legado && videoSlots.multi()) {
+                return window.NativePlayer.playVideoFramedSlot(cfg.posicao, itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
+              } else if (rect.width > 0 && rect.height > 0 && (window.NativePlayer.playVideoFramed != null)) {
+                console.log(`playVideoFramed rect=${JSON.stringify(rect)}`);
+                return window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
+              } else {
+                console.warn(`rect inválido (${rect.width}x${rect.height}) ou playVideoFramed ausente — fullscreen legado`);
+                return window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
+              }
+            } catch (error1) {
+              e = error1;
+              console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
+              if (!legado) {
+                videoSlots.soltar(cfg.posicao);
+              }
+              return this._playVideoHtml5(itemAtual, videoId);
+            }
+          }, 5, cfg.containerSelector);
+          return;
+        }
+        this._playVideoHtml5(itemAtual, videoId);
+      },
+      _playVideoHtml5: function(itemAtual, videoId) {
+        var chooseAndPlay, key, pend;
+        key = keyForUrl(itemAtual.arquivoUrl);
+        pend = pendingBlobs.get(key);
+        chooseAndPlay = (v) => {
+          var ctype, entry, finalVideoUrl;
+          entry = blobCache.get(key);
+          finalVideoUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.cachedUrl : void 0) ? entry.cachedUrl : itemAtual.arquivoUrl;
+          console.log(`Play video id ${videoId}`);
+          console.log(`finalVideoUrl: ${finalVideoUrl}`);
+          console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
+          ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
+          injectSource(v, finalVideoUrl, ctype);
+          v.currentTime = 0;
+          return v.play().catch(function(e) {
+            return console.warn('play falhou', e);
+          });
+        };
+        this.playTimer1 = setTimeout(() => {
+          var v;
+          v = document.getElementById(this.elUltimoVideo);
+          if (v == null) {
+            return;
+          }
+          // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
+          if (USAR_VIDEO_COM_BLOB_CACHE && (pend != null) && (blobCache.get(key) == null)) {
+            return Promise.race([
+              pend.then(function() {
+                return 'ok';
+              }),
+              new Promise(function(res) {
+                return setTimeout((function() {
+                  return res('timeout');
+                }),
+              10000);
+              })
+            ]).finally(() => {
+              return chooseAndPlay(v); // se blob não existir ainda, cairá na URL original
+            });
+          } else {
+            return chooseAndPlay(v);
+          }
+        }, 0);
+        this.playTimer2 = setTimeout(() => {
+          var v;
+          v = document.getElementById(this.elUltimoVideo);
+          return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
+            return console.warn('replay falhou', e);
+          });
+        }, 1000);
+      },
+      // revoga blob ao parar, eliminando vazamento e caches velhos
+      // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
+      stopUltimoVideo: function() {
+        var e, v;
+        // Native (Corpflix Android): para ExoPlayer e esconde a TextureView. Idempotente.
+        // Na tela dividida, só para o slot que ESTA região está usando — parar o
+        // player único derrubaria o vídeo da outra região.
+        if (legado) {
+          if (videoSlots.nativo()) {
+            try {
+              window.NativePlayer.stopVideo();
+            } catch (error1) {
+              e = error1;
+              null;
+            }
+          }
+        } else if (videoSlots.tem(cfg.posicao)) {
           try {
-            window.NativePlayer.setAudioEnabled(audioEnabled);
+            if (videoSlots.multi()) {
+              window.NativePlayer.stopVideoSlot(cfg.posicao);
+            } else {
+              window.NativePlayer.stopVideo();
+            }
+          } catch (error1) {
+            e = error1;
+            null;
+          }
+          videoSlots.soltar(cfg.posicao);
+        }
+        if (!this.elUltimoVideo) {
+          return;
+        }
+        v = document.getElementById(this.elUltimoVideo);
+        if (v != null) {
+          try {
+            v.pause();
+          } catch (error1) {
+            e = error1;
+            null;
+          }
+          try {
+            v.removeAttribute('src');
+            while (v.firstChild != null) {
+              v.removeChild(v.firstChild); // remove <source>
+            }
+            v.load(); // desaloca o decoder sem mexer no blobCache
           } catch (error1) {
             e = error1;
             null;
           }
         }
-        // Mede rect com retry em RAF — cobre race com layout pass do browser
-        // logo após vm.loaded virar true, ou Vue v-if pré-mount.
-        nativePlayerMeasureRect(videoId, (rect) => {
-          try {
-            if (rect.width > 0 && rect.height > 0 && (window.NativePlayer.playVideoFramed != null)) {
-              console.log(`playVideoFramed rect=${JSON.stringify(rect)}`);
-              return window.NativePlayer.playVideoFramed(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''), rect.left, rect.top, rect.width, rect.height);
-            } else {
-              console.warn(`rect inválido (${rect.width}x${rect.height}) ou playVideoFramed ausente — fullscreen legado`);
-              return window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache || ''));
-            }
-          } catch (error1) {
-            e = error1;
-            console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
-            return this._playVideoHtml5(itemAtual, videoId);
-          }
-        });
-        return;
-      }
-      this._playVideoHtml5(itemAtual, videoId);
-    },
-    _playVideoHtml5: function(itemAtual, videoId) {
-      var chooseAndPlay, key, pend;
-      key = keyForUrl(itemAtual.arquivoUrl);
-      pend = pendingBlobs.get(key);
-      chooseAndPlay = (v) => {
-        var ctype, entry, finalVideoUrl;
-        entry = blobCache.get(key);
-        finalVideoUrl = USAR_VIDEO_COM_BLOB_CACHE && (entry != null ? entry.cachedUrl : void 0) ? entry.cachedUrl : itemAtual.arquivoUrl;
-        console.log(`Play video id ${videoId}`);
-        console.log(`finalVideoUrl: ${finalVideoUrl}`);
-        console.log(`arquivoUrl: ${itemAtual.arquivoUrl}`);
-        ctype = (entry != null ? entry.type : void 0) || itemAtual.content_type || 'video/mp4';
-        injectSource(v, finalVideoUrl, ctype);
-        v.currentTime = 0;
-        return v.play().catch(function(e) {
-          return console.warn('play falhou', e);
-        });
-      };
-      this.playTimer1 = setTimeout(() => {
-        var v;
-        v = document.getElementById(this.elUltimoVideo);
-        if (v == null) {
-          return;
+        this.elUltimoVideo = null;
+        if (this.playTimer1 != null) {
+          clearTimeout(this.playTimer1);
         }
-        // Se existir um blob pendente, aguarda até 10s; usa blob somente se ficar pronto.
-        if (USAR_VIDEO_COM_BLOB_CACHE && (pend != null) && (blobCache.get(key) == null)) {
-          return Promise.race([
-            pend.then(function() {
-              return 'ok';
-            }),
-            new Promise(function(res) {
-              return setTimeout((function() {
-                return res('timeout');
-              }),
-            10000);
-            })
-          ]).finally(() => {
-            return chooseAndPlay(v); // se blob não existir ainda, cairá na URL original
-          });
-        } else {
-          return chooseAndPlay(v);
+        if (this.playTimer2 != null) {
+          clearTimeout(this.playTimer2);
         }
-      }, 0);
-      this.playTimer2 = setTimeout(() => {
-        var v;
-        v = document.getElementById(this.elUltimoVideo);
-        return (v != null ? v.paused : void 0) && v.play().catch(function(e) {
-          return console.warn('replay falhou', e);
-        });
-      }, 1000);
-    },
-    // revoga blob ao parar, eliminando vazamento e caches velhos
-    // NÃO remove nem revoga blob do cache: apenas pausa e limpa o <video>
-    stopUltimoVideo: function() {
-      var e, v;
-      // Native (Corpflix Android): para ExoPlayer e esconde SurfaceView. Idempotente.
-      if ((window.NativePlayer != null) && ((function() {
-        try {
-          return window.NativePlayer.isAvailable();
-        } catch (error1) {
-          e = error1;
-          return false;
-        }
-      })())) {
-        try {
-          window.NativePlayer.stopVideo();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
+        this.playTimer1 = this.playTimer2 = null;
       }
-      if (!this.elUltimoVideo) {
-        return;
-      }
-      v = document.getElementById(this.elUltimoVideo);
-      if (v != null) {
-        try {
-          v.pause();
-        } catch (error1) {
-          e = error1;
-          null;
-        }
-        try {
-          v.removeAttribute('src');
-          while (v.firstChild != null) {
-            v.removeChild(v.firstChild); // remove <source>
-          }
-          v.load(); // desaloca o decoder sem mexer no blobCache
-        } catch (error1) {
-          e = error1;
-          null;
-        }
-      }
-      this.elUltimoVideo = null;
-      if (this.playTimer1 != null) {
-        clearTimeout(this.playTimer1);
-      }
-      if (this.playTimer2 != null) {
-        clearTimeout(this.playTimer2);
-      }
-      this.playTimer1 = this.playTimer2 = null;
-    }
+    };
   };
+
+  this.timelineConteudoSuperior = criarTimeline({
+    posicao: 'conteudo_superior',
+    containerSelector: '.content-player'
+  });
 
   // @timelineConteudoSuperior =
   //   promessa:  null
@@ -1755,8 +2009,18 @@
         }, 1000);
       }
     },
-    // computed:
-    //   now: -> Date.now()
+    computed: {
+      // Tela dividida (ERP ticket #2447): classes que o CSS da grade usa. Vazio
+      // no layout legado — nenhuma regra nova casa e o layout fica como sempre.
+      classesGrade: function() {
+        var vertical;
+        if (!this.regioesPlayer.length) {
+          return '';
+        }
+        vertical = /-v(-barra)?$/.test(this.grade.data.layout || '');
+        return ['layout-grade', (this.grade.data.layout_barra ? 'com-barra' : 'sem-barra'), (vertical ? 'grade-vertical' : 'grade-horizontal')];
+      }
+    },
     mounted: function() {
       this.loading = true;
       this.mouse();
@@ -1868,11 +2132,11 @@
   // Implementação delegada a timelineConteudoSuperior.jumpTo (player.coffee
   // logo após resolveNextItem).
   window.corpflixNext = function() {
-    return timelineConteudoSuperior.jumpTo(+1);
+    return timelinePrincipal().jumpTo(+1);
   };
 
   window.corpflixPrev = function() {
-    return timelineConteudoSuperior.jumpTo(-1);
+    return timelinePrincipal().jumpTo(-1);
   };
 
   // ============= Atalhos cross-platform (touch + keyboard) =============
