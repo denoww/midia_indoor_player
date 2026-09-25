@@ -32,7 +32,7 @@ window.onNativeVideoError = (code, msg, slot) ->
   try
     # Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
     # slot; APK antigo não manda, e aí é de quem estiver com o slot único).
-    dono = slot or Object.keys(videoSlots?.donos or {})[0]
+    dono = slot or (k for k, v of (videoSlots?.donos or {}) when v == 'nativo')[0]
     alvo = (dono and timelinesRegioes?[dono]) or timelineConteudoSuperior
     alvo?.executar?()
   catch e
@@ -740,30 +740,48 @@ posicoesDaGrade = ->
   d = window.vm?.grade?.data || {}
   (k for own k, v of d when /^conteudo_/.test(k) and Array.isArray(v))
 
-# Alocador de decodificador de vídeo NATIVO (ExoPlayer do Corpflix).
-#  - APK com multi-slot (`playVideoFramedSlot`): cada região tem o seu, até
-#    `maxVideoSlots()` (valor MEDIDO no hardware, não o que o XML do codec diz).
-#  - APK antigo: 1 slot só. A região que não pega o slot toca o vídeo em
-#    <video> HTML5 dentro do WebView (fallback), sem derrubar a outra.
-#  - Browser (Chrome kiosk): sem nativo, tudo HTML5, sem limite nosso.
+# Alocador de DECODIFICADOR de vídeo da TV (tela dividida).
+#
+# Medido em 25/09/2026 num PROSB-3000 (Allwinner, 1280x720), H.264 30fps:
+#   2 vídeos 1080p simultâneos = 30fps cada, 0 frame perdido, CPU 69%, 69 °C;
+#   3 vídeos 1080p = 7..14 fps com 50..75% de frames perdidos; 4 = não toca.
+# O XML do codec declara 4 instâncias, mas a VAZÃO real é 2. E o <video> HTML5
+# do WebView usa o MESMO decodificador — então o teto vale pro TOTAL (nativo +
+# HTML5), não só pro nativo.
+#
+#  - APK multi-slot (`playVideoFramedSlot`): até `maxVideoSlots()` regiões com
+#    vídeo nativo, cada uma no seu slot.
+#  - APK antigo: 1 slot nativo + 1 <video> HTML5 (= 2 decodificações).
+#  - Browser (Chrome kiosk em PC): sem teto nosso.
+# Região que não consegue vaga NÃO toca vídeo: pula pro próximo item que não
+# seja vídeo (ver criarTimeline.executar). Sobrecarregar o chip derruba a TV.
+TETO_VIDEOS_TV = 2
+
 videoSlots =
-  donos: {}
+  donos: {}          # posicao -> 'nativo' | 'html5'
   nativo: -> window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
   multi: -> !!(window.NativePlayer?.playVideoFramedSlot? and window.NativePlayer?.stopVideoSlot?)
   capacidade: ->
     return 99 unless @nativo()
-    return 1 unless @multi()
-    n = try parseInt(window.NativePlayer.maxVideoSlots?() ? 1, 10) catch e then 1
-    Math.max(1, n or 1)
+    return TETO_VIDEOS_TV unless @multi()
+    n = try parseInt(window.NativePlayer.maxVideoSlots?() ? TETO_VIDEOS_TV, 10) catch e then TETO_VIDEOS_TV
+    Math.max(1, Math.min(n or 1, TETO_VIDEOS_TV))
+  emUso: -> Object.keys(@donos).length
+  temVaga: (posicao) -> !!@donos[posicao] or @emUso() < @capacidade()
+  # Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
   pegar: (posicao) ->
-    return true if @donos[posicao]
-    return false if Object.keys(@donos).length >= @capacidade()
-    @donos[posicao] = true
-    true
-  tem: (posicao) -> !!@donos[posicao]
+    return @donos[posicao] if @donos[posicao]
+    return null unless @temVaga(posicao)
+    tipo = if not @nativo() then 'html5'
+    else if @multi() then 'nativo'
+    else if 'nativo' in (v for k, v of @donos) then 'html5'
+    else 'nativo'
+    @donos[posicao] = tipo
+    tipo
+  tipo: (posicao) -> @donos[posicao]
   soltar: (posicao) -> delete @donos[posicao]
   pararTodos: ->
-    for posicao of @donos
+    for posicao, tipo of @donos when tipo == 'nativo'
       try
         if @multi() then window.NativePlayer.stopVideoSlot(posicao) else window.NativePlayer.stopVideo()
       catch e then null
@@ -974,7 +992,25 @@ criarTimeline = (cfg) ->
     clearTimeout(@_transTimer) if @_transTimer
     @_transTimer = setTimeout (=> @setTransitioning(false)), 900
 
+    # Tela dividida: solta a vaga de decodificador desta região ANTES de
+    # escolher o próximo item, senão ela mesma contaria contra o teto.
+    @stopUltimoVideo() unless legado
+
     itemAtual = @resolveNextItem({ consuming: true })
+
+    # Sem vaga de decodificador (outras regiões já tocam o máximo que o chip
+    # aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
+    # vídeo, espera 2s e tenta de novo.
+    if itemAtual?.is_video and not legado and not videoSlots.temVaga(cfg.posicao)
+      tentativas = @lista().length
+      while itemAtual?.is_video and tentativas > 0
+        tentativas--
+        itemAtual = @resolveNextItem({ consuming: true })
+      if itemAtual?.is_video
+        console.log "#{cfg.posicao}: sem vaga de decodificador e só há vídeo — tenta em 2s"
+        @promessa = setTimeout (=> @executar()), 2000
+        return
+
     unless itemAtual
       # Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
       # (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
@@ -1029,7 +1065,10 @@ criarTimeline = (cfg) ->
     clearTimeout(@playTimer2) if @playTimer2?
 
     usarNativo = videoSlots.nativo()
-    usarNativo = videoSlots.pegar(cfg.posicao) if usarNativo and not legado
+    unless legado
+      tipo = videoSlots.pegar(cfg.posicao)
+      return unless tipo   # sem vaga (corrida rara com outra região): não toca
+      usarNativo = tipo == 'nativo'
 
     if usarNativo
       durationMs = (itemAtual.segundos * 1000) || 5000
@@ -1063,7 +1102,7 @@ criarTimeline = (cfg) ->
             window.NativePlayer.playVideo(itemAtual.arquivoUrl, durationMs, String(versaoCache or ''))
         catch e
           console.warn 'NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e
-          videoSlots.soltar(cfg.posicao) unless legado
+          videoSlots.donos[cfg.posicao] = 'html5' unless legado
           @_playVideoHtml5(itemAtual, videoId)
       , 5, cfg.containerSelector
       return
@@ -1120,13 +1159,14 @@ criarTimeline = (cfg) ->
     if legado
       if videoSlots.nativo()
         try window.NativePlayer.stopVideo() catch e then null
-    else if videoSlots.tem(cfg.posicao)
-      try
-        if videoSlots.multi()
-          window.NativePlayer.stopVideoSlot(cfg.posicao)
-        else
-          window.NativePlayer.stopVideo()
-      catch e then null
+    else if videoSlots.tipo(cfg.posicao)
+      if videoSlots.tipo(cfg.posicao) == 'nativo'
+        try
+          if videoSlots.multi()
+            window.NativePlayer.stopVideoSlot(cfg.posicao)
+          else
+            window.NativePlayer.stopVideo()
+        catch e then null
       videoSlots.soltar(cfg.posicao)
 
     return unless @elUltimoVideo
