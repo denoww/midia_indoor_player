@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
+  var TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
     indexOf = [].indexOf,
     hasProp = {}.hasOwnProperty;
 
@@ -34,12 +34,23 @@
   // Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
   // deixar a TV num buraco visual até o timer expirar.
   window.onNativeVideoError = function(code, msg, slot) {
-    var alvo, dono, e;
+    var alvo, dono, e, k, v;
     console.warn(`NativePlayer: onNativeVideoError code=${code} msg=${msg} slot=${slot} — forçando avanço`);
     try {
       // Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
       // slot; APK antigo não manda, e aí é de quem estiver com o slot único).
-      dono = slot || Object.keys((typeof videoSlots !== "undefined" && videoSlots !== null ? videoSlots.donos : void 0) || {})[0];
+      dono = slot || ((function() {
+        var ref, results;
+        ref = (typeof videoSlots !== "undefined" && videoSlots !== null ? videoSlots.donos : void 0) || {};
+        results = [];
+        for (k in ref) {
+          v = ref[k];
+          if (v === 'nativo') {
+            results.push(k);
+          }
+        }
+        return results;
+      })())[0];
       alvo = (dono && (typeof timelinesRegioes !== "undefined" && timelinesRegioes !== null ? timelinesRegioes[dono] : void 0)) || timelineConteudoSuperior;
       if (alvo != null) {
         if (typeof alvo.executar === "function") {
@@ -966,14 +977,25 @@
     return results;
   };
 
-  // Alocador de decodificador de vídeo NATIVO (ExoPlayer do Corpflix).
-  //  - APK com multi-slot (`playVideoFramedSlot`): cada região tem o seu, até
-  //    `maxVideoSlots()` (valor MEDIDO no hardware, não o que o XML do codec diz).
-  //  - APK antigo: 1 slot só. A região que não pega o slot toca o vídeo em
-  //    <video> HTML5 dentro do WebView (fallback), sem derrubar a outra.
-  //  - Browser (Chrome kiosk): sem nativo, tudo HTML5, sem limite nosso.
+  // Alocador de DECODIFICADOR de vídeo da TV (tela dividida).
+
+  // Medido em 25/09/2026 num PROSB-3000 (Allwinner, 1280x720), H.264 30fps:
+  //   2 vídeos 1080p simultâneos = 30fps cada, 0 frame perdido, CPU 69%, 69 °C;
+  //   3 vídeos 1080p = 7..14 fps com 50..75% de frames perdidos; 4 = não toca.
+  // O XML do codec declara 4 instâncias, mas a VAZÃO real é 2. E o <video> HTML5
+  // do WebView usa o MESMO decodificador — então o teto vale pro TOTAL (nativo +
+  // HTML5), não só pro nativo.
+
+  //  - APK multi-slot (`playVideoFramedSlot`): até `maxVideoSlots()` regiões com
+  //    vídeo nativo, cada uma no seu slot.
+  //  - APK antigo: 1 slot nativo + 1 <video> HTML5 (= 2 decodificações).
+  //  - Browser (Chrome kiosk em PC): sem teto nosso.
+  // Região que não consegue vaga NÃO toca vídeo: pula pro próximo item que não
+  // seja vídeo (ver criarTimeline.executar). Sobrecarregar o chip derruba a TV.
+  TETO_VIDEOS_TV = 2;
+
   videoSlots = {
-    donos: {},
+    donos: {}, // posicao -> 'nativo' | 'html5'
     nativo: function() {
       var e;
       return (window.NativePlayer != null) && ((function() {
@@ -995,47 +1017,69 @@
         return 99;
       }
       if (!this.multi()) {
-        return 1;
+        return TETO_VIDEOS_TV;
       }
       n = (function() {
         var base, ref;
         try {
-          return parseInt((ref = typeof (base = window.NativePlayer).maxVideoSlots === "function" ? base.maxVideoSlots() : void 0) != null ? ref : 1, 10);
+          return parseInt((ref = typeof (base = window.NativePlayer).maxVideoSlots === "function" ? base.maxVideoSlots() : void 0) != null ? ref : TETO_VIDEOS_TV, 10);
         } catch (error1) {
           e = error1;
-          return 1;
+          return TETO_VIDEOS_TV;
         }
       })();
-      return Math.max(1, n || 1);
+      return Math.max(1, Math.min(n || 1, TETO_VIDEOS_TV));
     },
+    emUso: function() {
+      return Object.keys(this.donos).length;
+    },
+    temVaga: function(posicao) {
+      return !!this.donos[posicao] || this.emUso() < this.capacidade();
+    },
+    // Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
     pegar: function(posicao) {
+      var k, tipo, v;
       if (this.donos[posicao]) {
-        return true;
+        return this.donos[posicao];
       }
-      if (Object.keys(this.donos).length >= this.capacidade()) {
-        return false;
+      if (!this.temVaga(posicao)) {
+        return null;
       }
-      this.donos[posicao] = true;
-      return true;
+      tipo = !this.nativo() ? 'html5' : this.multi() ? 'nativo' : indexOf.call((function() {
+        var ref, results;
+        ref = this.donos;
+        results = [];
+        for (k in ref) {
+          v = ref[k];
+          results.push(v);
+        }
+        return results;
+      }).call(this), 'nativo') >= 0 ? 'html5' : 'nativo';
+      this.donos[posicao] = tipo;
+      return tipo;
     },
-    tem: function(posicao) {
-      return !!this.donos[posicao];
+    tipo: function(posicao) {
+      return this.donos[posicao];
     },
     soltar: function(posicao) {
       return delete this.donos[posicao];
     },
     pararTodos: function() {
-      var e, posicao;
-      for (posicao in this.donos) {
-        try {
-          if (this.multi()) {
-            window.NativePlayer.stopVideoSlot(posicao);
-          } else {
-            window.NativePlayer.stopVideo();
+      var e, posicao, ref, tipo;
+      ref = this.donos;
+      for (posicao in ref) {
+        tipo = ref[posicao];
+        if (tipo === 'nativo') {
+          try {
+            if (this.multi()) {
+              window.NativePlayer.stopVideoSlot(posicao);
+            } else {
+              window.NativePlayer.stopVideo();
+            }
+          } catch (error1) {
+            e = error1;
+            null;
           }
-        } catch (error1) {
-          e = error1;
-          null;
         }
       }
       this.donos = {};
@@ -1310,7 +1354,7 @@
       },
       // =============== Loop ===============
       executar: function() {
-        var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos;
+        var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos, tentativas;
         if (this.promessa) {
           clearTimeout(this.promessa);
         }
@@ -1327,9 +1371,33 @@
         this._transTimer = setTimeout((() => {
           return this.setTransitioning(false);
         }), 900);
+        if (!legado) {
+          // Tela dividida: solta a vaga de decodificador desta região ANTES de
+          // escolher o próximo item, senão ela mesma contaria contra o teto.
+          this.stopUltimoVideo();
+        }
         itemAtual = this.resolveNextItem({
           consuming: true
         });
+        // Sem vaga de decodificador (outras regiões já tocam o máximo que o chip
+        // aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
+        // vídeo, espera 2s e tenta de novo.
+        if ((itemAtual != null ? itemAtual.is_video : void 0) && !legado && !videoSlots.temVaga(cfg.posicao)) {
+          tentativas = this.lista().length;
+          while ((itemAtual != null ? itemAtual.is_video : void 0) && tentativas > 0) {
+            tentativas--;
+            itemAtual = this.resolveNextItem({
+              consuming: true
+            });
+          }
+          if (itemAtual != null ? itemAtual.is_video : void 0) {
+            console.log(`${cfg.posicao}: sem vaga de decodificador e só há vídeo — tenta em 2s`);
+            this.promessa = setTimeout((() => {
+              return this.executar();
+            }), 2000);
+            return;
+          }
+        }
         if (!itemAtual) {
           // Reagenda em 5s para destravar o loop. Sem isso, qualquer null transient
           // (feed RSS momentaneamente vazio, item ruim na grade, race com refresh)
@@ -1382,7 +1450,7 @@
       // cuida de avançar quando o vídeo "termina" — não dependemos de evento
       // `ended` nem do callback `onNativeVideoEnded`.
       playVideo: function(itemAtual) {
-        var audioEnabled, durationMs, e, elId, ref, ref1, ref2, usarNativo, versaoCache, videoId;
+        var audioEnabled, durationMs, e, elId, ref, ref1, ref2, tipo, usarNativo, versaoCache, videoId;
         videoId = itemAtual.id;
         elId = this.videoElId(itemAtual);
         this.elUltimoVideo = elId;
@@ -1393,8 +1461,12 @@
           clearTimeout(this.playTimer2);
         }
         usarNativo = videoSlots.nativo();
-        if (usarNativo && !legado) {
-          usarNativo = videoSlots.pegar(cfg.posicao);
+        if (!legado) {
+          tipo = videoSlots.pegar(cfg.posicao);
+          if (!tipo) { // sem vaga (corrida rara com outra região): não toca
+            return;
+          }
+          usarNativo = tipo === 'nativo';
         }
         if (usarNativo) {
           durationMs = (itemAtual.segundos * 1000) || 5000;
@@ -1434,7 +1506,7 @@
               e = error1;
               console.warn('NativePlayer.playVideo* falhou — fallback pra <video> HTML5', e);
               if (!legado) {
-                videoSlots.soltar(cfg.posicao);
+                videoSlots.donos[cfg.posicao] = 'html5';
               }
               return this._playVideoHtml5(itemAtual, videoId);
             }
@@ -1510,16 +1582,18 @@
               null;
             }
           }
-        } else if (videoSlots.tem(cfg.posicao)) {
-          try {
-            if (videoSlots.multi()) {
-              window.NativePlayer.stopVideoSlot(cfg.posicao);
-            } else {
-              window.NativePlayer.stopVideo();
+        } else if (videoSlots.tipo(cfg.posicao)) {
+          if (videoSlots.tipo(cfg.posicao) === 'nativo') {
+            try {
+              if (videoSlots.multi()) {
+                window.NativePlayer.stopVideoSlot(cfg.posicao);
+              } else {
+                window.NativePlayer.stopVideo();
+              }
+            } catch (error1) {
+              e = error1;
+              null;
             }
-          } catch (error1) {
-            e = error1;
-            null;
           }
           videoSlots.soltar(cfg.posicao);
         }
