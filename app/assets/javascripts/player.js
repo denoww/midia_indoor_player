@@ -42,7 +42,7 @@
       // creditado a quem já tinha pegado o slot (a OUTRA região), que avançava,
       // parava o próprio vídeo, gerava outro 1003… ping-pong eterno a cada ~2 s
       // (medido na PROSB 26/09/2026, começou num restart do relay).
-      if ((typeof videoSlots !== "undefined" && videoSlots !== null) && Date.now() - (videoSlots.ultimoStop || 0) < ERRO_POS_STOP_MS) {
+      if (!slot && (typeof videoSlots !== "undefined" && videoSlots !== null) && Date.now() - (videoSlots.ultimoStop || 0) < ERRO_POS_STOP_MS) {
         console.log(`NativePlayer: erro ${code} logo após stopVideo — ignorado`);
         return;
       }
