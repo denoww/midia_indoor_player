@@ -1061,8 +1061,48 @@
     emUso: function() {
       return Object.keys(this.donos).length;
     },
+    // Fila de quem quis tocar vídeo e não teve vaga: posicao -> desde quando.
+    // Sem ela, a parte que SÓ tem vídeo solta a vaga e pega de volta no mesmo
+    // instante, e as outras nunca tocam os vídeos delas (visto na PROSB com
+    // 1 vaga, 26/09/2026). Quem espera há mais tempo tem a vez.
+    querendo: {},
+    querer: function(posicao) {
+      var base;
+      return (base = this.querendo)[posicao] != null ? base[posicao] : base[posicao] = Date.now();
+    },
     temVaga: function(posicao) {
-      return !!this.donos[posicao] || this.emUso() < this.capacidade();
+      var agora, k, meu, outros, ref, ts;
+      if (this.donos[posicao]) {
+        return true;
+      }
+      if (!(this.emUso() < this.capacidade())) {
+        return false;
+      }
+      agora = Date.now();
+      ref = this.querendo;
+      for (k in ref) {
+        ts = ref[k];
+        if (agora - ts > 120000) {
+          delete this.querendo[k];
+        }
+      }
+      outros = (function() {
+        var ref1, results;
+        ref1 = this.querendo;
+        results = [];
+        for (k in ref1) {
+          ts = ref1[k];
+          if (k !== posicao) {
+            results.push(ts);
+          }
+        }
+        return results;
+      }).call(this);
+      if (!outros.length) {
+        return true;
+      }
+      meu = this.querendo[posicao];
+      return (meu != null) && meu <= Math.min(...outros);
     },
     // Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
     pegar: function(posicao) {
@@ -1084,6 +1124,7 @@
         return results;
       }).call(this), 'nativo') >= 0 ? 'html5' : 'nativo';
       this.donos[posicao] = tipo;
+      delete this.querendo[posicao];
       return tipo;
     },
     tipo: function(posicao) {
@@ -1113,6 +1154,7 @@
         }
       }
       this.donos = {};
+      this.querendo = {};
     }
   };
 
@@ -1438,6 +1480,7 @@
         // aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
         // vídeo, espera 2s e tenta de novo.
         if ((itemAtual != null ? itemAtual.is_video : void 0) && !legado && !videoSlots.temVaga(cfg.posicao)) {
+          videoSlots.querer(cfg.posicao);
           tentativas = this.lista().length;
           while ((itemAtual != null ? itemAtual.is_video : void 0) && tentativas > 0) {
             tentativas--;
