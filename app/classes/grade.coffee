@@ -516,5 +516,15 @@ module.exports = ->
       for key in posicoesConteudo(gradeData)
         if Array.isArray(gradeData?[key])
           visit(it) for it in gradeData[key]
+
+      # Logo também: o `saveLogo` só roda quando a grade é buscada de novo no
+      # ERP (mudou `restart_player_em`). Se o download dele se perdeu (fila
+      # zerada num restart), a TV ficava com o logo quebrado pra sempre.
+      logo = gradeData?.logo
+      if logo?.filePath && logo?.url && !fs.existsSync("#{pastaPublic()}/#{logo.filePath}")
+        global.Download?.exec
+          tvId: tvId, url: logo.url, filePath: logo.filePath
+          is_logo: true, nome_arquivo: logo.filePath.split('/').pop()
+        enfileirados++
       enfileirados
   global.grade = ctrl
