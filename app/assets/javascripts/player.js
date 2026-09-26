@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var AVANCO_POR_ERRO_MIN_MS, ERRO_POS_STOP_MS, TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
+  var AVANCO_POR_ERRO_MIN_MS, ERRO_POS_STOP_MS, TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, liberarVideos, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
     indexOf = [].indexOf,
     hasProp = {}.hasOwnProperty;
 
@@ -2208,8 +2208,53 @@
     });
   });
 
+  // Recarregar a página com vídeo tocando deixava o decodificador pra trás: o
+  // ExoPlayer seguia decodificando e o <video> HTML5 morria no meio. Com UM vídeo
+  // (layout antigo) isso nunca apareceu; na tela dividida são dois ao mesmo tempo
+  // e, na PROSB (26/09/2026), a troca de layout — que chega como
+  // `restart_player_em` → reload — deixou o codec do sistema travado: todo vídeo
+  // nativo seguinte dava 1003 até REBOOT da box (force-stop não limpava).
+  // Solta tudo antes e dá um respiro pro codec liberar.
+  liberarVideos = function() {
+    var e, i, len, ref, ref1, v;
+    try {
+      videoSlots.pararTodos();
+    } catch (error1) {
+      e = error1;
+      null;
+    }
+    try {
+      if ((ref = window.NativePlayer) != null) {
+        if (typeof ref.stopVideo === "function") {
+          ref.stopVideo();
+        }
+      }
+    } catch (error1) {
+      e = error1;
+      null;
+    }
+    ref1 = document.querySelectorAll('video');
+    for (i = 0, len = ref1.length; i < len; i++) {
+      v = ref1[i];
+      try {
+        v.pause();
+        v.removeAttribute('src');
+        while (v.firstChild != null) {
+          v.removeChild(v.firstChild);
+        }
+        v.load();
+      } catch (error1) {
+        e = error1;
+        null;
+      }
+    }
+  };
+
   restartBrowser = function() {
-    return window.location.reload();
+    liberarVideos();
+    return setTimeout((function() {
+      return window.location.reload();
+    }), 800);
   };
 
   reiniciando = false;

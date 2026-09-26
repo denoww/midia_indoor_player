@@ -1671,7 +1671,28 @@ Vue.filter 'currency', (value)->
   (value || 0).toLocaleString('pt-Br', minimumFractionDigits: 2, maximumFractionDigits: 2)
 
 
-restartBrowser = -> window.location.reload()
+# Recarregar a página com vídeo tocando deixava o decodificador pra trás: o
+# ExoPlayer seguia decodificando e o <video> HTML5 morria no meio. Com UM vídeo
+# (layout antigo) isso nunca apareceu; na tela dividida são dois ao mesmo tempo
+# e, na PROSB (26/09/2026), a troca de layout — que chega como
+# `restart_player_em` → reload — deixou o codec do sistema travado: todo vídeo
+# nativo seguinte dava 1003 até REBOOT da box (force-stop não limpava).
+# Solta tudo antes e dá um respiro pro codec liberar.
+liberarVideos = ->
+  try videoSlots.pararTodos() catch e then null
+  try window.NativePlayer?.stopVideo?() catch e then null
+  for v in document.querySelectorAll('video')
+    try
+      v.pause()
+      v.removeAttribute('src')
+      v.removeChild(v.firstChild) while v.firstChild?
+      v.load()
+    catch e then null
+  return
+
+restartBrowser = ->
+  liberarVideos()
+  setTimeout (-> window.location.reload()), 800
 
 reiniciando = false
 restartBrowserAposXSegundos = (xSegundos) ->
