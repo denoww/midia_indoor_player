@@ -786,7 +786,22 @@ videoSlots =
     n = try parseInt(window.NativePlayer.maxVideoSlots?() ? TETO_VIDEOS_TV, 10) catch e then TETO_VIDEOS_TV
     Math.max(1, Math.min(n or 1, TETO_VIDEOS_TV))
   emUso: -> Object.keys(@donos).length
-  temVaga: (posicao) -> !!@donos[posicao] or @emUso() < @capacidade()
+  # Fila de quem quis tocar vídeo e não teve vaga: posicao -> desde quando.
+  # Sem ela, a parte que SÓ tem vídeo solta a vaga e pega de volta no mesmo
+  # instante, e as outras nunca tocam os vídeos delas (visto na PROSB com
+  # 1 vaga, 26/09/2026). Quem espera há mais tempo tem a vez.
+  querendo: {}
+  querer: (posicao) -> @querendo[posicao] ?= Date.now()
+  temVaga: (posicao) ->
+    return true if @donos[posicao]
+    return false unless @emUso() < @capacidade()
+    agora = Date.now()
+    for k, ts of @querendo when agora - ts > 120000
+      delete @querendo[k]     # desistiu (trocou de grade, parte sumiu)
+    outros = (ts for k, ts of @querendo when k != posicao)
+    return true unless outros.length
+    meu = @querendo[posicao]
+    meu? and meu <= Math.min(outros...)
   # Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
   pegar: (posicao) ->
     return @donos[posicao] if @donos[posicao]
@@ -796,6 +811,7 @@ videoSlots =
     else if 'nativo' in (v for k, v of @donos) then 'html5'
     else 'nativo'
     @donos[posicao] = tipo
+    delete @querendo[posicao]
     tipo
   tipo: (posicao) -> @donos[posicao]
   soltar: (posicao) -> delete @donos[posicao]
@@ -806,6 +822,7 @@ videoSlots =
         if @multi() then window.NativePlayer.stopVideoSlot(posicao) else window.NativePlayer.stopVideo()
       catch e then null
     @donos = {}
+    @querendo = {}
     return
 
 timelinesRegioes = {}
@@ -1037,6 +1054,7 @@ criarTimeline = (cfg) ->
     # aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
     # vídeo, espera 2s e tenta de novo.
     if itemAtual?.is_video and not legado and not videoSlots.temVaga(cfg.posicao)
+      videoSlots.querer(cfg.posicao)
       tentativas = @lista().length
       while itemAtual?.is_video and tentativas > 0
         tentativas--
