@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
+  var AVANCO_POR_ERRO_MIN_MS, ERRO_POS_STOP_MS, TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
     indexOf = [].indexOf,
     hasProp = {}.hasOwnProperty;
 
@@ -34,9 +34,18 @@
   // Erro de decode/buffer no ExoPlayer. Pula a faixa imediatamente pra não
   // deixar a TV num buraco visual até o timer expirar.
   window.onNativeVideoError = function(code, msg, slot) {
-    var alvo, dono, e, k, v;
+    var alvo, dono, e, k, ref, v;
     console.warn(`NativePlayer: onNativeVideoError code=${code} msg=${msg} slot=${slot} — forçando avanço`);
     try {
+      // ☠️ Parar o ExoPlayer no meio do prepare faz o APK emitir 1003 ~10 ms
+      // depois do stop. Esse erro é NOSSO, não do vídeo: na tela dividida ele era
+      // creditado a quem já tinha pegado o slot (a OUTRA região), que avançava,
+      // parava o próprio vídeo, gerava outro 1003… ping-pong eterno a cada ~2 s
+      // (medido na PROSB 26/09/2026, começou num restart do relay).
+      if ((typeof videoSlots !== "undefined" && videoSlots !== null) && Date.now() - (videoSlots.ultimoStop || 0) < ERRO_POS_STOP_MS) {
+        console.log(`NativePlayer: erro ${code} logo após stopVideo — ignorado`);
+        return;
+      }
       // Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
       // slot; APK antigo não manda, e aí é de quem estiver com o slot único).
       dono = slot || ((function() {
@@ -52,11 +61,15 @@
         return results;
       })())[0];
       alvo = (dono && (typeof timelinesRegioes !== "undefined" && timelinesRegioes !== null ? timelinesRegioes[dono] : void 0)) || timelineConteudoSuperior;
-      if (alvo != null) {
-        if (typeof alvo.executar === "function") {
-          alvo.executar();
+            if ((ref = alvo != null ? typeof alvo.avancarPorErro === "function" ? alvo.avancarPorErro() : void 0 : void 0) != null) {
+        ref;
+      } else {
+        if (alvo != null) {
+          if (typeof alvo.executar === "function") {
+            alvo.executar();
+          }
         }
-      }
+      };
     } catch (error1) {
       e = error1;
       console.error('falha ao avançar timeline após erro do NativePlayer', e);
@@ -994,8 +1007,19 @@
   // seja vídeo (ver criarTimeline.executar). Sobrecarregar o chip derruba a TV.
   TETO_VIDEOS_TV = 2;
 
+  // Erro do nativo que chega até aqui depois de um stop nosso é efeito do stop.
+  ERRO_POS_STOP_MS = 300; // o 1003 falso chega 10–16 ms após o stop
+
+  // Uma região não avança por erro mais de 1× nesse intervalo (fonte fora do ar:
+  // sem isso a TV gira a playlist inteira em segundos, parando e reabrindo codec).
+  AVANCO_POR_ERRO_MIN_MS = 3000;
+
   videoSlots = {
     donos: {}, // posicao -> 'nativo' | 'html5'
+    ultimoStop: 0,
+    marcarStop: function() {
+      return this.ultimoStop = Date.now();
+    },
     nativo: function() {
       var e;
       return (window.NativePlayer != null) && ((function() {
@@ -1069,17 +1093,19 @@
       ref = this.donos;
       for (posicao in ref) {
         tipo = ref[posicao];
-        if (tipo === 'nativo') {
-          try {
-            if (this.multi()) {
-              window.NativePlayer.stopVideoSlot(posicao);
-            } else {
-              window.NativePlayer.stopVideo();
-            }
-          } catch (error1) {
-            e = error1;
-            null;
+        if (!(tipo === 'nativo')) {
+          continue;
+        }
+        this.marcarStop();
+        try {
+          if (this.multi()) {
+            window.NativePlayer.stopVideoSlot(posicao);
+          } else {
+            window.NativePlayer.stopVideo();
           }
+        } catch (error1) {
+          e = error1;
+          null;
         }
       }
       this.donos = {};
@@ -1353,10 +1379,35 @@
         }
       },
       // =============== Loop ===============
+
+      // Avanço pedido por erro do nativo: no máximo 1× a cada
+      // AVANCO_POR_ERRO_MIN_MS; o excedente vira um avanço agendado (não some).
+      avancarPorErro: function() {
+        var avancar, falta;
+        if (this._avancoPorErro) {
+          return true;
+        }
+        falta = AVANCO_POR_ERRO_MIN_MS - (Date.now() - (this._ultimoAvancoPorErro || 0));
+        avancar = () => {
+          this._avancoPorErro = null;
+          this._ultimoAvancoPorErro = Date.now();
+          return this.executar();
+        };
+        if (falta <= 0) {
+          avancar();
+        } else {
+          this._avancoPorErro = setTimeout(avancar, falta);
+        }
+        return true;
+      },
       executar: function() {
         var cand, i, itemAtual, k, preaquecerQtdMidiasAFrente, ref, segundos, tentativas;
         if (this.promessa) {
           clearTimeout(this.promessa);
+        }
+        if (this._avancoPorErro) {
+          clearTimeout(this._avancoPorErro);
+          this._avancoPorErro = null;
         }
         // Loader sutil durante a transição — feedback visual de "trocando
         // item" pra evitar falsa sensação de travamento, especialmente
@@ -1575,6 +1626,7 @@
         // player único derrubaria o vídeo da outra região.
         if (legado) {
           if (videoSlots.nativo()) {
+            videoSlots.marcarStop();
             try {
               window.NativePlayer.stopVideo();
             } catch (error1) {
@@ -1584,6 +1636,7 @@
           }
         } else if (videoSlots.tipo(cfg.posicao)) {
           if (videoSlots.tipo(cfg.posicao) === 'nativo') {
+            videoSlots.marcarStop();
             try {
               if (videoSlots.multi()) {
                 window.NativePlayer.stopVideoSlot(cfg.posicao);
