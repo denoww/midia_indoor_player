@@ -16,16 +16,23 @@ jobs:
     with:
       aws_region: us-east-1
       ec2_com_tag: midia_indoor_player
+      # ⚠️ O SSM corta a saída em ~24 mil caracteres: mantenha cada bloco curto
+      # (linhas cortadas em 220 colunas) e o que mais importa primeiro.
       remote_cmd: >-
         cd /var/lib/midia_indoor_player ;
-        git log --oneline -1 ;
-        uptime ; free -m ; df -h /var/lib/midia_indoor_player | tail -1 ;
-        echo '--- out log: contagem por tipo (ultimas 20000 linhas) ---' ;
-        sudo -u ubuntu tail -n 20000 /home/ubuntu/.pm2/logs/MIDIAINDOOR-out.log | grep -oE 'Download (alternativo HTTP [0-9]+|alternativo|Buffer|watchdog)|Download -> [A-Za-z]+' | sort | uniq -c | sort -rn | head -20 ;
-        echo '--- out log: Download/watchdog/saveLogo (ultimas 150) ---' ;
-        sudo -u ubuntu tail -n 20000 /home/ubuntu/.pm2/logs/MIDIAINDOOR-out.log | grep -E 'Download|watchdog|saveLogo' | tail -n 150 ;
-        echo '--- error log (ultimas 60) ---' ;
-        sudo -u ubuntu tail -n 60 /home/ubuntu/.pm2/logs/MIDIAINDOOR-error.log ;
+        sudo -u ubuntu git log --oneline -1 ;
+        uptime ; free -m | head -2 ; df -h /var/lib/midia_indoor_player | tail -1 ;
+        echo '--- logs do pm2 ---' ;
+        ls -la --time-style=+%F_%T /home/ubuntu/.pm2/logs/ | tail -n 8 ;
+        OUT=$(ls -t /home/ubuntu/.pm2/logs/MIDIAINDOOR-out*.log | head -1) ; echo "OUT=$OUT" ;
         echo '--- tv 72 ---' ;
-        ls -la public/72 public/72/videos 2>&1 | head -30
+        ls -la --time-style=+%F_%T public/72 public/72/videos 2>&1 | head -20 ;
+        echo '--- contagem por tipo (ultimas 20000 linhas) ---' ;
+        sudo -u ubuntu tail -n 20000 "$OUT" | grep -oE 'Download (alternativo HTTP [0-9]+|alternativo|Buffer|watchdog)|Download -> [A-Za-z]+|saveLogo Download' | sort | uniq -c | sort -rn | head -20 ;
+        echo '--- Download/watchdog/saveLogo (ultimas 40) ---' ;
+        sudo -u ubuntu tail -n 20000 "$OUT" | grep -E 'Download|watchdog|saveLogo' | tail -n 40 | cut -c1-220 ;
+        echo '--- out log cru (ultimas 15) ---' ;
+        sudo -u ubuntu tail -n 15 "$OUT" | cut -c1-220 ;
+        echo '--- error log (ultimas 15) ---' ;
+        sudo -u ubuntu tail -n 15 /home/ubuntu/.pm2/logs/MIDIAINDOOR-error.log | cut -c1-220
     secrets: inherit
