@@ -489,7 +489,8 @@ module.exports = ->
       enfileirados = 0
       visit = (item) =>
         return unless item && typeof item is 'object'
-        if item.filePath && item.url
+        # `filePath` = URL é imagem servida direto da CDN, não arquivo local.
+        if item.filePath && item.url && !/^https?:\/\//i.test(item.filePath)
           fullPath = "#{pastaPublic()}/#{item.filePath}"
           precisa = true
           try

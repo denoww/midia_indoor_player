@@ -53,6 +53,10 @@ module.exports = ->
       unless params.filePath
         # logs.error "Download -> exec -> faltou passar argumento \"filePath\" para #{params.nome_arquivo}!"
         return
+      # Imagem da grade sem `nome_arquivo` fica com `filePath = url` (a TV lê
+      # direto da CDN). Não é arquivo local: baixar tentaria gravar em
+      # `public/https://...` ("unable to open for write").
+      return next() if /^https?:\/\//i.test(params.filePath)
 
       # fullPath = params.saveOn || params.filePath
       fullPath = "#{pastaPublic()}/#{params.filePath}"
@@ -149,11 +153,19 @@ module.exports = ->
   doDownloadToBuffer = (params, fullPath, callback)->
     logs.create "Download Buffer -> #{params.nome_arquivo}, URL: #{params.url}"
 
-    return unless params.url
-    url = encodeURI params.url.trim()
+    return callback?() unless params.url
+    url = params.url.trim()
+    # URL do ERP já vem codificada (`On%C3%A7a`, `_%281%29`): `encodeURI`
+    # de novo vira `%25C3` e a CDN responde 404/403.
+    url = encodeURI(url) unless /%[0-9A-F]{2}/i.test(url)
 
     request.get url, encoding: null, (error, resp, buffer)->
       if error || resp.statusCode != 200
+        # Resposta não-200 chega SEM `error`: o `createLogError` saía no
+        # `return unless error` sem chamar o callback e a fila GLOBAL ficava
+        # parada até o watchdog (2 min POR imagem). Medido 26/09/2026: 529
+        # watchdogs no log; vídeo novo de qualquer TV esperava horas.
+        error ||= new Error("HTTP #{resp?.statusCode}")
         return createLogError('doDownloadToBuffer', error, params, callback)
 
       try
