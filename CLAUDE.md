@@ -17,7 +17,14 @@ Spike de egress 17-20h vem majoritariamente do cloud relay — TVs reiniciam, pe
 
 ### Cloud relay (i-0c566e7d2cab061a0)
 
-Após push em `master`, deploy manual via **SSM** (sem precisar de chave SSH):
+**Caminho padrão (qualquer máquina, sem SSM próprio):**
+
+| Workflow | O que faz |
+|---|---|
+| `gh workflow run 14_prod_restart_pm2.yml --repo denoww/midia_indoor_player --ref master` | `git pull` + `npm install` + **restart** do PM2 (zera a fila de download em memória) |
+| `gh workflow run 15_prod_diagnostico_relay.yml --repo denoww/midia_indoor_player --ref master` | **só leitura**: carga, contagem de watchdog/erros de download, últimas linhas do log, arquivos da TV 72. Log: `gh api repos/denoww/midia_indoor_player/actions/jobs/<job>/logs` (o `gh run view --log` volta vazio) |
+
+Alternativa, se a sua credencial tiver SSM na instância (a de dev é negada), deploy manual via **SSM**:
 
 ```bash
 CMD=$(aws ssm send-command \
@@ -119,6 +126,7 @@ no payload e o player posiciona cada região de forma genérica.
 
 ## Armadilhas
 
+- ☠️ **A fila de download é UMA só pra todas as TVs — todo caminho de saída do download tem que chamar o callback.** Se um caminho esquece, a fila para até o watchdog (`LOADING_WATCHDOG_MS`, 2 min) e o próximo item espera. Em 26/09/2026 o workflow 15 contou **529 watchdogs**: resposta não-200 chegava sem `error` e o `createLogError` saía sem callback; somado ao `encodeURI` dobrado (URL do ERP já vem codificada → 404) e ao warmup de boot enfileirando imagem cuja `filePath` é a própria URL, **vídeo novo de qualquer TV levava horas pra existir no relay** (sintoma: `https://midiaindoor.seucondominio.com.br:4002/<tv>/videos/<arquivo>` em 404 com a CDN em 200). Corrigido na PR #12. Imagem de grade sem `nome_arquivo` é servida direto da CDN (`filePath = url`) — não é arquivo local, `Download.exec` ignora.
 - **Log PM2 cresce sem rotação** — `MIDIAINDOOR-out.log` tem 6+GB e enche disco. Implementar `pm2 install pm2-logrotate` ou cron de truncate.
 - **`restart.js` é arquivo vazio (0 bytes)** — não confiar nele.
 - **Workflows 11/12 comentados** — push em master NÃO redeploy. Tem que SSM manual. Se for ativar CI, lembre que o `13` (load balance) é o único acionado pelo `10`.
