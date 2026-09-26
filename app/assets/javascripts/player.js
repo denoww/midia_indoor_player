@@ -1041,7 +1041,11 @@
         return 99;
       }
       if (!this.multi()) {
-        return TETO_VIDEOS_TV;
+        // APK sem multi-slot: 1 vídeo por vez. Nativo + <video> HTML5 juntos tocam
+        // bem em regime, mas uma recarga da página com os dois ativos travou o codec
+        // do sistema na PROSB (2ª recarga, reproduzido 2× em 26/09/2026; só reboot
+        // limpa). Com 1 decodificador por vez é o mesmo regime dos layouts antigos.
+        return 1;
       }
       n = (function() {
         var base, ref;

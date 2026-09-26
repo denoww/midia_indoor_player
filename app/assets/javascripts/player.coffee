@@ -778,7 +778,11 @@ videoSlots =
   multi: -> !!(window.NativePlayer?.playVideoFramedSlot? and window.NativePlayer?.stopVideoSlot?)
   capacidade: ->
     return 99 unless @nativo()
-    return TETO_VIDEOS_TV unless @multi()
+    # APK sem multi-slot: 1 vídeo por vez. Nativo + <video> HTML5 juntos tocam
+    # bem em regime, mas uma recarga da página com os dois ativos travou o codec
+    # do sistema na PROSB (2ª recarga, reproduzido 2× em 26/09/2026; só reboot
+    # limpa). Com 1 decodificador por vez é o mesmo regime dos layouts antigos.
+    return 1 unless @multi()
     n = try parseInt(window.NativePlayer.maxVideoSlots?() ? TETO_VIDEOS_TV, 10) catch e then TETO_VIDEOS_TV
     Math.max(1, Math.min(n or 1, TETO_VIDEOS_TV))
   emUso: -> Object.keys(@donos).length
