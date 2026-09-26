@@ -1,0 +1,31 @@
+# Diagnóstico SÓ-LEITURA do cloud relay (PM2). Não reinicia nem altera nada.
+#
+# Existe porque o SSM direto é negado pras credenciais de dev: sem ele, a única
+# janela pro log do relay era o 14 (que REINICIA o processo e zera a fila).
+# Use quando uma mídia nova demora pra aparecer em
+# https://midiaindoor.seucondominio.com.br:4002/<tv>/... — mostra carga da
+# máquina, o que a fila de download está fazendo e o que está falhando.
+name: 15_prod_diagnostico_relay
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diagnostico:
+    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@2a3a0859a694fbfc33d617f6072f0d1e89180b18
+    with:
+      aws_region: us-east-1
+      ec2_com_tag: midia_indoor_player
+      remote_cmd: >-
+        cd /var/lib/midia_indoor_player ;
+        git log --oneline -1 ;
+        uptime ; free -m ; df -h /var/lib/midia_indoor_player | tail -1 ;
+        echo '--- out log: contagem por tipo (ultimas 20000 linhas) ---' ;
+        sudo -u ubuntu tail -n 20000 /home/ubuntu/.pm2/logs/MIDIAINDOOR-out.log | grep -oE 'Download (alternativo HTTP [0-9]+|alternativo|Buffer|watchdog)|Download -> [A-Za-z]+' | sort | uniq -c | sort -rn | head -20 ;
+        echo '--- out log: Download/watchdog/saveLogo (ultimas 150) ---' ;
+        sudo -u ubuntu tail -n 20000 /home/ubuntu/.pm2/logs/MIDIAINDOOR-out.log | grep -E 'Download|watchdog|saveLogo' | tail -n 150 ;
+        echo '--- error log (ultimas 60) ---' ;
+        sudo -u ubuntu tail -n 60 /home/ubuntu/.pm2/logs/MIDIAINDOOR-error.log ;
+        echo '--- tv 72 ---' ;
+        ls -la public/72 public/72/videos 2>&1 | head -30
+    secrets: inherit
