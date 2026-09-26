@@ -30,11 +30,19 @@ window.onNativeVideoEnded = ->
 window.onNativeVideoError = (code, msg, slot) ->
   console.warn "NativePlayer: onNativeVideoError code=#{code} msg=#{msg} slot=#{slot} — forçando avanço"
   try
+    # ☠️ Parar o ExoPlayer no meio do prepare faz o APK emitir 1003 ~10 ms
+    # depois do stop. Esse erro é NOSSO, não do vídeo: na tela dividida ele era
+    # creditado a quem já tinha pegado o slot (a OUTRA região), que avançava,
+    # parava o próprio vídeo, gerava outro 1003… ping-pong eterno a cada ~2 s
+    # (medido na PROSB 26/09/2026, começou num restart do relay).
+    if videoSlots? and Date.now() - (videoSlots.ultimoStop or 0) < ERRO_POS_STOP_MS
+      console.log "NativePlayer: erro #{code} logo após stopVideo — ignorado"
+      return
     # Tela dividida: o erro vem do slot de UMA região (APK multi-slot manda o
     # slot; APK antigo não manda, e aí é de quem estiver com o slot único).
     dono = slot or (k for k, v of (videoSlots?.donos or {}) when v == 'nativo')[0]
     alvo = (dono and timelinesRegioes?[dono]) or timelineConteudoSuperior
-    alvo?.executar?()
+    alvo?.avancarPorErro?() ? alvo?.executar?()
   catch e
     console.error 'falha ao avançar timeline após erro do NativePlayer', e
   return
@@ -756,9 +764,16 @@ posicoesDaGrade = ->
 # Região que não consegue vaga NÃO toca vídeo: pula pro próximo item que não
 # seja vídeo (ver criarTimeline.executar). Sobrecarregar o chip derruba a TV.
 TETO_VIDEOS_TV = 2
+# Erro do nativo que chega até aqui depois de um stop nosso é efeito do stop.
+ERRO_POS_STOP_MS = 300   # o 1003 falso chega 10–16 ms após o stop
+# Uma região não avança por erro mais de 1× nesse intervalo (fonte fora do ar:
+# sem isso a TV gira a playlist inteira em segundos, parando e reabrindo codec).
+AVANCO_POR_ERRO_MIN_MS = 3000
 
 videoSlots =
   donos: {}          # posicao -> 'nativo' | 'html5'
+  ultimoStop: 0
+  marcarStop: -> @ultimoStop = Date.now()
   nativo: -> window.NativePlayer? and (try window.NativePlayer.isAvailable() catch e then false)
   multi: -> !!(window.NativePlayer?.playVideoFramedSlot? and window.NativePlayer?.stopVideoSlot?)
   capacidade: ->
@@ -782,6 +797,7 @@ videoSlots =
   soltar: (posicao) -> delete @donos[posicao]
   pararTodos: ->
     for posicao, tipo of @donos when tipo == 'nativo'
+      @marcarStop()
       try
         if @multi() then window.NativePlayer.stopVideoSlot(posicao) else window.NativePlayer.stopVideo()
       catch e then null
@@ -979,8 +995,23 @@ criarTimeline = (cfg) ->
 
   # =============== Loop ===============
 
+  # Avanço pedido por erro do nativo: no máximo 1× a cada
+  # AVANCO_POR_ERRO_MIN_MS; o excedente vira um avanço agendado (não some).
+  avancarPorErro: ->
+    return true if @_avancoPorErro
+    falta = AVANCO_POR_ERRO_MIN_MS - (Date.now() - (@_ultimoAvancoPorErro or 0))
+    avancar = =>
+      @_avancoPorErro = null
+      @_ultimoAvancoPorErro = Date.now()
+      @executar()
+    if falta <= 0 then avancar() else @_avancoPorErro = setTimeout(avancar, falta)
+    true
+
   executar: ->
     clearTimeout @promessa if @promessa
+    if @_avancoPorErro
+      clearTimeout @_avancoPorErro
+      @_avancoPorErro = null
 
     # Loader sutil durante a transição — feedback visual de "trocando
     # item" pra evitar falsa sensação de travamento, especialmente
@@ -1158,9 +1189,11 @@ criarTimeline = (cfg) ->
     # player único derrubaria o vídeo da outra região.
     if legado
       if videoSlots.nativo()
+        videoSlots.marcarStop()
         try window.NativePlayer.stopVideo() catch e then null
     else if videoSlots.tipo(cfg.posicao)
       if videoSlots.tipo(cfg.posicao) == 'nativo'
+        videoSlots.marcarStop()
         try
           if videoSlots.multi()
             window.NativePlayer.stopVideoSlot(cfg.posicao)
