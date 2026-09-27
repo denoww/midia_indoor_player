@@ -1,0 +1,64 @@
+# Coloca um APK do Corpflix no relay (public/apks/<canal>/) sem SSH nem SSM
+# local: a porta 22 do EC2 é fechada e o SSM é negado pras credenciais de dev.
+#
+# Fluxo de release (corpflix/CLAUDE.md → "EC2 relay — porta 22 fechada"):
+#   1. aws s3 cp app-release.apk s3://erp-prod-virginia/paperclip-mediaconvert-out/corpflix-deploy/corpflix-X.Y.Z.apk
+#   2. aws s3 presign ... --expires-in 3600
+#   3. gh workflow run 16_prod_baixar_apk.yml -f url='<presigned>' -f nome=corpflix-X.Y.Z.apk -f sha256=<sha>
+#   4. PR com o public/apks/corpflix/update.json apontando pro arquivo + workflow 14 (git pull)
+#
+# As entradas vão dentro do comando remoto: o job `validar` só deixa passar URL
+# do prefixo de deploy, nome no formato corpflix-X.Y.Z.apk e sha hex — sem aspas,
+# espaço ou `;`, então não há como injetar comando.
+name: 16_prod_baixar_apk
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL presigned do S3 (prefixo paperclip-mediaconvert-out/corpflix-deploy/)'
+        required: true
+      nome:
+        description: 'nome do arquivo no relay, ex: corpflix-3.2.76.apk'
+        required: true
+      sha256:
+        description: 'sha256 esperado do APK'
+        required: true
+      canal:
+        description: 'corpflix (produção) ou corpflix-staging'
+        required: false
+        default: corpflix
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: valida entradas
+        env:
+          URL: ${{ inputs.url }}
+          NOME: ${{ inputs.nome }}
+          SHA: ${{ inputs.sha256 }}
+          CANAL: ${{ inputs.canal }}
+        run: |
+          set -eu
+          [[ "$URL" =~ ^https://erp-prod-virginia\.s3(\.us-east-1)?\.amazonaws\.com/paperclip-mediaconvert-out/corpflix-deploy/corpflix-[0-9.]+\.apk\?[A-Za-z0-9._~%=\&-]+$ ]] || { echo "URL fora do padrão"; exit 1; }
+          [[ "$NOME" =~ ^corpflix-[0-9]+\.[0-9]+\.[0-9]+\.apk$ ]] || { echo "nome fora do padrão"; exit 1; }
+          [[ "$SHA" =~ ^[0-9a-f]{64}$ ]] || { echo "sha256 inválido"; exit 1; }
+          [[ "$CANAL" == "corpflix" || "$CANAL" == "corpflix-staging" ]] || { echo "canal inválido"; exit 1; }
+          echo ok
+
+  baixar:
+    needs: validar
+    uses: denoww/github_actions/.github/workflows/rodar_comandos_em_todos_ec2_com_tag.yml@2a3a0859a694fbfc33d617f6072f0d1e89180b18
+    with:
+      aws_region: us-east-1
+      ec2_com_tag: midia_indoor_player
+      remote_cmd: >-
+        set -e ;
+        DEST=/var/lib/midia_indoor_player/public/apks/${{ inputs.canal }}/${{ inputs.nome }} ;
+        curl -fsSL -o "$DEST.tmp" '${{ inputs.url }}' ;
+        echo "${{ inputs.sha256 }}  $DEST.tmp" | sha256sum -c - ;
+        mv "$DEST.tmp" "$DEST" ;
+        chown ubuntu:ubuntu "$DEST" ;
+        ls -la "$DEST"
+    secrets: inherit
