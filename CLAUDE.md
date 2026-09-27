@@ -23,6 +23,7 @@ Spike de egress 17-20h vem majoritariamente do cloud relay — TVs reiniciam, pe
 |---|---|
 | `gh workflow run 14_prod_restart_pm2.yml --repo denoww/midia_indoor_player --ref master` | `git pull` + `npm install` + **restart** do PM2 (zera a fila de download em memória) |
 | `gh workflow run 15_prod_diagnostico_relay.yml --repo denoww/midia_indoor_player --ref master` | **só leitura**: carga, contagem de watchdog/erros de download, últimas linhas do log, arquivos da TV 72. Log: `gh api repos/denoww/midia_indoor_player/actions/jobs/<job>/logs` (o `gh run view --log` volta vazio) |
+| `gh workflow run 16_prod_baixar_apk.yml --repo denoww/midia_indoor_player --ref master -f url=<presigned> -f nome=corpflix-X.Y.Z.apk -f sha256=<sha>` | põe um APK do Corpflix em `public/apks/<canal>/` a partir de URL presigned do S3 (prefixo `paperclip-mediaconvert-out/corpflix-deploy/`), conferindo o sha. Usado na release 3.2.76 — passo a passo em `corpflix/CLAUDE.md` |
 
 Alternativa, se a sua credencial tiver SSM na instância (a de dev é negada), deploy manual via **SSM**:
 
