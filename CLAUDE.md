@@ -117,9 +117,18 @@ no payload e o player posiciona cada região de forma genérica.
 - **Front:** `criarTimeline(cfg)` (`player.coffee`) é a antiga `timelineConteudoSuperior`, agora fábrica. No
   legado continua existindo UMA instância com o nome de sempre; na grade, `timelinesRegioes[posicao]`. As setas
   e `corpflixNext/Prev` usam `timelinePrincipal()`.
-- **Vídeo nativo é recurso disputado** (`videoSlots`): APK com `playVideoFramedSlot`/`maxVideoSlots` → um slot
-  por região até o limite medido; APK antigo → 1 slot, e a região que não pega toca `<video>` HTML5 no WebView.
-  Parar vídeo numa região só para o slot DELA (parar o player único derrubaria o da vizinha).
+- **Vídeo é recurso disputado — e na PROSB é UM por vez** (`videoSlots`). ☠️ Medido em 26/09/2026 na .197:
+  2 decodificadores de hardware ao mesmo tempo (nativo + `<video>` HTML5, ou 2 nativos) travam o driver
+  de vídeo da box — toda troca de vídeo seguinte dá `1003` até **reboot**; 1 HW + 1 software é estável mas
+  o software roda 1080p a ~12 fps. Por isso `capacidade()` é **1** com o APK de campo (sem multi-slot) e
+  o Corpflix 3.2.76+ anuncia `maxVideoSlots() = 1`. As partes **alternam**: quem fica sem vaga entra na
+  fila `querendo` e tem a vez quando a vaga solta (sem isso a parte que só tem vídeo monopolizava); parte
+  mista pula pro próximo item que não seja vídeo. Browser/kiosk sem bridge não tem teto.
+  ⛔ Não suba o teto sem medir na PROSB **recargas** (troca de layout, edição da grade) — o regime estável
+  com 2 vídeos passa; é a recarga que trava. Caminho pra 2 vídeos: vídeo no tamanho da parte (Onda 2 do
+  `ROADMAP_layouts_regioes.md` no ERP) + medir o decodificador de software.
+- **Antes de recarregar a página, `restartBrowser` solta todos os vídeos** (`liberarVideos`, PR #17).
+- Parar vídeo numa região só para o slot DELA (parar o player único derrubaria o da vizinha).
 - **Legado intocado:** o bloco `.content-player` antigo só ganhou `v-if="!regioesPlayer.length"`, e toda regra
   CSS nova casa só com `.layout-grade`. Validado em 25/09 com a TV voltando de grade pra `layout-2`.
 - **Texto do feed escala pela largura da região** (`--esc = w/100`, inline): o CSS do feed é todo em `vw`.
