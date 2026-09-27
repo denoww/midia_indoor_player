@@ -23,7 +23,7 @@
   // da timeline já avança a playlist baseado em `itemAtual.segundos`. Manter
   // este callback registrado evita que `evaluateJavascript("window.onNativeVideoEnded()")`
   // do lado Android lance ReferenceError.
-  var AVANCO_POR_ERRO_MIN_MS, ERRO_POS_STOP_MS, TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, liberarVideos, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, videoSlots,
+  var AVANCO_POR_ERRO_MIN_MS, ERRO_POS_STOP_MS, TETO_VIDEOS_TV, USAR_VIDEO_COM_BLOB_CACHE, aplicarOrientacao, applyScreenSchedule, blobCache, checkAppUpdate, criarTimeline, data, descobrirTimezone, ensureScreenOffOverlayEl, getContentType, hhmmToMinutes, injectSource, isFormElement, keyForUrl, lastTriggeredVc, layoutGrade, liberarVideos, mod, montarRegioes, nativePlayerCandidates, nativePlayerMeasureRect, nativePlayerVideoRect, onLoaded, pendingBlobs, posicoesDaGrade, preAquecerCache, preAquecerImagem, preAquecerMidia, preAquecerSet, preAquecerVideo, reiniciando, relogio, restartBrowser, restartBrowserAposXSegundos, restartPlayerSeNecessario, screenIsActiveNow, screenScheduleLoopStarted, startScreenScheduleLoop, timelinePrincipal, timelinesRegioes, timezoneGlobal, touchStartX, updateContent, updateOnlineStatus, versaoDaGrade, videoPesado, videoSlots,
     indexOf = [].indexOf,
     hasProp = {}.hasOwnProperty;
 
@@ -1070,13 +1070,23 @@
       var base;
       return (base = this.querendo)[posicao] != null ? base[posicao] : base[posicao] = Date.now();
     },
-    temVaga: function(posicao) {
+    // Vídeo SEM a versão 540p ("pesado", o original 1080p) toca SOZINHO: ao lado
+    // de outro vídeo o decodificador de software engasga (~45% de frames perdidos
+    // na PROSB, 27/09/2026). Com os dois em 540p fica em ~5%. Ver versaoDaGrade.
+    pesado: null,
+    temVaga: function(posicao, pesado = false) {
       var agora, k, meu, outros, ref, ts;
       if (this.donos[posicao]) {
         return true;
       }
-      if (!(this.emUso() < this.capacidade())) {
-        return false;
+      if (pesado) {
+        if (this.emUso() !== 0) {
+          return false;
+        }
+      } else {
+        if (!(this.emUso() < this.capacidade() && !this.pesado)) {
+          return false;
+        }
       }
       agora = Date.now();
       ref = this.querendo;
@@ -1105,12 +1115,12 @@
       return (meu != null) && meu <= Math.min(...outros);
     },
     // Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
-    pegar: function(posicao) {
+    pegar: function(posicao, pesado = false) {
       var k, tipo, v;
       if (this.donos[posicao]) {
         return this.donos[posicao];
       }
-      if (!this.temVaga(posicao)) {
+      if (!this.temVaga(posicao, pesado)) {
         return null;
       }
       tipo = !this.nativo() ? 'html5' : this.multi() ? 'nativo' : indexOf.call((function() {
@@ -1124,6 +1134,9 @@
         return results;
       }).call(this), 'nativo') >= 0 ? 'html5' : 'nativo';
       this.donos[posicao] = tipo;
+      if (pesado) {
+        this.pesado = posicao;
+      }
       delete this.querendo[posicao];
       return tipo;
     },
@@ -1131,7 +1144,10 @@
       return this.donos[posicao];
     },
     soltar: function(posicao) {
-      return delete this.donos[posicao];
+      delete this.donos[posicao];
+      if (this.pesado === posicao) {
+        return this.pesado = null;
+      }
     },
     pararTodos: function() {
       var e, posicao, ref, tipo;
@@ -1155,7 +1171,25 @@
       }
       this.donos = {};
       this.querendo = {};
+      this.pesado = null;
     }
+  };
+
+  // Na tela dividida, toca a versão 540p do vídeo quando o relay a tem
+  // (`arquivoUrlReduzido`, vem de `midia.reduzido` no ERP). Cópia rasa: o item da
+  // grade continua com o original, que é o que a tela cheia/layout antigo usa.
+  versaoDaGrade = function(item) {
+    if (!((item != null ? item.is_video : void 0) && item.arquivoUrlReduzido)) {
+      return item;
+    }
+    return Object.assign({}, item, {
+      arquivoUrl: item.arquivoUrlReduzido,
+      reduzido: true
+    });
+  };
+
+  videoPesado = function(item) {
+    return !!((item != null ? item.is_video : void 0) && !item.reduzido);
   };
 
   timelinesRegioes = {};
@@ -1476,17 +1510,20 @@
         itemAtual = this.resolveNextItem({
           consuming: true
         });
+        if (!legado) {
+          itemAtual = versaoDaGrade(itemAtual);
+        }
         // Sem vaga de decodificador (outras regiões já tocam o máximo que o chip
         // aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
         // vídeo, espera 2s e tenta de novo.
-        if ((itemAtual != null ? itemAtual.is_video : void 0) && !legado && !videoSlots.temVaga(cfg.posicao)) {
+        if ((itemAtual != null ? itemAtual.is_video : void 0) && !legado && !videoSlots.temVaga(cfg.posicao, videoPesado(itemAtual))) {
           videoSlots.querer(cfg.posicao);
           tentativas = this.lista().length;
           while ((itemAtual != null ? itemAtual.is_video : void 0) && tentativas > 0) {
             tentativas--;
-            itemAtual = this.resolveNextItem({
+            itemAtual = versaoDaGrade(this.resolveNextItem({
               consuming: true
-            });
+            }));
           }
           if (itemAtual != null ? itemAtual.is_video : void 0) {
             console.log(`${cfg.posicao}: sem vaga de decodificador e só há vídeo — tenta em 2s`);
@@ -1521,6 +1558,9 @@
             consuming: false,
             offset: k
           });
+          if (!legado) {
+            cand = versaoDaGrade(cand);
+          }
           if ((cand != null ? cand.arquivoUrl : void 0) && (cand.is_video || cand.is_image)) {
             preAquecerMidia(cand);
           }
@@ -1560,7 +1600,7 @@
         }
         usarNativo = videoSlots.nativo();
         if (!legado) {
-          tipo = videoSlots.pegar(cfg.posicao);
+          tipo = videoSlots.pegar(cfg.posicao, videoPesado(itemAtual));
           if (!tipo) { // sem vaga (corrida rara com outra região): não toca
             return;
           }

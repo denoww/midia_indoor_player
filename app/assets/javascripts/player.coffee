@@ -792,9 +792,16 @@ videoSlots =
   # 1 vaga, 26/09/2026). Quem espera há mais tempo tem a vez.
   querendo: {}
   querer: (posicao) -> @querendo[posicao] ?= Date.now()
-  temVaga: (posicao) ->
+  # Vídeo SEM a versão 540p ("pesado", o original 1080p) toca SOZINHO: ao lado
+  # de outro vídeo o decodificador de software engasga (~45% de frames perdidos
+  # na PROSB, 27/09/2026). Com os dois em 540p fica em ~5%. Ver versaoDaGrade.
+  pesado: null
+  temVaga: (posicao, pesado = false) ->
     return true if @donos[posicao]
-    return false unless @emUso() < @capacidade()
+    if pesado
+      return false unless @emUso() == 0
+    else
+      return false unless @emUso() < @capacidade() and not @pesado
     agora = Date.now()
     for k, ts of @querendo when agora - ts > 120000
       delete @querendo[k]     # desistiu (trocou de grade, parte sumiu)
@@ -803,18 +810,21 @@ videoSlots =
     meu = @querendo[posicao]
     meu? and meu <= Math.min(outros...)
   # Reserva a vaga e decide o caminho: 'nativo' ou 'html5'. null = sem vaga.
-  pegar: (posicao) ->
+  pegar: (posicao, pesado = false) ->
     return @donos[posicao] if @donos[posicao]
-    return null unless @temVaga(posicao)
+    return null unless @temVaga(posicao, pesado)
     tipo = if not @nativo() then 'html5'
     else if @multi() then 'nativo'
     else if 'nativo' in (v for k, v of @donos) then 'html5'
     else 'nativo'
     @donos[posicao] = tipo
+    @pesado = posicao if pesado
     delete @querendo[posicao]
     tipo
   tipo: (posicao) -> @donos[posicao]
-  soltar: (posicao) -> delete @donos[posicao]
+  soltar: (posicao) ->
+    delete @donos[posicao]
+    @pesado = null if @pesado == posicao
   pararTodos: ->
     for posicao, tipo of @donos when tipo == 'nativo'
       @marcarStop()
@@ -823,7 +833,17 @@ videoSlots =
       catch e then null
     @donos = {}
     @querendo = {}
+    @pesado = null
     return
+
+# Na tela dividida, toca a versão 540p do vídeo quando o relay a tem
+# (`arquivoUrlReduzido`, vem de `midia.reduzido` no ERP). Cópia rasa: o item da
+# grade continua com o original, que é o que a tela cheia/layout antigo usa.
+versaoDaGrade = (item) ->
+  return item unless item?.is_video and item.arquivoUrlReduzido
+  Object.assign({}, item, arquivoUrl: item.arquivoUrlReduzido, reduzido: true)
+
+videoPesado = (item) -> !!(item?.is_video and not item.reduzido)
 
 timelinesRegioes = {}
 
@@ -1049,16 +1069,17 @@ criarTimeline = (cfg) ->
     @stopUltimoVideo() unless legado
 
     itemAtual = @resolveNextItem({ consuming: true })
+    itemAtual = versaoDaGrade(itemAtual) unless legado
 
     # Sem vaga de decodificador (outras regiões já tocam o máximo que o chip
     # aguenta): pula pro próximo item que não seja vídeo. Se a região só tem
     # vídeo, espera 2s e tenta de novo.
-    if itemAtual?.is_video and not legado and not videoSlots.temVaga(cfg.posicao)
+    if itemAtual?.is_video and not legado and not videoSlots.temVaga(cfg.posicao, videoPesado(itemAtual))
       videoSlots.querer(cfg.posicao)
       tentativas = @lista().length
       while itemAtual?.is_video and tentativas > 0
         tentativas--
-        itemAtual = @resolveNextItem({ consuming: true })
+        itemAtual = versaoDaGrade(@resolveNextItem({ consuming: true }))
       if itemAtual?.is_video
         console.log "#{cfg.posicao}: sem vaga de decodificador e só há vídeo — tenta em 2s"
         @promessa = setTimeout (=> @executar()), 2000
@@ -1086,6 +1107,7 @@ criarTimeline = (cfg) ->
 
     for k in [1..preaquecerQtdMidiasAFrente]
       cand = @resolveNextItem({ consuming: false, offset: k })
+      cand = versaoDaGrade(cand) unless legado
       if cand?.arquivoUrl and (cand.is_video or cand.is_image)
         preAquecerMidia(cand)
 
@@ -1119,7 +1141,7 @@ criarTimeline = (cfg) ->
 
     usarNativo = videoSlots.nativo()
     unless legado
-      tipo = videoSlots.pegar(cfg.posicao)
+      tipo = videoSlots.pegar(cfg.posicao, videoPesado(itemAtual))
       return unless tipo   # sem vaga (corrida rara com outra região): não toca
       usarNativo = tipo == 'nativo'
 

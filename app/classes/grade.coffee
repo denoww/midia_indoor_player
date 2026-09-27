@@ -246,9 +246,27 @@ module.exports = ->
       # item.arquivoUrl = item.url || item.filePath
       item.arquivoUrl = item.filePath
 
+      @baixarReduzido(tvId, vinculo, item)
+
       lista[vinculo.posicao].push item
 
 
+      return
+    # Versão 540p do vídeo (ERP ticket #2447, `midia.reduzido`): a tela dividida
+    # só toca 2 vídeos juntos na PROSB com um no decodificador de software, que
+    # só aguenta 540p. Arquivo próprio (`<id>-r<versao>.mp4`) — nunca substitui
+    # o original, que segue tocando em tela cheia/layout antigo.
+    baixarReduzido: (tvId, vinculo, item) ->
+      return unless item.is_video and vinculo.midia.reduzido and vinculo.midia.versao_reduzido
+      nome = "#{vinculo.midia.id}-r#{vinculo.midia.versao_reduzido}.mp4"
+      item.urlReduzido = vinculo.midia.reduzido
+      item.filePathReduzido = "#{getTvFolder(tvId)}/videos/#{nome}"
+      item.arquivoUrlReduzido = item.filePathReduzido
+      # Sem `size`: o tamanho do payload é o do ORIGINAL (o alreadyExists
+      # compararia errado e baixaria de novo em todo refresh).
+      Download.exec
+        url: item.urlReduzido, filePath: item.filePathReduzido
+        is_video: true, nome_arquivo: nome
       return
     handleInformativo: (tvId, vinculo, item, lista=null)->
       return unless vinculo.mensagem
@@ -507,6 +525,12 @@ module.exports = ->
           if precisa
             global.Download?.exec(item)
             enfileirados++
+        if item.filePathReduzido && item.urlReduzido &&
+            !fs.existsSync("#{pastaPublic()}/#{item.filePathReduzido}")
+          global.Download?.exec
+            url: item.urlReduzido, filePath: item.filePathReduzido
+            is_video: true, nome_arquivo: item.filePathReduzido.split('/').pop()
+          enfileirados++
         # DFS — playlists empurram sub-items dentro do próprio item via
         # `lista[posicao]` em handleMidia (ver grade.coffee:241).
         for key in posicoesConteudo(item)
