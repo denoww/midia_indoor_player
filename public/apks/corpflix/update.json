@@ -1,12 +1,12 @@
 {
-  "versionCode": 3273,
-  "versionName": "3.2.73",
-  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.73.apk",
-  "sha256": "1c4e6dd810ad95dcc7926363f820d56272aaa449253647b69348c51ba9c7a5d0",
+  "versionCode": 3276,
+  "versionName": "3.2.76",
+  "url": "https://midiaindoor.seucondominio.com.br:4002/apks/corpflix/corpflix-3.2.76.apk",
+  "sha256": "ccc90b301852fd1c6113b4573152a326921954fcb5e3d99f165113186b496d57",
   "minVersionCode": 0,
   "rolloutPercent": 100,
-  "releaseNotes": "ConfigSetupReceiver: provisiona tv_id por broadcast (instalador de campo Flutter).",
-  "publishedAt": "2026-07-02T15:22:45Z",
+  "releaseNotes": "Tela dividida: 2 vídeos ao mesmo tempo (o 2º fica menos fluido); targetSdk 36.",
+  "publishedAt": "2026-09-27T15:05:52Z",
   "silent": true,
-  "installPolicy": "off-hours"
+  "installPolicy": "manual"
 }
